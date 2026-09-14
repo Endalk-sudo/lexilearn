@@ -1,0 +1,142 @@
+// LexiLearn — Local English Learning Web App
+// Single-user, 100% local, SQLite-backed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Pre-built or custom word lists (TOEFL, IELTS, GRE, Common 5000, user decks…)
+model Deck {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isCustom    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  words       Word[]
+}
+
+// Dictionary entry
+model Word {
+  id         String   @id @default(cuid())
+  word       String
+  pos        String?  // part of speech (noun, verb, adj…)
+  ipa        String?  // IPA transcription
+  syllables  String?  // JSON array of syllables
+  cefr       String?  // A1..C2
+  definitions String? // JSON array of {pos, text}
+  examples   String?  // JSON array of strings
+  synonyms   String?  // JSON array
+  antonyms   String?  // JSON array
+  etymology  String?
+  amharic    String?  // Amharic (አማርኛ) translation / definition
+  deckId     String
+  deck       Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  srsCard    SrsCard?
+  createdAt  DateTime @default(now())
+
+  @@index([deckId])
+  @@index([word])
+}
+
+// Per-word SRS progress (single user, so no userId)
+model SrsCard {
+  wordId          String   @id
+  word            Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  easeFactor      Float    @default(2.5)
+  interval        Int      @default(0)
+  repetitions     Int      @default(0)
+  nextReview      DateTime @default(now())
+  lastReviewed    DateTime?
+  status          String   @default("new") // new | learning | reviewing | mastered
+  totalReviews    Int      @default(0)
+  correctReviews  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([nextReview])
+  @@index([status])
+}
+
+// Per-review log for analytics
+model ReviewLog {
+  id         Int      @id @default(autoincrement())
+  wordId     String
+  word       String
+  deckId     String?
+  grade      Int      // 0=Again, 3=Hard, 4=Good, 5=Easy
+  mode       String   // review | learn | quiz
+  isCorrect  Boolean
+  reviewedAt DateTime @default(now())
+
+  @@index([reviewedAt])
+  @@index([wordId])
+}
+
+// Quiz session log
+model QuizSession {
+  id           String   @id @default(cuid())
+  mode         String   // mc | reverse_mc | typing | spelling_bee | speed_round
+  total        Int
+  correct      Int
+  xpEarned     Int      @default(0)
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+}
+
+// Key-value store for app metadata (streak, totalXp, lastSessionDate, settings…)
+model AppStat {
+  key   String @id
+  value String
+}
+
+// AI Mentor session history (local Ollama)
+model MentorSession {
+  id          String   @id @default(cuid())
+  mode        String   // practice | writing | conversation | explain | reading
+  title       String?
+  prompt      String?
+  response    String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  @@index([mode])
+  @@index([createdAt])
+}
+
+// Personal error / weakness log
+model ErrorLog {
+  id          String   @id @default(cuid())
+  type        String   // grammar | collocation | spelling | word_choice | other
+  original    String
+  corrected   String?
+  explanation String?
+  wordId      String?
+  source      String?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([resolved])
+  @@index([createdAt])
+}
+
+// Generated practice materials
+model PracticeMaterial {
+  id          String   @id @default(cuid())
+  type        String
+  title       String?
+  content     String
+  wordIds     String?
+  deckId      String?
+  difficulty  String?
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+}
