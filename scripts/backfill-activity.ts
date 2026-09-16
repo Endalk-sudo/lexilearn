@@ -1,20 +1,32 @@
 // Backfill some sample historical review logs so the contribution calendar
 // shows activity. This is for demo/verification purposes only.
 //
-// Run: bun run scripts/backfill-activity.ts
+// Run: npx tsx scripts/backfill-activity.ts
 
-import { PrismaClient } from '@prisma/client'
-const db = new PrismaClient()
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { eq } from 'drizzle-orm'
+import { resolveDbPath } from '../src/db/env'
+import * as schema from '../src/db/schema'
+
+const sqlite = new Database(resolveDbPath())
+sqlite.pragma('foreign_keys = ON')
+const db = drizzle(sqlite, { schema })
+const { word, reviewLog, appStat } = schema
+
+async function upsertStat(key: string, value: string) {
+  await db.insert(appStat).values({ key, value }).onConflictDoUpdate({ target: appStat.key, set: { value } })
+}
 
 async function main() {
-  const words = await db.word.findMany({ take: 50 })
+  const words = await db.select().from(word).limit(50)
   if (words.length === 0) {
-    console.log('No words found. Run `bun run scripts/seed.ts` first.')
+    console.log('No words found. Run `pnpm db:seed` first.')
     return
   }
 
   // Clear existing logs (optional — comment out to keep)
-  await db.reviewLog.deleteMany()
+  await db.delete(reviewLog)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -44,31 +56,29 @@ async function main() {
       const reviewedAt = new Date(date)
       reviewedAt.setHours(9 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60), 0, 0)
 
-      await db.reviewLog.create({
-        data: {
-          wordId: word.id,
-          word: word.word,
-          deckId: word.deckId,
-          grade,
-          mode: 'review',
-          isCorrect: grade >= 3,
-          reviewedAt,
-        },
+      await db.insert(reviewLog).values({
+        wordId: word.id,
+        word: word.word,
+        deckId: word.deckId,
+        grade,
+        mode: 'review',
+        isCorrect: grade >= 3,
+        reviewedAt,
       })
       totalLogs++
     }
   }
 
   // Update aggregate stats
-  const totalReviews = await db.reviewLog.count()
-  const totalCorrect = await db.reviewLog.count({ where: { isCorrect: true } })
-  await db.appStat.upsert({ where: { key: 'totalReviews' }, update: { value: String(totalReviews) }, create: { key: 'totalReviews', value: String(totalReviews) } })
-  await db.appStat.upsert({ where: { key: 'totalCorrect' }, update: { value: String(totalCorrect) }, create: { key: 'totalCorrect', value: String(totalCorrect) } })
+  const totalReviews = await db.$count(reviewLog)
+  const totalCorrect = await db.$count(reviewLog, eq(reviewLog.isCorrect, true))
+  await upsertStat('totalReviews', String(totalReviews))
+  await upsertStat('totalCorrect', String(totalCorrect))
 
   // Approximate XP: 1 for Again, 3 for Hard, 5 for Good, 8 for Easy
-  const allLogs = await db.reviewLog.findMany()
+  const allLogs = await db.select().from(reviewLog)
   const xp = allLogs.reduce((sum, l) => sum + (l.grade === 0 ? 1 : l.grade === 3 ? 3 : l.grade === 4 ? 5 : 8), 0)
-  await db.appStat.upsert({ where: { key: 'totalXp' }, update: { value: String(xp) }, create: { key: 'totalXp', value: String(xp) } })
+  await upsertStat('totalXp', String(xp))
 
   // Streak: count consecutive days with activity ending today or yesterday
   const byDay = new Map<string, boolean>()
@@ -84,9 +94,9 @@ async function main() {
     streak++
     cursor.setDate(cursor.getDate() - 1)
   }
-  await db.appStat.upsert({ where: { key: 'streak' }, update: { value: String(streak) }, create: { key: 'streak', value: String(streak) } })
-  await db.appStat.upsert({ where: { key: 'longestStreak' }, update: { value: String(Math.max(streak, 42)) }, create: { key: 'longestStreak', value: String(Math.max(streak, 42)) } })
-  await db.appStat.upsert({ where: { key: 'lastSessionDate' }, update: { value: today.toISOString().slice(0, 10) }, create: { key: 'lastSessionDate', value: today.toISOString().slice(0, 10) } })
+  await upsertStat('streak', String(streak))
+  await upsertStat('longestStreak', String(Math.max(streak, 42)))
+  await upsertStat('lastSessionDate', today.toISOString().slice(0, 10))
 
   console.log(`✅ Backfilled ${totalLogs} review logs across ~10 months`)
   console.log(`   Total reviews: ${totalReviews}`)
@@ -96,4 +106,4 @@ async function main() {
 
 main()
   .catch((e) => { console.error(e); process.exit(1) })
-  .finally(async () => { await db.$disconnect() })
+  .finally(() => { sqlite.close() })

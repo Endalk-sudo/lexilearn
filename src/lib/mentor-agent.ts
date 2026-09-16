@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { mentorProfile, mentorProject, mentorSkillMastery, mentorErrorCard, mentorKnowledge, mentorBranch, mentorNode, mentorAttempt, mentorFeedback, mentorTurn, mentorWeeklyReport, pronunciationAttempt, naturalnessAttempt, appStat, reviewLog } from '@/db/schema'
+import { eq, lte, asc, desc, isNull, gte, sql } from 'drizzle-orm'
 import { ollamaChat, ollamaEmbed, MENTOR_SYSTEM } from '@/lib/ollama'
 
 const QuestionSchema = z.object({
@@ -120,7 +122,7 @@ function cosine(a: number[], b: number[]) {
 }
 
 export async function retrieveKnowledge(query: string, tag?: string, limit = 4) {
-  const chunks = await db.mentorKnowledge.findMany({ where: tag ? { tag } : undefined, take: 80 })
+  const chunks = await db.select().from(mentorKnowledge).where(tag ? eq(mentorKnowledge.tag, tag) : undefined).limit(80)
   if (!chunks.length) return []
   try {
     const [q] = await ollamaEmbed(query)
@@ -132,9 +134,9 @@ export async function retrieveKnowledge(query: string, tag?: string, limit = 4) 
 }
 
 export async function ensureMentorSeed() {
-  const profile = await db.mentorProfile.findUnique({ where: { id: 1 } })
-  if (!profile) await db.mentorProfile.create({ data: { id: 1, goals: JSON.stringify(['Improve English accuracy and fluency']), preferences: JSON.stringify({ tone:'direct', variant:'international' }), notes:'' } })
-  const count = await db.mentorKnowledge.count()
+  const profile = await db.select().from(mentorProfile).where(eq(mentorProfile.id, 1)).get()
+  if (!profile) await db.insert(mentorProfile).values({ id: 1, goals: JSON.stringify(['Improve English accuracy and fluency']), preferences: JSON.stringify({ tone:'direct', variant:'international' }), notes:'' })
+  const count = await db.$count(mentorKnowledge)
   if (count > 0) return
   const rules = [
     ['past_tense','Simple past','Use the simple past for completed actions at a finished time in the past. Irregular verbs must be memorized: see → saw → seen.'],
@@ -146,15 +148,15 @@ export async function ensureMentorSeed() {
   ]
   for (const [tag,title,content] of rules) {
     const embedding: string | null = null
-    await db.mentorKnowledge.create({ data: { tag, title, content, embedding, source: 'LexiLearn built-in grammar notes' } })
+    await db.insert(mentorKnowledge).values({ tag, title, content, embedding, source: 'LexiLearn built-in grammar notes' })
   }
 }
 
 async function learnerContext(focusTag: string) {
   const [profile, mastery, errors] = await Promise.all([
-    db.mentorProfile.findUnique({ where: { id: 1 } }),
-    db.mentorSkillMastery.findMany({ orderBy: { mastery: 'asc' }, take: 12 }),
-    db.mentorErrorCard.findMany({ where: { dueAt: { lte: new Date() } }, orderBy: { dueAt: 'asc' }, take: 8 }),
+    db.select().from(mentorProfile).where(eq(mentorProfile.id, 1)).get(),
+    db.select().from(mentorSkillMastery).orderBy(asc(mentorSkillMastery.mastery)).limit(12),
+    db.select().from(mentorErrorCard).where(lte(mentorErrorCard.dueAt, new Date())).orderBy(asc(mentorErrorCard.dueAt)).limit(8),
   ])
   const focused = mastery.find(m => m.tag === focusTag)
   return { profile, mastery, focused, errors }
@@ -162,14 +164,19 @@ async function learnerContext(focusTag: string) {
 
 export async function generateNextNode(branchId: string) {
   await ensureMentorSeed()
-  const branch = await db.mentorBranch.findUnique({ where: { id: branchId }, include: { project: true } })
+  const branch = await db.query.mentorBranch.findFirst({ where: eq(mentorBranch.id, branchId), with: { project: true } })
   if (!branch) throw new Error('Branch not found')
-  const latest = await db.mentorNode.findFirst({ where: { branchId }, orderBy: { createdAt: 'desc' }, include: { attempts: { include: { feedback: true }, orderBy: { createdAt:'desc' }, take: 1 } } })
+  const latest = await db.query.mentorNode.findFirst({
+    where: eq(mentorNode.branchId, branchId),
+    orderBy: [desc(mentorNode.createdAt)],
+    with: { attempts: { with: { feedback: true } } },
+  })
+  const latestWithAttempt = latest ? { ...latest, attempts: [...(latest.attempts ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 1) } : null
   const ctx = await learnerContext(branch.focusTag)
   const rules = await retrieveKnowledge(`English learning rule for ${branch.focusTag}`, branch.focusTag, 3)
   const prompt = `Create the NEXT single focused learning node. Branch focus: ${branch.focusTag}. Mode: ${branch.mode}. Difficulty ceiling: ${branch.difficultyCeiling}.
 Learner focus mastery: ${ctx.focused?.mastery ?? 0.5}. Due errors: ${JSON.stringify(ctx.errors.map(e=>({tag:e.tag,errorType:e.errorType,wrong:e.wrong,right:e.right})))}.
-Recent node: ${latest ? JSON.stringify({prompt:latest.prompt,attempt:latest.attempts[0]?.answer,feedback:latest.attempts[0]?.feedback?.explanation}) : 'none'}.
+Recent node: ${latestWithAttempt ? JSON.stringify({prompt:latestWithAttempt.prompt,attempt:latestWithAttempt.attempts[0]?.answer,feedback:latestWithAttempt.attempts[0]?.feedback?.explanation}) : 'none'}.
 Relevant grammar notes: ${rules.map(r=>r.content).join('\n')}
 Rules: one question only; do not reveal the answer; target 1-2 skills; aim for ~80-85% success; vary context; interleave up to 30% due-error review.`
   let result: any
@@ -185,20 +192,21 @@ Rules: one question only; do not reveal the answer; target 1-2 skills; aim for ~
     }[branch.focusTag as keyof typeof fallback] ?? ['Write one natural sentence using the target skill.', [''], ['Start with a short, clear sentence.','Focus only on the branch skill.']]
     result = { action:'question', node:{ kind:'question', prompt:fallback[0], target_tags:[branch.focusTag], difficulty:Math.min(branch.difficultyCeiling, Math.max(1, Math.round((ctx.focused?.mastery ?? .5)*5))), expected_patterns:fallback[1], hints:fallback[2] }, focus:branch.focusTag, reason:'Local fallback question because the model response could not be validated.' }
   }
-  const node = await db.mentorNode.create({ data: {
+  const nodeRows = await db.insert(mentorNode).values({
     branchId, kind: result.node.kind, prompt: result.node.prompt,
     expectedPatterns: JSON.stringify(result.node.expected_patterns), hints: JSON.stringify(result.node.hints),
     targetTags: JSON.stringify(result.node.target_tags), difficulty: result.node.difficulty,
-  } })
-  await db.mentorTurn.create({ data: { branchId, nodeId: node.id, role:'mentor', content:result.node.prompt, meta:JSON.stringify({ action:'question', focus:result.focus }) } })
+  }).returning()
+  const node = nodeRows[0]
+  await db.insert(mentorTurn).values({ branchId, nodeId: node.id, role:'mentor', content: result.node.prompt, meta: JSON.stringify({ action:'question', focus: result.focus }) })
   return node
 }
 
-async function getStatLocal(key:string, fallback=''){ const row=await db.appStat.findUnique({where:{key}}); return row?.value ?? fallback }
-async function setStatLocal(key:string, value:string){ await db.appStat.upsert({where:{key},update:{value},create:{key,value}}) }
+async function getStatLocal(key:string, fallback=''){ const row=await db.select().from(appStat).where(eq(appStat.key, key)).get(); return row?.value ?? fallback }
+async function setStatLocal(key:string, value:string){ await db.insert(appStat).values({ key, value }).onConflictDoUpdate({ target: appStat.key, set: { value } }) }
 
 export async function evaluateAttempt(attemptId: string) {
-  const attempt = await db.mentorAttempt.findUnique({ where: { id: attemptId }, include: { node:true, branch:true } })
+  const attempt = await db.query.mentorAttempt.findFirst({ where: eq(mentorAttempt.id, attemptId), with: { node: true, branch: true } })
   if (!attempt) throw new Error('Attempt not found')
   await ensureMentorSeed()
   const patterns = JSON.parse(attempt.node.expectedPatterns || '[]')
@@ -215,7 +223,7 @@ export async function evaluateAttempt(attemptId: string) {
     diagnosis = { error_types: correct ? [] : ['needs_review'], root_cause: correct ? 'Pattern appears understood.' : 'The target pattern was not reproduced accurately.', confidence: 0.65, evidence: [attempt.answer], recommended_action: correct ? 'new_question' : 'drill' }
     feedback = { action:'feedback', scores:{ grammar:correct?1:.5, spelling:correct?1:.8, naturalness:correct?1:.6, register:1, pragmatics:1, task_completion:correct?1:.5 }, corrections:correct?[]:[{wrong:attempt.answer,right:String(expected),type:tags[0]||'target_skill'}], diff:[{text:attempt.answer,status:correct?'ok':'error',fix:correct?undefined:String(expected)}], explanation:correct?'The target pattern is correct. Next, use the same skill in a new context.':`The target answer is “${expected}”. Compare it with your self-correction and notice the pattern.`, native_version:String(correct?attempt.answer:expected), follow_up:`Try another example using ${tags[0]||'this skill'}.`, mastery_delta:{[tags[0]||'general'] : correct ? 0.05 : -0.03} }
   }
-  await db.mentorFeedback.create({ data:{ attemptId, scores:JSON.stringify(feedback.scores), corrections:JSON.stringify(feedback.corrections), explanation:feedback.explanation, nativeVersion:feedback.native_version, followUp:feedback.follow_up, diff:JSON.stringify(feedback.diff), masteryDelta:JSON.stringify(feedback.mastery_delta), diagnosis:JSON.stringify(diagnosis), rawJson:JSON.stringify(feedback) } })
+  await db.insert(mentorFeedback).values({ attemptId, scores: JSON.stringify(feedback.scores), corrections: JSON.stringify(feedback.corrections), explanation: feedback.explanation, nativeVersion: feedback.native_version, followUp: feedback.follow_up, diff: JSON.stringify(feedback.diff), masteryDelta: JSON.stringify(feedback.mastery_delta), diagnosis: JSON.stringify(diagnosis), rawJson: JSON.stringify(feedback) })
   const scoreValues = Object.values(feedback.scores) as number[]
   const score = scoreValues.reduce((a,b)=>a+b,0) / Math.max(1, scoreValues.length)
   const mentorGrade = score >= 0.88 ? 5 : score >= 0.72 ? 4 : score >= 0.5 ? 3 : 0
@@ -232,29 +240,39 @@ export async function evaluateAttempt(attemptId: string) {
   }
   for (const tag of tags.length ? tags : Object.keys(feedback.mastery_delta)) {
     const delta = feedback.mastery_delta[tag] ?? (score >= 0.75 ? 0.05 : -0.03)
-    const existing = await db.mentorSkillMastery.findUnique({ where:{tag} })
+    const existing = await db.select().from(mentorSkillMastery).where(eq(mentorSkillMastery.tag, tag)).get()
     const mastery = Math.max(0, Math.min(1, (existing?.mastery ?? 0.5) + delta))
-    await db.mentorSkillMastery.upsert({ where:{tag}, update:{ mastery, attempts:{increment:1}, correct:{increment: score >= 0.75 ? 1 : 0}, lastSeen:new Date(), nextReview:new Date(Date.now()+Math.max(1, Math.round((score>=0.75?3:1))*86400000)) }, create:{tag, mastery, attempts:1, correct:score>=0.75?1:0, lastSeen:new Date(), nextReview:new Date(Date.now()+86400000)} })
+    await db.insert(mentorSkillMastery).values({ tag, mastery, attempts: 1, correct: score >= 0.75 ? 1 : 0, lastSeen: new Date(), nextReview: new Date(Date.now() + 86400000) }).onConflictDoUpdate({
+      target: mentorSkillMastery.tag,
+      set: {
+        mastery,
+        attempts: sql`${mentorSkillMastery.attempts} + 1`,
+        correct: sql`${mentorSkillMastery.correct} + ${score >= 0.75 ? 1 : 0}`,
+        lastSeen: new Date(),
+        nextReview: new Date(Date.now() + Math.max(1, Math.round((score >= 0.75 ? 3 : 1)) * 86400000)),
+      },
+    })
   }
   for (const c of feedback.corrections.slice(0, 5)) {
-    await db.mentorErrorCard.create({ data:{ tag:tags[0] || c.type, errorType:c.type, wrong:c.wrong, right:c.right, context:attempt.node.prompt, dueAt:new Date(Date.now()+86400000) } })
+    await db.insert(mentorErrorCard).values({ tag: tags[0] || c.type, errorType: c.type, wrong: c.wrong, right: c.right, context: attempt.node.prompt, dueAt: new Date(Date.now() + 86400000) })
   }
-  await db.mentorTurn.create({ data:{ branchId:attempt.branchId, nodeId:attempt.nodeId, role:'learner', content:attempt.answer, meta:JSON.stringify({ attemptId }) } })
-  await db.mentorTurn.create({ data:{ branchId:attempt.branchId, nodeId:attempt.nodeId, role:'mentor', content:feedback.explanation, meta:JSON.stringify({ action:'feedback', attemptId }) } })
+  await db.insert(mentorTurn).values({ branchId: attempt.branchId, nodeId: attempt.nodeId, role: 'learner', content: attempt.answer, meta: JSON.stringify({ attemptId }) })
+  await db.insert(mentorTurn).values({ branchId: attempt.branchId, nodeId: attempt.nodeId, role: 'mentor', content: feedback.explanation, meta: JSON.stringify({ action: 'feedback', attemptId }) })
   return { diagnosis, feedback, score, xpGain, grade: mentorGrade }
 }
 
 export async function getMentorOverview() {
   await ensureMentorSeed()
-  let project = await db.mentorProject.findFirst({ orderBy:{createdAt:'asc'} })
+  let project = await db.query.mentorProject.findFirst({ orderBy: (t, { asc }) => [asc(t.createdAt)] })
   if (!project) {
-    project = await db.mentorProject.create({ data:{ name:'English Mastery', goal:'Build accurate, natural English through focused practice.' } })
-    await db.mentorBranch.create({ data:{ projectId:project.id, title:'Grammar Core', focusTag:'past_tense', mode:'drill', difficultyCeiling:3, locked:true } })
+    const projectRows = await db.insert(mentorProject).values({ name:'English Mastery', goal:'Build accurate, natural English through focused practice.' }).returning()
+    project = projectRows[0]
+    await db.insert(mentorBranch).values({ projectId: project.id, title:'Grammar Core', focusTag:'past_tense', mode:'drill', difficultyCeiling:3, locked:true })
   }
-  const branches = await db.mentorBranch.findMany({ where:{projectId:project.id}, orderBy:{createdAt:'asc'} })
-  const mastery = await db.mentorSkillMastery.findMany({ orderBy:{mastery:'asc'}, take:20 })
-  const dueErrors = await db.mentorErrorCard.findMany({ where:{dueAt:{lte:new Date()}}, orderBy:{dueAt:'asc'}, take:12 })
-  const profile = await db.mentorProfile.findUnique({ where:{id:1} })
+  const branches = await db.select().from(mentorBranch).where(eq(mentorBranch.projectId, project.id)).orderBy(asc(mentorBranch.createdAt))
+  const mastery = await db.select().from(mentorSkillMastery).orderBy(asc(mentorSkillMastery.mastery)).limit(20)
+  const dueErrors = await db.select().from(mentorErrorCard).where(lte(mentorErrorCard.dueAt, new Date())).orderBy(asc(mentorErrorCard.dueAt)).limit(12)
+  const profile = await db.select().from(mentorProfile).where(eq(mentorProfile.id, 1)).get()
   return { project, branches, mastery, dueErrors, profile }
 }
 
@@ -277,7 +295,7 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
   monday.setDate(monday.getDate() - day + 1)
   monday.setHours(0,0,0,0)
   const weekKey = monday.toISOString().slice(0,10)
-  const cached = await db.mentorWeeklyReport.findUnique({ where: { weekKey } })
+  const cached = await db.select().from(mentorWeeklyReport).where(eq(mentorWeeklyReport.weekKey, weekKey)).get()
   if (cached) {
     return { cached: true, weekKey, report: {
       summary: cached.summary,
@@ -288,10 +306,10 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
   }
   const since = new Date(monday)
   const [attempts, mastery, errors, reviews] = await Promise.all([
-    db.mentorAttempt.findMany({ where: { createdAt: { gte: since } }, include: { feedback: true, node: true }, orderBy: { createdAt: 'asc' }, take: 200 }),
-    db.mentorSkillMastery.findMany({ orderBy: { mastery: 'asc' }, take: 30 }),
-    db.mentorErrorCard.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'asc' }, take: 100 }),
-    db.reviewLog.findMany({ where: { reviewedAt: { gte: since } }, take: 500 }),
+    db.query.mentorAttempt.findMany({ where: gte(mentorAttempt.createdAt, since), with: { feedback: true, node: true }, orderBy: (t, { asc }) => [asc(t.createdAt)], limit: 200 }),
+    db.select().from(mentorSkillMastery).orderBy(asc(mentorSkillMastery.mastery)).limit(30),
+    db.select().from(mentorErrorCard).where(gte(mentorErrorCard.createdAt, since)).orderBy(asc(mentorErrorCard.createdAt)).limit(100),
+    db.select().from(reviewLog).where(gte(reviewLog.reviewedAt, since)).limit(500),
   ])
   const evidence = {
     mentorAttempts: attempts.map(a => ({ answer:a.answer, confidence:a.confidence, feedback:a.feedback ? { scores:a.feedback.scores, diagnosis:a.feedback.diagnosis, corrections:a.feedback.corrections } : null, target:a.node.targetTags })),
@@ -314,7 +332,7 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
       next_focus: weak.slice(0,2).map(m=>m.tag), action_plan:['Do one focused Mentor session daily.','Review due error cards before learning new material.','Use Speak practice for one sentence you want to make automatic.']
     }
   }
-  await db.mentorWeeklyReport.create({ data:{ weekKey, summary:report.summary, strengths:JSON.stringify(report.strengths), weaknesses:JSON.stringify(report.weaknesses), topErrors:JSON.stringify(report.top_errors), confidence:JSON.stringify(report.confidence), nextFocus:JSON.stringify(report.next_focus), actionPlan:JSON.stringify(report.action_plan) } })
+  await db.insert(mentorWeeklyReport).values({ weekKey, summary:report.summary, strengths:JSON.stringify(report.strengths), weaknesses:JSON.stringify(report.weaknesses), topErrors:JSON.stringify(report.top_errors), confidence:JSON.stringify(report.confidence), nextFocus:JSON.stringify(report.next_focus), actionPlan:JSON.stringify(report.action_plan) })
   return { cached:false, weekKey, report }
 }
 
@@ -329,7 +347,8 @@ export async function evaluatePronunciation(target: string, transcript: string) 
   let feedback:any
   try { feedback = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Evaluate pronunciation practice using only this speech-to-text evidence. Target: ${target}\nHeard: ${transcript}\nMissing words: ${JSON.stringify(missing)}\nExtra words: ${JSON.stringify(extra)}\nGive actionable pronunciation feedback without pretending you heard phonemes.`}], PronunciationSchema, 0.2) }
   catch { feedback = { verdict: accuracy>=.9?'Clear':accuracy>=.7?'Mostly clear':'Needs another attempt', feedback: accuracy>=.9?'The transcript closely matches the target. Focus on rhythm and natural stress.':`Try again and aim to say the whole phrase clearly. ${missing.length ? `You may be dropping: ${missing.slice(0,3).join(', ')}.`:''}`, focus: missing[0] || 'stress and rhythm' } }
-  const saved = await db.pronunciationAttempt.create({data:{target,transcript,accuracy,missingWords:JSON.stringify(missing),extraWords:JSON.stringify(extra),feedback:JSON.stringify(feedback)}})
+  const savedRows = await db.insert(pronunciationAttempt).values({ target, transcript, accuracy, missingWords: JSON.stringify(missing), extraWords: JSON.stringify(extra), feedback: JSON.stringify(feedback) }).returning()
+  const saved = savedRows[0]
   return { id:saved.id, accuracy, missingWords:missing, extraWords:extra, ...feedback }
 }
 
@@ -338,6 +357,7 @@ export async function evaluateNaturalness(input: string) {
   let result:any
   try { result = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Judge how natural this English sentence sounds to a proficient native speaker. Preserve the intended meaning. Score naturalness 0-1. Provide one native version, 2 alternatives, a short explanation, and a verdict. Sentence: ${input}`}], NaturalnessSchema, 0.15) }
   catch { result = { score:0.7, verdict:'Understandable but can sound more natural', native:input, alternatives:[input], explanation:'Try using the common collocation and word order native speakers usually choose.' } }
-  const saved = await db.naturalnessAttempt.create({data:{input,score:result.score,verdict:result.verdict,native:result.native,alternatives:JSON.stringify(result.alternatives||[]),explanation:result.explanation}})
+  const savedRows = await db.insert(naturalnessAttempt).values({ input, score: result.score, verdict: result.verdict, native: result.native, alternatives: JSON.stringify(result.alternatives || []), explanation: result.explanation }).returning()
+  const saved = savedRows[0]
   return { id:saved.id, ...result }
 }

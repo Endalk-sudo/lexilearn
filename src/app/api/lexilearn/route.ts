@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { deck, word, srsCard, reviewLog, quizSession, appStat, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
+import { eq, gt, gte, lt, lte, and, isNull, notExists, asc, desc, like, sql } from 'drizzle-orm'
 import { calculateSm2, type Grade } from '@/lib/srs'
 import { v4 as uuid } from 'uuid'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/lib/mentor-agent'
@@ -64,13 +66,18 @@ function safeParse<T>(s: string, fallback: T): T {
   try { return JSON.parse(s) as T } catch { return fallback }
 }
 
+/** Drizzle equivalent of Prisma's `where: { srsCard: null }` (words without an SRS card). */
+function wordHasNoSrsCard() {
+  return notExists(db.select({ d: sql`1` }).from(srsCard).where(eq(srsCard.wordId, word.id)))
+}
+
 async function getStat(key: string, fallback = ''): Promise<string> {
-  const row = await db.appStat.findUnique({ where: { key } })
+  const row = await db.select().from(appStat).where(eq(appStat.key, key)).get()
   return row?.value ?? fallback
 }
 
 async function setStat(key: string, value: string): Promise<void> {
-  await db.appStat.upsert({ where: { key }, update: { value }, create: { key, value } })
+  await db.insert(appStat).values({ key, value }).onConflictDoUpdate({ target: appStat.key, set: { value } })
 }
 
 function toSrsDto(c: any): SrsCardDTO {
@@ -122,9 +129,9 @@ async function updateStreakAndXp(grade: Grade) {
 }
 
 async function submitReview(wordId: string, grade: Grade, mode: string = 'review') {
-  const existing = await db.srsCard.findUnique({ where: { wordId } })
-  const word = await db.word.findUnique({ where: { id: wordId } })
-  if (!word) return
+  const existing = await db.select().from(srsCard).where(eq(srsCard.wordId, wordId)).get()
+  const wordRow = await db.select().from(word).where(eq(word.id, wordId)).get()
+  if (!wordRow) return
 
   const baseCard = existing
     ? {
@@ -150,20 +157,19 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
 
   const updated = calculateSm2(baseCard as any, grade)
 
-  await db.srsCard.upsert({
-    where: { wordId },
-    update: {
-      easeFactor: updated.easeFactor,
-      interval: updated.interval,
-      repetitions: updated.repetitions,
-      lastReviewed: updated.lastReviewed,
-      nextReview: updated.nextReview,
-      status: updated.status,
-      totalReviews: updated.totalReviews,
-      correctReviews: updated.correctReviews,
-    },
-    create: {
-      wordId,
+  await db.insert(srsCard).values({
+    wordId,
+    easeFactor: updated.easeFactor,
+    interval: updated.interval,
+    repetitions: updated.repetitions,
+    lastReviewed: updated.lastReviewed,
+    nextReview: updated.nextReview,
+    status: updated.status,
+    totalReviews: updated.totalReviews,
+    correctReviews: updated.correctReviews,
+  }).onConflictDoUpdate({
+    target: srsCard.wordId,
+    set: {
       easeFactor: updated.easeFactor,
       interval: updated.interval,
       repetitions: updated.repetitions,
@@ -175,15 +181,13 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
     },
   })
 
-  await db.reviewLog.create({
-    data: {
-      wordId,
-      word: word.word,
-      deckId: word.deckId,
-      grade,
-      mode,
-      isCorrect: grade >= 3,
-    },
+  await db.insert(reviewLog).values({
+    wordId,
+    word: wordRow.word,
+    deckId: wordRow.deckId,
+    grade,
+    mode,
+    isCorrect: grade >= 3,
   })
 
   await updateStreakAndXp(grade)
@@ -191,29 +195,27 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
 
 async function createCustomDeck(name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; amharic?: string }[]) {
   const deckId = uuid()
-  const deck = await db.deck.create({ data: { id: deckId, name, description, isCustom: true } })
+  await db.insert(deck).values({ id: deckId, name, description, isCustom: true })
 
   for (const w of words) {
     if (!w.word || !w.word.trim()) continue
-    await db.word.create({
-      data: {
-        id: uuid(),
-        word: w.word.trim().toLowerCase(),
-        pos: w.pos ?? null,
-        ipa: w.ipa ?? null,
-        definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
-        examples: w.example ? JSON.stringify([w.example]) : null,
-        syllables: null,
-        cefr: null,
-        synonyms: null,
-        antonyms: null,
-        etymology: null,
-        amharic: w.amharic ?? null,
-        deckId: deck.id,
-      },
+    await db.insert(word).values({
+      id: uuid(),
+      word: w.word.trim().toLowerCase(),
+      pos: w.pos ?? null,
+      ipa: w.ipa ?? null,
+      definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
+      examples: w.example ? JSON.stringify([w.example]) : null,
+      syllables: null,
+      cefr: null,
+      synonyms: null,
+      antonyms: null,
+      etymology: null,
+      amharic: w.amharic ?? null,
+      deckId: deckId,
     })
   }
-  return { id: deck.id, count: words.length }
+  return { id: deckId, count: words.length }
 }
 
 function pickRandom<T>(arr: T[], n: number): T[] {
@@ -227,10 +229,8 @@ function pickRandom<T>(arr: T[], n: number): T[] {
 }
 
 async function generateQuiz(deckId: string | null, mode: string, count: number) {
-  const words = await db.word.findMany({
-    where: deckId ? { deckId } : {},
-    include: { srsCard: true },
-  })
+  const wordRows = await db.select({ w: word, srs: srsCard }).from(word).leftJoin(srsCard, eq(srsCard.wordId, word.id)).where(deckId ? eq(word.deckId, deckId) : undefined)
+  const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
   if (words.length < 4) return []
 
   const sample = pickRandom(words, Math.min(count, words.length))
@@ -292,14 +292,14 @@ async function getDashboardStats() {
   endOfToday.setHours(23, 59, 59, 999)
 
   const [dueCount, newCardsCount, todayLogs, mastered, learning, reviewing, totalWords, allLogs] = await Promise.all([
-    db.srsCard.count({ where: { nextReview: { lte: now } } }),
-    db.word.count({ where: { srsCard: null } }),
-    db.reviewLog.findMany({ where: { reviewedAt: { gte: startOfToday, lte: endOfToday } } }),
-    db.srsCard.count({ where: { status: 'mastered' } }),
-    db.srsCard.count({ where: { status: 'learning' } }),
-    db.srsCard.count({ where: { status: 'reviewing' } }),
-    db.word.count(),
-    db.reviewLog.findMany({ orderBy: { reviewedAt: 'asc' } }),
+    db.$count(srsCard, lte(srsCard.nextReview, now)),
+    db.$count(word, wordHasNoSrsCard()),
+    db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, startOfToday), lte(reviewLog.reviewedAt, endOfToday))),
+    db.$count(srsCard, eq(srsCard.status, 'mastered')),
+    db.$count(srsCard, eq(srsCard.status, 'learning')),
+    db.$count(srsCard, eq(srsCard.status, 'reviewing')),
+    db.$count(word),
+    db.select().from(reviewLog).orderBy(asc(reviewLog.reviewedAt)),
   ])
 
   const streak = parseInt(await getStat('streak', '0'), 10) || 0
@@ -311,7 +311,7 @@ async function getDashboardStats() {
   const streakShieldUsedDate = await getStat('streakShieldUsedDate', '')
   const todayKey = new Date().toISOString().slice(0, 10)
   const challengeClaimedDate = await getStat('challengeClaimedDate', '')
-  const todayQuizSessions = await db.quizSession.findMany({ where: { completedAt: { gte: startOfToday, lte: endOfToday } } })
+  const todayQuizSessions = await db.select().from(quizSession).where(and(gte(quizSession.completedAt, startOfToday), lte(quizSession.completedAt, endOfToday)))
   const todayCorrect = todayLogs.filter((l) => l.isCorrect).length + todayQuizSessions.reduce((sum, q) => sum + q.correct, 0)
   const xpTodayFromReviews = todayLogs.reduce((sum, l) => sum + (l.grade === 5 ? 8 : l.grade === 4 ? 5 : l.grade >= 3 ? 3 : 1), 0)
   const xpToday = xpTodayFromReviews + todayQuizSessions.reduce((sum, q) => sum + q.xpEarned, 0)
@@ -345,7 +345,7 @@ async function getDashboardStats() {
     d.setDate(d.getDate() + i)
     const next = new Date(d)
     next.setDate(d.getDate() + 1)
-    const count = await db.srsCard.count({ where: { nextReview: { gte: d, lt: next } } })
+    const count = await db.$count(srsCard, and(gte(srsCard.nextReview, d), lt(srsCard.nextReview, next)))
     forecast.push({ date: d.toISOString().slice(0, 10), count })
   }
 
@@ -422,14 +422,23 @@ async function getDashboardStats() {
 }
 
 async function getAnalytics() {
-  const [decks, allLogsAsc, quizSessions, cards, totalWords, newWords] = await Promise.all([
-    db.deck.findMany({ include: { words: { include: { srsCard: true } } } }),
-    db.reviewLog.findMany({ orderBy: { reviewedAt: 'asc' } }),
-    db.quizSession.findMany({ orderBy: { completedAt: 'desc' }, take: 20 }),
-    db.srsCard.findMany(),
-    db.word.count(),
-    db.word.count({ where: { srsCard: null } }),
+  const [deckRows, allLogsAsc, quizSessions, cards, totalWords, newWords] = await Promise.all([
+    db.select().from(deck),
+    db.select().from(reviewLog).orderBy(asc(reviewLog.reviewedAt)),
+    db.select().from(quizSession).orderBy(desc(quizSession.completedAt)).limit(20),
+    db.select().from(srsCard),
+    db.$count(word),
+    db.$count(word, wordHasNoSrsCard()),
   ])
+  // Attach words (+ their SRS cards) per deck so perDeck keeps its Prisma shape
+  const wordsWithSrs = await db.select({ w: word, srs: srsCard }).from(word).leftJoin(srsCard, eq(srsCard.wordId, word.id))
+  const wordsByDeck = new Map<string, any[]>()
+  for (const r of wordsWithSrs) {
+    const list = wordsByDeck.get(r.w.deckId) ?? []
+    list.push({ ...r.w, srsCard: r.srs })
+    wordsByDeck.set(r.w.deckId, list)
+  }
+  const decks = deckRows.map((d) => ({ ...d, words: (wordsByDeck.get(d.id) ?? []) }))
   // Recent 100 for the activity feed (desc order)
   const allLogs = [...allLogsAsc].reverse().slice(0, 100)
 
@@ -540,41 +549,38 @@ export async function GET(req: NextRequest) {
     switch (action) {
       case 'due': {
         const now = new Date()
-        const cards = await db.srsCard.findMany({
-          where: { nextReview: { lte: now } },
-          take: limit,
-          orderBy: { nextReview: 'asc' },
-          include: { word: true },
-        })
-        return NextResponse.json(cards.map((c) => ({ word: parseWord(c.word), srs: toSrsDto(c) })))
+        const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
+          .innerJoin(word, eq(srsCard.wordId, word.id))
+          .where(lte(srsCard.nextReview, now))
+          .orderBy(asc(srsCard.nextReview))
+          .limit(limit)
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: toSrsDto(r.c) })))
       }
 
       case 'new': {
-        const words = await db.word.findMany({
-          where: deckId ? { deckId } : {},
-          take: limit * 3,
-          orderBy: { createdAt: 'asc' },
-          include: { srsCard: true },
-        })
-        const fresh = words.filter((w) => !w.srsCard).slice(0, limit)
-        return NextResponse.json(fresh.map((w) => ({ word: parseWord(w), srs: null })))
+        const rows = await db.select({ w: word, srs: srsCard }).from(word)
+          .leftJoin(srsCard, eq(srsCard.wordId, word.id))
+          .where(deckId ? eq(word.deckId, deckId) : undefined)
+          .orderBy(asc(word.createdAt))
+          .limit(limit * 3)
+        const fresh = rows.filter((r) => !r.srs).slice(0, limit)
+        return NextResponse.json(fresh.map((r) => ({ word: parseWord(r.w), srs: null })))
       }
 
       case 'reviewable': {
-        const words = await db.word.findMany({
-          where: deckId ? { deckId } : {},
-          take: limit * 2,
-          orderBy: { createdAt: 'asc' },
-          include: { srsCard: true },
-        })
+        const rows = await db.select({ w: word, srs: srsCard }).from(word)
+          .leftJoin(srsCard, eq(srsCard.wordId, word.id))
+          .where(deckId ? eq(word.deckId, deckId) : undefined)
+          .orderBy(asc(word.createdAt))
+          .limit(limit * 2)
         const result: CardWithWord[] = []
-        for (const w of words) {
-          if (w.srsCard) {
-            if (w.srsCard.nextReview <= new Date()) {
-              result.push({ word: parseWord(w), srs: toSrsDto(w.srsCard) })
+        for (const r of rows) {
+          if (r.srs) {
+            if (r.srs.nextReview <= new Date()) {
+              result.push({ word: parseWord(r.w), srs: toSrsDto(r.srs) })
             }
           } else {
-            result.push({ word: parseWord(w), srs: null })
+            result.push({ word: parseWord(r.w), srs: null })
           }
           if (result.length >= limit) break
         }
@@ -582,24 +588,28 @@ export async function GET(req: NextRequest) {
       }
 
       case 'decks': {
-        const decks = await db.deck.findMany({ orderBy: { createdAt: 'asc' }, include: { words: true } })
-        return NextResponse.json(decks.map((d) => ({
+        const deckRows = await db.select().from(deck).orderBy(asc(deck.createdAt))
+        const counts = await db.select({ deckId: word.deckId, id: word.id }).from(word)
+        const countByDeck = new Map<string, number>()
+        for (const c of counts) countByDeck.set(c.deckId, (countByDeck.get(c.deckId) ?? 0) + 1)
+        return NextResponse.json(deckRows.map((d) => ({
           id: d.id, name: d.name, description: d.description,
-          isCustom: d.isCustom, wordCount: d.words.length, createdAt: d.createdAt,
+          isCustom: d.isCustom, wordCount: countByDeck.get(d.id) ?? 0, createdAt: d.createdAt,
         })))
       }
 
       case 'deck': {
         if (!deckId) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
-        const deck = await db.deck.findUnique({
-          where: { id: deckId },
-          include: { words: { include: { srsCard: true } } },
-        })
-        if (!deck) return NextResponse.json({ error: 'not found' }, { status: 404 })
+        const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
+        if (!deckRow) return NextResponse.json({ error: 'not found' }, { status: 404 })
+        const wordRows = await db.select({ w: word, srs: srsCard }).from(word)
+          .leftJoin(srsCard, eq(srsCard.wordId, word.id))
+          .where(eq(word.deckId, deckId))
+          .orderBy(asc(word.createdAt))
         return NextResponse.json({
-          id: deck.id, name: deck.name, description: deck.description,
-          isCustom: deck.isCustom,
-          words: deck.words.map((w) => ({ ...parseWord(w), srs: w.srsCard ? toSrsDto(w.srsCard) : null })),
+          id: deckRow.id, name: deckRow.name, description: deckRow.description,
+          isCustom: deckRow.isCustom,
+          words: wordRows.map((r) => ({ ...parseWord(r.w), srs: r.srs ? toSrsDto(r.srs) : null })),
         })
       }
 
@@ -635,8 +645,12 @@ export async function GET(req: NextRequest) {
       case 'mentorBranch': {
         const branchId = url.searchParams.get('branchId')
         if (!branchId) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
-        const branch = await db.mentorBranch.findUnique({ where: { id: branchId }, include: { project: true, nodes: { orderBy: { createdAt: 'asc' }, include: { attempts: { orderBy: { createdAt: 'asc' }, include: { feedback: true } } } } } })
-        if (!branch) return NextResponse.json({ error: 'branch not found' }, { status: 404 })
+        const branchRow = await db.query.mentorBranch.findFirst({ where: eq(mentorBranch.id, branchId), with: { project: true, nodes: { with: { attempts: { with: { feedback: true } } } } } })
+        if (!branchRow) return NextResponse.json({ error: 'branch not found' }, { status: 404 })
+        // RQB has no per-relation orderBy; mirror Prisma's asc sort in JS
+        const branch = branchRow as any
+        branch.nodes = [...(branch.nodes ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        for (const n of branch.nodes) n.attempts = [...(n.attempts ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         return NextResponse.json(branch)
       }
 
@@ -650,22 +664,22 @@ export async function GET(req: NextRequest) {
       case 'mentorIndexKnowledge': {
         await ensureMentorSeed()
         const { ollamaEmbed } = await import('@/lib/ollama')
-        const chunks = await db.mentorKnowledge.findMany({ where:{ embedding:null } })
+        const chunks = await db.select().from(mentorKnowledge).where(isNull(mentorKnowledge.embedding))
         let indexed = 0
         for (const c of chunks) {
-          try { const [vec] = await ollamaEmbed(`${c.title}. ${c.content}`); if (vec?.length) { await db.mentorKnowledge.update({ where:{id:c.id}, data:{embedding:JSON.stringify(vec)} }); indexed++ } } catch {}
+          try { const [vec] = await ollamaEmbed(`${c.title}. ${c.content}`); if (vec?.length) { await db.update(mentorKnowledge).set({ embedding: JSON.stringify(vec) }).where(eq(mentorKnowledge.id, c.id)); indexed++ } } catch {}
         }
         return NextResponse.json({ ok:true, indexed, total:chunks.length })
       }
 
       case 'mentorDueErrors': {
-        const errors = await db.mentorErrorCard.findMany({ where: { dueAt: { lte: new Date() } }, orderBy: { dueAt: 'asc' }, take: 30 })
+        const errors = await db.select().from(mentorErrorCard).where(lte(mentorErrorCard.dueAt, new Date())).orderBy(asc(mentorErrorCard.dueAt)).limit(30)
         return NextResponse.json(errors)
       }
 
       case 'mentorProfile': {
         await ensureMentorSeed()
-        const [profile, mastery] = await Promise.all([db.mentorProfile.findUnique({ where: { id: 1 } }), db.mentorSkillMastery.findMany({ orderBy: { mastery: 'asc' } })])
+        const [profile, mastery] = await Promise.all([db.select().from(mentorProfile).where(eq(mentorProfile.id, 1)).get(), db.select().from(mentorSkillMastery).orderBy(asc(mentorSkillMastery.mastery))])
         return NextResponse.json({ profile, mastery })
       }
 
@@ -675,12 +689,12 @@ export async function GET(req: NextRequest) {
       }
 
       case 'mentorPronunciationHistory': {
-        const items = await db.pronunciationAttempt.findMany({ orderBy:{createdAt:'desc'}, take:20 })
+        const items = await db.select().from(pronunciationAttempt).orderBy(desc(pronunciationAttempt.createdAt)).limit(20)
         return NextResponse.json(items.map(x=>({id:x.id,target:x.target,transcript:x.transcript,accuracy:x.accuracy,missingWords:JSON.parse(x.missingWords||'[]'),extraWords:JSON.parse(x.extraWords||'[]'),feedback:JSON.parse(x.feedback||'{}'),createdAt:x.createdAt})))
       }
 
       case 'mentorNaturalnessHistory': {
-        const items = await db.naturalnessAttempt.findMany({ orderBy:{createdAt:'desc'}, take:20 })
+        const items = await db.select().from(naturalnessAttempt).orderBy(desc(naturalnessAttempt.createdAt)).limit(20)
         return NextResponse.json(items.map(x=>({id:x.id,input:x.input,score:x.score,verdict:x.verdict,native:x.native,alternatives:JSON.parse(x.alternatives||'[]'),explanation:x.explanation,createdAt:x.createdAt})))
       }
 
@@ -692,10 +706,9 @@ export async function GET(req: NextRequest) {
 
       case 'search': {
         if (!query.trim()) return NextResponse.json([])
-        const words = await db.word.findMany({
-          where: { word: { contains: query.toLowerCase() } },
-          take: 20,
-        })
+        const words = await db.select().from(word)
+          .where(like(word.word, `%${query.toLowerCase()}%`))
+          .limit(20)
         return NextResponse.json(words.map(parseWord))
       }
 
@@ -738,27 +751,25 @@ export async function POST(req: NextRequest) {
         if (!deckId || !Array.isArray(words) || words.length === 0) {
           return NextResponse.json({ error: 'deckId and words array required' }, { status: 400 })
         }
-        const deck = await db.deck.findUnique({ where: { id: deckId } })
-        if (!deck) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
+        const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
+        if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
         let count = 0
         for (const w of words) {
           if (!w.word || !w.word.trim()) continue
-          await db.word.create({
-            data: {
-              id: uuid(),
-              word: w.word.trim().toLowerCase(),
-              pos: w.pos ?? null,
-              ipa: w.ipa ?? null,
-              definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
-              examples: w.example ? JSON.stringify([w.example]) : null,
-              syllables: null,
-              cefr: w.cefr ?? null,
-              synonyms: w.synonyms ? JSON.stringify(w.synonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
-              antonyms: w.antonyms ? JSON.stringify(w.antonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
-              etymology: null,
-              amharic: w.amharic ?? null,
-              deckId,
-            },
+          await db.insert(word).values({
+            id: uuid(),
+            word: w.word.trim().toLowerCase(),
+            pos: w.pos ?? null,
+            ipa: w.ipa ?? null,
+            definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
+            examples: w.example ? JSON.stringify([w.example]) : null,
+            syllables: null,
+            cefr: w.cefr ?? null,
+            synonyms: w.synonyms ? JSON.stringify(w.synonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
+            antonyms: w.antonyms ? JSON.stringify(w.antonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
+            etymology: null,
+            amharic: w.amharic ?? null,
+            deckId,
           })
           count++
         }
@@ -768,13 +779,13 @@ export async function POST(req: NextRequest) {
       case 'deleteDeck': {
         const { deckId: id } = body as { deckId: string }
         if (!id) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
-        await db.deck.delete({ where: { id } })
+        await db.delete(deck).where(eq(deck.id, id))
         return NextResponse.json({ ok: true })
       }
 
       case 'quizSession': {
         const { mode: qMode, total, correct, xpEarned } = body as any
-        await db.quizSession.create({ data: { mode: qMode, total, correct, xpEarned, completedAt: new Date() } })
+        await db.insert(quizSession).values({ mode: qMode, total, correct, xpEarned, completedAt: new Date() })
         const cur = parseInt(await getStat('totalXp', '0'), 10) || 0
         await setStat('totalXp', String(cur + (xpEarned || 0)))
         const rev = parseInt(await getStat('totalReviews', '0'), 10) || 0
@@ -809,8 +820,8 @@ export async function POST(req: NextRequest) {
         if (claimed === today) return NextResponse.json({ ok: true, xpAwarded: 0, alreadyClaimed: true })
         const start = new Date(); start.setHours(0, 0, 0, 0)
         const end = new Date(); end.setHours(23, 59, 59, 999)
-        const logs = await db.reviewLog.findMany({ where: { reviewedAt: { gte: start, lte: end } } })
-        const sessions = await db.quizSession.findMany({ where: { completedAt: { gte: start, lte: end } } })
+        const logs = await db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, start), lte(reviewLog.reviewedAt, end)))
+        const sessions = await db.select().from(quizSession).where(and(gte(quizSession.completedAt, start), lte(quizSession.completedAt, end)))
         const todayCorrect = logs.filter((l) => l.isCorrect).length + sessions.reduce((sum, q) => sum + q.correct, 0)
         const streak = parseInt(await getStat('streak', '0'), 10) || 0
         const targets: Record<string, { progress: number; target: number; reward: number }> = {
@@ -863,32 +874,30 @@ export async function POST(req: NextRequest) {
       case 'addWord': {
         const { deckId, word: wordText, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = body as any
         if (!deckId || !wordText?.trim()) return NextResponse.json({ error: 'deckId and word required' }, { status: 400 })
-        const deck = await db.deck.findUnique({ where: { id: deckId } })
-        if (!deck) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
-        const word = await db.word.create({
-          data: {
-            id: uuid(),
-            word: wordText.trim().toLowerCase(),
-            pos: pos ?? null,
-            ipa: ipa ?? null,
-            definitions: definition ? JSON.stringify([{ pos: pos ?? 'n.', text: definition }]) : null,
-            examples: example ? JSON.stringify([example]) : null,
-            syllables: null,
-            cefr: cefr ?? null,
-            synonyms: synonyms ? JSON.stringify(synonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
-            antonyms: antonyms ? JSON.stringify(antonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
-            etymology: null,
-            amharic: amharic ?? null,
-            deckId,
-          },
-        })
-        return NextResponse.json({ id: word.id })
+        const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
+        if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
+        const inserted = await db.insert(word).values({
+          id: uuid(),
+          word: wordText.trim().toLowerCase(),
+          pos: pos ?? null,
+          ipa: ipa ?? null,
+          definitions: definition ? JSON.stringify([{ pos: pos ?? 'n.', text: definition }]) : null,
+          examples: example ? JSON.stringify([example]) : null,
+          syllables: null,
+          cefr: cefr ?? null,
+          synonyms: synonyms ? JSON.stringify(synonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
+          antonyms: antonyms ? JSON.stringify(antonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
+          etymology: null,
+          amharic: amharic ?? null,
+          deckId,
+        }).returning({ id: word.id })
+        return NextResponse.json({ id: inserted[0].id })
       }
 
       case 'updateWord': {
         const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = body as any
         if (!wordId) return NextResponse.json({ error: 'wordId required' }, { status: 400 })
-        const existing = await db.word.findUnique({ where: { id: wordId } })
+        const existing = await db.select().from(word).where(eq(word.id, wordId)).get()
         if (!existing) return NextResponse.json({ error: 'word not found' }, { status: 404 })
         const data: any = {}
         if (pos !== undefined) data.pos = pos
@@ -899,29 +908,29 @@ export async function POST(req: NextRequest) {
         if (synonyms !== undefined) data.synonyms = synonyms ? JSON.stringify(synonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null
         if (antonyms !== undefined) data.antonyms = antonyms ? JSON.stringify(antonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null
         if (amharic !== undefined) data.amharic = amharic
-        await db.word.update({ where: { id: wordId }, data })
+        await db.update(word).set(data).where(eq(word.id, wordId))
         return NextResponse.json({ ok: true })
       }
 
       case 'deleteWord': {
         const { wordId } = body as { wordId: string }
         if (!wordId) return NextResponse.json({ error: 'wordId required' }, { status: 400 })
-        await db.word.delete({ where: { id: wordId } })
+        await db.delete(word).where(eq(word.id, wordId))
         return NextResponse.json({ ok: true })
       }
 
       case 'reset': {
-        await db.reviewLog.deleteMany()
-        await db.quizSession.deleteMany()
-        await db.srsCard.deleteMany()
-        await db.appStat.deleteMany()
+        await db.delete(reviewLog)
+        await db.delete(quizSession)
+        await db.delete(srsCard)
+        await db.delete(appStat)
         const initialStats: Record<string, string> = {
           streak: '0', longestStreak: '0', lastSessionDate: '', totalXp: '0',
           dailyGoal: '20', ttsVoice: '', ttsRate: '1', theme: 'system',
           totalReviews: '0', totalCorrect: '0', achievements: '[]', streakShieldUsedDate: '', challengeClaimedDate: '',
         }
         for (const [k, v] of Object.entries(initialStats)) {
-          await db.appStat.create({ data: { key: k, value: v } })
+          await db.insert(appStat).values({ key: k, value: v })
         }
         return NextResponse.json({ ok: true })
       }
@@ -936,15 +945,15 @@ export async function POST(req: NextRequest) {
       case 'mentorProject': {
         const { name, goal } = body as { name: string; goal?: string }
         if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
-        const project = await db.mentorProject.create({ data: { name: name.trim(), goal: goal?.trim() || null } })
-        return NextResponse.json(project)
+        const projectRows = await db.insert(mentorProject).values({ name: name.trim(), goal: goal?.trim() || null }).returning()
+        return NextResponse.json(projectRows[0])
       }
 
       case 'mentorBranch': {
         const { projectId, title, focusTag, mode = 'drill', difficultyCeiling = 3, locked = true } = body as any
         if (!projectId || !title || !focusTag) return NextResponse.json({ error: 'projectId, title and focusTag required' }, { status: 400 })
-        const branch = await db.mentorBranch.create({ data: { projectId, title, focusTag, mode, difficultyCeiling, locked } })
-        return NextResponse.json(branch)
+        const branchRows = await db.insert(mentorBranch).values({ projectId, title, focusTag, mode, difficultyCeiling, locked }).returning()
+        return NextResponse.json(branchRows[0])
       }
 
       case 'mentorNext': {
@@ -973,9 +982,10 @@ export async function POST(req: NextRequest) {
       case 'mentorAttempt': {
         const { nodeId, answer, confidence, timeMs, keystrokes, hintLevel = 0, selfCorrect } = body as any
         if (!nodeId || !answer?.trim()) return NextResponse.json({ error: 'nodeId and answer required' }, { status: 400 })
-        const node = await db.mentorNode.findUnique({ where: { id: nodeId } })
+        const node = await db.select().from(mentorNode).where(eq(mentorNode.id, nodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
-        const attempt = await db.mentorAttempt.create({ data: { nodeId, branchId: node.branchId, answer: answer.trim(), confidence, timeMs, keystrokes, hintLevel, selfCorrect: selfCorrect ? String(selfCorrect) : null } })
+        const attemptRows = await db.insert(mentorAttempt).values({ nodeId, branchId: node.branchId, answer: answer.trim(), confidence, timeMs, keystrokes, hintLevel, selfCorrect: selfCorrect ? String(selfCorrect) : null }).returning()
+        const attempt = attemptRows[0]
         const result = await evaluateAttempt(attempt.id)
         return NextResponse.json({ attemptId: attempt.id, ...result })
       }
@@ -983,7 +993,7 @@ export async function POST(req: NextRequest) {
       case 'mentorHint': {
         const attemptNodeId = body.nodeId as string
         if (!attemptNodeId) return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
-        const node = await db.mentorNode.findUnique({ where: { id: attemptNodeId } })
+        const node = await db.select().from(mentorNode).where(eq(mentorNode.id, attemptNodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
         const hints = JSON.parse(node.hints || '[]') as string[]
         const level = Math.min(Math.max(Number(body.level) || 1, 1), Math.max(hints.length, 1))
@@ -994,16 +1004,19 @@ export async function POST(req: NextRequest) {
         const attemptId = body.attemptId as string
         if (!attemptId) return NextResponse.json({ error: 'attemptId required' }, { status: 400 })
         const { correction } = body
-        const attempt = await db.mentorAttempt.update({ where: { id: attemptId }, data: { selfCorrect: correction || '' } })
-        return NextResponse.json({ ok: true, selfCorrect: attempt.selfCorrect })
+        const attemptRows = await db.update(mentorAttempt).set({ selfCorrect: correction || '' }).where(eq(mentorAttempt.id, attemptId)).returning()
+        if (!attemptRows[0]) return NextResponse.json({ error: 'attempt not found' }, { status: 404 })
+        return NextResponse.json({ ok: true, selfCorrect: attemptRows[0].selfCorrect })
       }
 
       case 'mentorFork': {
         const { nodeId, title, focusTag, mode = 'scenario', difficultyCeiling = 3 } = body as any
-        const node = await db.mentorNode.findUnique({ where: { id: nodeId } })
+        const node = await db.select().from(mentorNode).where(eq(mentorNode.id, nodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
-        const branch = await db.mentorBranch.create({ data: { projectId: (await db.mentorBranch.findUniqueOrThrow({ where: { id: node.branchId } })).projectId, parentBranchId: node.branchId, parentNodeId: node.id, title: title || `Branch from node ${node.id.slice(-4)}`, focusTag: focusTag || JSON.parse(node.targetTags || '[]')[0] || 'naturalness', mode, difficultyCeiling, locked: true } })
-        return NextResponse.json(branch)
+        const parentBranch = await db.select().from(mentorBranch).where(eq(mentorBranch.id, node.branchId)).get()
+        if (!parentBranch) return NextResponse.json({ error: 'branch not found' }, { status: 404 })
+        const branchRows = await db.insert(mentorBranch).values({ projectId: parentBranch.projectId, parentBranchId: node.branchId, parentNodeId: node.id, title: title || `Branch from node ${node.id.slice(-4)}`, focusTag: focusTag || JSON.parse(node.targetTags || '[]')[0] || 'naturalness', mode, difficultyCeiling, locked: true }).returning()
+        return NextResponse.json(branchRows[0])
       }
 
       case 'mentor': {
@@ -1028,7 +1041,7 @@ export async function POST(req: NextRequest) {
           if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
           responseText = await ollamaChat([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:buildExplainPrompt(body.query.trim(),body.context)}])
         } else return NextResponse.json({ error:'unknown mentor mode' }, {status:400})
-        await db.mentorSession.create({ data:{ mode, title:body.title||mode, prompt:JSON.stringify(body).slice(0,2000), response:responseText.slice(0,15000), metadata:body.metadata?JSON.stringify(body.metadata):null } }).catch(()=>{})
+        await db.insert(mentorSession).values({ mode, title: body.title || mode, prompt: JSON.stringify(body).slice(0, 2000), response: responseText.slice(0, 15000), metadata: body.metadata ? JSON.stringify(body.metadata) : null }).catch(() => {})
         return NextResponse.json({response:responseText})
       }
 

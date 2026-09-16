@@ -60,7 +60,8 @@ export function ReviewView() {
       setStreak(stats?.streak ?? 0); setLevelAfter(stats?.level.name ?? levelBefore); setCompleted(true); return
     }
     setIdx((x) => x + 1); setRevealed(false)
-    toast(g >= 3 ? { description: `${GRADE_LABELS[g]} · +${bonus} XP`, icon: <Sparkles className="h-4 w-4 text-primary" /> } : { description: `${GRADE_LABELS[g]} · keep this one in rotation`, icon: <Clock3 className="h-4 w-4" /> })
+    if (g >= 3) toast.success(`${GRADE_LABELS[g]} · +${bonus} XP`)
+    else toast(`${GRADE_LABELS[g]} · keep this one in rotation`)
   }, [current, revealed, idx, cards.length, levelBefore])
 
   useEffect(() => {

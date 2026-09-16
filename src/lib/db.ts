@@ -1,20 +1,24 @@
-import { PrismaClient } from '@prisma/client'
-import path from 'path'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import * as schema from '@/db/schema'
+import { resolveDbPath } from '@/db/env'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+const globalForDb = globalThis as unknown as {
+  sqlite: Database.Database | undefined
+  db: ReturnType<typeof createDb> | undefined
 }
 
-function getDbUrl(): string {
-  const dbPath = path.resolve(process.cwd(), 'db/custom.db')
-  return `file:${dbPath}`
+function createDb() {
+  const sqlite = globalForDb.sqlite ?? new Database(resolveDbPath())
+  sqlite.pragma('journal_mode = WAL')
+  sqlite.pragma('foreign_keys = ON')
+  const d = drizzle(sqlite, { schema })
+  if (process.env.NODE_ENV !== 'production') {
+    globalForDb.sqlite = sqlite
+    globalForDb.db = d
+  }
+  return d
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    datasources: { db: { url: getDbUrl() } },
-    log: ['error', 'warn'],
-  })
+export const db = globalForDb.db ?? createDb()
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db

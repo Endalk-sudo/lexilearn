@@ -1,10 +1,16 @@
 // LexiLearn seed script — populates 4 decks with curated vocabulary
-// Run with: bun run scripts/seed.ts
+// Run with: pnpm db:seed
 
-import { PrismaClient } from '@prisma/client'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { resolveDbPath } from '../src/db/env'
+import * as schema from '../src/db/schema'
 import { v4 as uuid } from 'uuid'
 
-const db = new PrismaClient()
+const sqlite = new Database(resolveDbPath())
+sqlite.pragma('foreign_keys = ON')
+export const db = drizzle(sqlite, { schema })
+const { deck, word, srsCard, reviewLog, quizSession, appStat } = schema
 
 type SeedWord = {
   word: string
@@ -888,41 +894,38 @@ async function main() {
   console.log('🌱 Seeding LexiLearn database...')
 
   // Wipe existing data
-  await db.reviewLog.deleteMany()
-  await db.quizSession.deleteMany()
-  await db.srsCard.deleteMany()
-  await db.word.deleteMany()
-  await db.deck.deleteMany()
-  await db.appStat.deleteMany()
+  await db.delete(reviewLog)
+  await db.delete(quizSession)
+  await db.delete(srsCard)
+  await db.delete(word)
+  await db.delete(deck)
+  await db.delete(appStat)
 
   let total = 0
   for (const d of DECKS) {
-    const deck = await db.deck.create({
-      data: {
-        id: uuid(),
-        name: d.name,
-        description: d.description,
-        isCustom: false,
-      },
+    const deckId = uuid()
+    await db.insert(deck).values({
+      id: deckId,
+      name: d.name,
+      description: d.description,
+      isCustom: false,
     })
 
     for (const w of d.words) {
-      await db.word.create({
-        data: {
-          id: uuid(),
-          word: w.word,
-          pos: w.pos ?? null,
-          ipa: w.ipa ?? null,
-          syllables: w.syllables ? JSON.stringify(w.syllables) : null,
-          cefr: w.cefr ?? null,
-          definitions: w.definitions ? JSON.stringify(w.definitions) : null,
-          examples: w.examples ? JSON.stringify(w.examples) : null,
-          synonyms: w.synonyms ? JSON.stringify(w.synonyms) : null,
-          antonyms: w.antonyms ? JSON.stringify(w.antonyms) : null,
-          etymology: w.etymology ?? null,
-          amharic: w.amharic ?? null,
-          deckId: deck.id,
-        },
+      await db.insert(word).values({
+        id: uuid(),
+        word: w.word,
+        pos: w.pos ?? null,
+        ipa: w.ipa ?? null,
+        syllables: w.syllables ? JSON.stringify(w.syllables) : null,
+        cefr: w.cefr ?? null,
+        definitions: w.definitions ? JSON.stringify(w.definitions) : null,
+        examples: w.examples ? JSON.stringify(w.examples) : null,
+        synonyms: w.synonyms ? JSON.stringify(w.synonyms) : null,
+        antonyms: w.antonyms ? JSON.stringify(w.antonyms) : null,
+        etymology: w.etymology ?? null,
+        amharic: w.amharic ?? null,
+        deckId,
       })
       total++
     }
@@ -944,7 +947,7 @@ async function main() {
     achievements: '[]',
   }
   for (const [k, v] of Object.entries(initialStats)) {
-    await db.appStat.upsert({ where: { key: k }, update: {}, create: { key: k, value: v } })
+    await db.insert(appStat).values({ key: k, value: v }).onConflictDoNothing()
   }
 
   console.log(`\n✅ Seeded ${total} words across ${DECKS.length} decks.`)
@@ -956,6 +959,6 @@ main()
     console.error('Seed error:', e)
     process.exit(1)
   })
-  .finally(async () => {
-    await db.$disconnect()
+  .finally(() => {
+    sqlite.close()
   })

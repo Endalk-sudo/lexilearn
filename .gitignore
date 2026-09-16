@@ -52,7 +52,7 @@ prompt
 server.log
 
 # local database
-db/
+/db/
 !.gitkeep
 # Skills directory
 /skills/
