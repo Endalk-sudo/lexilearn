@@ -9,240 +9,96 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WordCard } from '@/components/word/word-card'
 import { SpellingInput } from '@/components/word/spelling-input'
-import { Volume2, Check, X, ArrowRight, RefreshCw, Sparkles, ArrowLeft } from 'lucide-react'
+import { Volume2, Check, X, ArrowRight, Sparkles, ArrowLeft, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { speak } from '@/lib/tts'
-
-type Stage = 'recall' | 'spelling' | 'graded'
+import { SessionComplete, XpBurst } from '@/components/reward-celebration'
 
 export function LearnView() {
   const [cards, setCards] = useState<CardWithWord[]>([])
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
-  const [stage, setStage] = useState<Stage>('recall')
+  const [stage, setStage] = useState<'recall' | 'spelling' | 'graded'>('recall')
   const [spelling, setSpelling] = useState('')
   const [isCorrect, setIsCorrect] = useState(false)
-  const [ttsVoice, setTtsVoice] = useState<string>('')
-  const [ttsRate, setTtsRate] = useState<number>(1)
+  const [ttsVoice, setTtsVoice] = useState('')
+  const [ttsRate, setTtsRate] = useState(1)
+  const [completed, setCompleted] = useState(false)
+  const [correctCount, setCorrectCount] = useState(0)
+  const [xpEarned, setXpEarned] = useState(0)
+  const [showXp, setShowXp] = useState(false)
+  const [levelBefore, setLevelBefore] = useState('')
+  const [levelAfter, setLevelAfter] = useState('')
+  const [streakAfter, setStreakAfter] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
 
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const [list, settings] = await Promise.all([api.getNewCards(null, 10), api.getSettings()])
-        if (mounted) {
-          setCards(list)
-          setTtsVoice(settings.ttsVoice)
-          setTtsRate(settings.ttsRate)
-          setLoading(false)
-        }
-      } catch (e) {
-        console.error(e)
-        if (mounted) setLoading(false)
-      }
-    })()
-    return () => { mounted = false }
+  const loadCards = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [list, settings, stats] = await Promise.all([api.getNewCards(null, 10), api.getSettings(), api.getDashboardStats()])
+      setCards(list); setTtsVoice(settings.ttsVoice); setTtsRate(settings.ttsRate); setLevelBefore(stats.level.name)
+      setIdx(0); setStage('recall'); setSpelling(''); setIsCorrect(false); setCompleted(false); setCorrectCount(0); setXpEarned(0)
+    } catch (e) { console.error(e) } finally { setLoading(false) }
   }, [])
+  useEffect(() => { loadCards() }, [loadCards])
 
   const current = cards[idx]
 
   const handleReveal = useCallback(() => {
-    setStage('spelling')
-    setSpelling('')
-    // Auto-play pronunciation
-    if (current) {
-      const ok = speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
-      if (!ok) toast.error('TTS not available in this browser.')
-    }
+    setStage('spelling'); setSpelling('')
+    if (current && !speak(current.word.word, { voice: ttsVoice, rate: ttsRate })) toast.error('TTS not available in this browser.')
   }, [current, ttsVoice, ttsRate])
 
   const handleSpellingSubmit = useCallback(async () => {
-    if (!current) return
+    if (!current || !spelling.trim() || stage !== 'spelling') return
     const correct = spelling.trim().toLowerCase() === current.word.word.toLowerCase()
-    setIsCorrect(correct)
-    setStage('graded')
-    const grade: 0 | 4 = correct ? 4 : 0
-    try {
-      await api.submitReview(current.word.id, grade, 'learn')
-      if (correct) toast.success(`+${grade === 4 ? 5 : 1} XP — ${current.word.word}`)
-      else toast.error(`Misspelled — the word is "${current.word.word}"`)
-    } catch (e) {
-      console.error(e)
+    setIsCorrect(correct); setStage('graded'); setCorrectCount((x) => x + (correct ? 1 : 0)); setXpEarned((x) => x + (correct ? 5 : 1)); setShowXp(true)
+    window.setTimeout(() => setShowXp(false), 1000)
+    try { await api.submitReview(current.word.id, correct ? 4 : 0, 'learn') } catch (e) { console.error(e) }
+  }, [current, spelling, stage])
+
+  const finish = useCallback(async () => {
+    const stats = await api.getDashboardStats().catch(() => null)
+    setLevelAfter(stats?.level.name ?? levelBefore)
+    setStreakAfter(stats?.streak ?? 0)
+    setCompleted(true)
+  }, [levelBefore])
+
+  const next = useCallback(() => {
+    if (idx + 1 >= cards.length) { finish(); return }
+    setIdx((x) => x + 1); setStage('recall'); setSpelling(''); setIsCorrect(false)
+  }, [idx, cards.length, finish])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      if ((e.key === ' ' || e.key === 'Enter') && stage === 'recall') { e.preventDefault(); handleReveal() }
+      if (e.key === 'Enter' && stage === 'graded') { e.preventDefault(); next() }
     }
-  }, [current, spelling])
+    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
+  }, [stage, handleReveal, next])
 
-  const handleNext = useCallback(() => {
-    if (idx + 1 >= cards.length) {
-      toast.success('🎉 Learning session complete!')
-      navigate('dashboard')
-      return
-    }
-    setIdx(idx + 1)
-    setStage('recall')
-    setSpelling('')
-    setIsCorrect(false)
-  }, [idx, cards.length, navigate])
-
-  const handleRestart = useCallback(() => {
-    setIdx(0)
-    setStage('recall')
-    setSpelling('')
-    setIsCorrect(false)
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    )
-  }
-
-  if (cards.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-10 text-center">
-          <Sparkles className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <h3 className="text-lg font-semibold">No new words to learn</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">
-            You&apos;ve started learning every word in the database.
-          </p>
-          <Button variant="outline" onClick={() => navigate('decks')}>Browse decks</Button>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (loading) return <div className="mx-auto max-w-3xl space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-80 w-full" /><Skeleton className="h-28 w-full" /></div>
+  if (!cards.length) return <Card className="game-panel rounded-3xl"><CardContent className="p-10 text-center"><Sparkles className="mx-auto mb-3 h-10 w-10 text-primary" /><h3 className="text-lg font-bold">You&apos;ve learned every available new word.</h3><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">That&apos;s a good place to be. Switch to review to strengthen your memory, or build a bigger deck.</p><div className="mt-5 flex justify-center gap-2"><Button variant="outline" className="rounded-xl" onClick={() => navigate('decks')}>Browse decks</Button><Button className="rounded-xl" onClick={() => navigate('review')}>Review</Button></div></CardContent></Card>
+  if (completed) return <SessionComplete correct={correctCount} total={cards.length} xp={xpEarned} streak={streakAfter} title="New words unlocked" subtitle={levelAfter !== levelBefore ? `Level up: ${levelBefore} → ${levelAfter}` : 'You added fresh words to your long-term memory.'} levelUp={levelAfter !== levelBefore} onAgain={loadCards} onDone={() => navigate('dashboard')} />
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('dashboard')} className="-ml-2">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold tracking-tight">Learn New Words</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Recall · Reveal · Spell
-          </p>
-        </div>
-        <Badge variant="secondary" className="font-mono">
-          {idx + 1} / {cards.length}
-        </Badge>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <XpBurst amount={showXp ? (isCorrect ? 5 : 1) : 0} />
+      <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Button variant="ghost" size="sm" onClick={() => navigate('dashboard')} className="-ml-2 rounded-xl"><ArrowLeft className="h-4 w-4" /></Button><div><div className="text-xs font-bold uppercase tracking-[.15em] text-primary">New word quest</div><h1 className="text-2xl font-black tracking-tight">Learn & lock it in</h1></div></div><Badge variant="secondary" className="font-mono">{idx + 1}/{cards.length}</Badge></div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted"><motion.div className="h-full rounded-full bg-primary" animate={{ width: `${((idx + (stage === 'graded' ? 1 : 0)) / cards.length) * 100}%` }} /></div>
+      <div className="grid grid-cols-3 gap-2">{['Recall', 'Listen', 'Spell'].map((label, i) => <div key={label} className={`rounded-xl border px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider ${((stage === 'recall' && i === 0) || (stage === 'spelling' && i > 0) || (stage === 'graded' && i === 2)) ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-muted/40 text-muted-foreground'}`}>{i + 1}. {label}</div>)}</div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-muted rounded overflow-hidden">
-        <motion.div
-          className="h-full bg-primary"
-          initial={{ width: 0 }}
-          animate={{ width: `${((idx) / cards.length) * 100}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
+      <AnimatePresence mode="wait"><motion.div key={idx} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: .22 }}><WordCard word={current.word} ttsVoice={ttsVoice} ttsRate={ttsRate} showDefinition={stage !== 'recall'} hideWord={stage === 'spelling'} /></motion.div></AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={idx}
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -30 }}
-          transition={{ duration: 0.25 }}
-        >
-            {current && (
-            <WordCard
-              word={current.word}
-              ttsVoice={ttsVoice}
-              ttsRate={ttsRate}
-              showDefinition={stage !== 'recall'}
-              hideWord={stage === 'spelling'}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+      {stage === 'recall' && <Card className="game-panel rounded-3xl"><CardContent className="p-6 text-center sm:p-8"><div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Keyboard className="h-5 w-5" /></div><h2 className="font-bold">Can you remember it?</h2><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Pause for a second and recall the meaning before you reveal the answer.</p><Button onClick={handleReveal} size="lg" className="mt-5 w-full rounded-xl sm:w-auto">Reveal & listen <ArrowRight className="ml-2 h-4 w-4" /></Button><p className="mt-3 text-[10px] text-muted-foreground">SPACE / ENTER</p></CardContent></Card>}
 
-      {/* Stage: recall */}
-      {stage === 'recall' && (
-        <Card>
-          <CardContent className="p-5 sm:p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              Try to recall the meaning of the word above. When ready, click below to reveal and practice spelling.
-            </p>
-            <Button onClick={handleReveal} className="w-full sm:w-auto">
-              Reveal & Spell <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {stage === 'spelling' && <Card className="game-panel rounded-3xl"><CardHeader><CardTitle className="flex items-center justify-between text-base">Listen & spell <Button size="sm" variant="outline" className="rounded-xl" onClick={() => speak(current.word.word, { voice: ttsVoice, rate: ttsRate })}><Volume2 className="mr-1.5 h-4 w-4" /> Play</Button></CardTitle></CardHeader><CardContent className="space-y-4"><SpellingInput value={spelling} onChange={setSpelling} target={current.word.word} autoFocus onSubmit={handleSpellingSubmit} placeholder="Type the word you hear…" /><Button onClick={handleSpellingSubmit} disabled={!spelling.trim()} className="w-full rounded-xl">Check answer <ArrowRight className="ml-2 h-4 w-4" /></Button></CardContent></Card>}
 
-      {/* Stage: spelling */}
-      {stage === 'spelling' && current && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>Listen and spell the word</span>
-              <Button size="sm" variant="outline" onClick={() => {
-                const ok = speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
-                if (!ok) toast.error('TTS not available.')
-              }}>
-                <Volume2 className="h-4 w-4 mr-1.5" /> Play
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <SpellingInput
-              value={spelling}
-              onChange={setSpelling}
-              target={current.word.word}
-              autoFocus
-              onSubmit={handleSpellingSubmit}
-              placeholder="Type the word you hear…"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setStage('recall')}>Back</Button>
-              <Button onClick={handleSpellingSubmit}>
-                Submit <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stage: graded */}
-      {stage === 'graded' && current && (
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`rounded-full p-2 ${isCorrect ? 'bg-emerald-500/15 text-emerald-600' : 'bg-rose-500/15 text-rose-600'}`}>
-                {isCorrect ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
-              </div>
-              <div>
-                <div className="font-semibold">
-                  {isCorrect ? 'Correct!' : 'Not quite'}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {isCorrect ? 'Word marked as Good (4). It will reappear in 1 day.' : `Correct spelling: ${current.word.word}`}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              {idx + 1 >= cards.length && (
-                <Button variant="outline" onClick={handleRestart}>
-                  <RefreshCw className="h-4 w-4 mr-1.5" /> Restart
-                </Button>
-              )}
-              <Button onClick={handleNext}>
-                {idx + 1 >= cards.length ? 'Finish' : 'Next word'} <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {stage === 'graded' && <Card className="game-panel rounded-3xl"><CardContent className="p-6 sm:p-8"><div className="flex items-start gap-3"><div className={`rounded-2xl p-3 ${isCorrect ? 'bg-emerald-500/12 text-emerald-600' : 'bg-rose-500/12 text-rose-600'}`}>{isCorrect ? <Check className="h-6 w-6" /> : <X className="h-6 w-6" />}</div><div><div className="text-lg font-black">{isCorrect ? 'Perfect. +5 XP' : 'Keep it in the rotation. +1 XP'}</div><p className="mt-1 text-sm text-muted-foreground">{isCorrect ? `You spelled “${current.word.word}” correctly.` : `The correct spelling is “${current.word.word}”.`}</p></div></div><Button onClick={next} className="mt-6 w-full rounded-xl">{idx + 1 >= cards.length ? 'Finish quest' : 'Next word'} <ArrowRight className="ml-2 h-4 w-4" /></Button><p className="mt-3 text-center text-[10px] text-muted-foreground">ENTER to continue</p></CardContent></Card>}
     </div>
   )
 }
+

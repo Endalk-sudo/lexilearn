@@ -140,3 +140,188 @@ model PracticeMaterial {
   @@index([type])
   @@index([createdAt])
 }
+
+// Branching AI Mentor domain model
+model MentorProject {
+  id          String         @id @default(cuid())
+  name        String
+  goal        String?
+  createdAt   DateTime       @default(now())
+  branches    MentorBranch[]
+}
+
+model MentorBranch {
+  id                String         @id @default(cuid())
+  projectId         String
+  parentBranchId    String?
+  parentNodeId      String?
+  title             String
+  focusTag          String
+  mode              String
+  difficultyCeiling Int            @default(3)
+  locked            Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  project           MentorProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodes             MentorNode[]
+  attempts          MentorAttempt[]
+  childBranches     MentorBranch[] @relation("MentorBranchTree")
+  parentBranch      MentorBranch?  @relation("MentorBranchTree", fields: [parentBranchId], references: [id])
+
+  @@index([projectId])
+  @@index([parentBranchId])
+}
+
+model MentorNode {
+  id               String          @id @default(cuid())
+  branchId         String
+  parentNodeId     String?
+  kind             String          @default("question")
+  prompt           String
+  expectedPatterns String
+  hints            String
+  targetTags       String
+  difficulty       Int             @default(1)
+  createdAt        DateTime        @default(now())
+  branch           MentorBranch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  attempts         MentorAttempt[]
+
+  @@index([branchId])
+  @@index([parentNodeId])
+}
+
+model MentorAttempt {
+  id           String          @id @default(cuid())
+  nodeId       String
+  branchId     String
+  answer       String
+  confidence   Int?
+  timeMs       Int?
+  keystrokes   Int?
+  hintLevel    Int             @default(0)
+  selfCorrect  String?
+  createdAt    DateTime        @default(now())
+  node         MentorNode      @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  branch       MentorBranch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  feedback     MentorFeedback?
+
+  @@index([nodeId])
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+model MentorFeedback {
+  id            String        @id @default(cuid())
+  attemptId     String        @unique
+  scores        String
+  corrections  String
+  explanation   String
+  nativeVersion String
+  followUp      String
+  diff          String
+  masteryDelta  String
+  diagnosis     String?
+  rawJson       String?
+  attempt       MentorAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+model MentorErrorCard {
+  id          String   @id @default(cuid())
+  tag         String
+  errorType   String
+  wrong       String
+  right       String
+  context     String
+  ease        Float    @default(2.5)
+  intervalDays Int     @default(1)
+  dueAt       DateTime @default(now())
+  lapses      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dueAt])
+  @@index([tag])
+}
+
+model MentorSkillMastery {
+  tag         String   @id
+  mastery     Float    @default(0.5)
+  attempts    Int      @default(0)
+  correct     Int      @default(0)
+  lastSeen    DateTime?
+  nextReview  DateTime?
+}
+
+model MentorProfile {
+  id          Int      @id @default(1)
+  goals       String?
+  preferences String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MentorTurn {
+  id        String   @id @default(cuid())
+  branchId  String
+  nodeId    String?
+  role      String
+  content   String
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+model MentorKnowledge {
+  id          String   @id @default(cuid())
+  title       String
+  tag         String
+  content     String
+  embedding   String?
+  source      String?
+  createdAt   DateTime @default(now())
+
+  @@index([tag])
+}
+
+
+model MentorWeeklyReport {
+  id           String   @id @default(cuid())
+  weekKey      String   @unique
+  summary      String
+  strengths    String
+  weaknesses   String
+  topErrors    String
+  confidence   String
+  nextFocus    String
+  actionPlan   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PronunciationAttempt {
+  id              String   @id @default(cuid())
+  target          String
+  transcript      String
+  accuracy        Float
+  missingWords    String
+  extraWords      String
+  feedback        String
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model NaturalnessAttempt {
+  id          String   @id @default(cuid())
+  input       String
+  score       Float
+  verdict     String
+  native      String
+  alternatives String
+  explanation String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

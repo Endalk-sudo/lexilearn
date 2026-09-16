@@ -1,16 +1,28 @@
 /**
  * Local Ollama client for LexiLearn AI Mentor.
  * Completely optional — the rest of the app works without it.
- * Model is configured via OLLAMA_MODEL env (default: llama3.1).
+ * Model is configured via OLLAMA_MODEL env (default: qwen3:8b).
  * Base URL via OLLAMA_BASE_URL (default: http://127.0.0.1:11434).
  */
 
 const DEFAULT_BASE = 'http://127.0.0.1:11434'
-const DEFAULT_MODEL = 'llama3.1'
+const DEFAULT_MODEL = 'qwen3:8b'
 
 export type OllamaMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string
+}
+
+export function getConfiguredModel(): string { return getModel() }
+
+export async function ollamaEmbed(input: string | string[], model = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text-v2-moe'): Promise<number[][]> {
+  const res = await fetch(`${getBaseUrl()}/api/embed`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, input }), signal: AbortSignal.timeout(60_000),
+  })
+  if (!res.ok) throw new Error(`Ollama embedding error ${res.status}`)
+  const data = await res.json()
+  return (data.embeddings || []) as number[][]
 }
 
 export type OllamaChatOptions = {
@@ -222,3 +234,4 @@ Give a clear, accurate, practical explanation suitable for an intermediate Engli
 If relevant, compare similar expressions, give 2–3 natural example sentences, and add a short Amharic gloss for the core idea.
 Keep the whole answer concise (under 250 words unless the question is complex).`
 }
+

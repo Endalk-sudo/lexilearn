@@ -17,6 +17,7 @@ export type ViewName =
   | 'settings'
   | 'search'
   | 'mentor'
+  | 'coach-lab'
 
 type AppState = {
   view: ViewName

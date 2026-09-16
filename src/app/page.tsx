@@ -10,6 +10,7 @@ import { StatsView } from '@/components/views/stats'
 import { SettingsView } from '@/components/views/settings'
 import { SearchView } from '@/components/views/search'
 import { MentorView } from '@/components/views/mentor'
+import { CoachLabView } from '@/components/views/coach-lab'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useAppStore } from '@/lib/store'
 import { useEffect, useRef } from 'react'
@@ -21,6 +22,7 @@ const VIEW_TITLES: Record<string, string> = {
   review: 'Review Session',
   quiz: 'Quiz',
   mentor: 'AI Mentor',
+  'coach-lab': 'AI Coach Lab',
   decks: 'Word Decks',
   'deck-detail': 'Deck Detail',
   stats: 'Statistics',
@@ -35,6 +37,7 @@ function ViewContainer({ view }: { view: string }) {
     case 'review': return <ReviewView />
     case 'quiz': return <QuizView />
     case 'mentor': return <MentorView />
+    case 'coach-lab': return <CoachLabView />
     case 'decks': return <DecksView />
     case 'deck-detail': return <DeckDetailView />
     case 'custom-deck': return <DecksView />

@@ -18,7 +18,7 @@
 2. At least one model pulled, e.g.:
 
 ```bash
-ollama pull llama3.1
+ollama pull qwen3:8b
 # or
 ollama pull qwen2.5
 # or
@@ -30,7 +30,7 @@ ollama pull gemma2
 ```
 DATABASE_URL=file:../db/custom.db
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3.1
+OLLAMA_MODEL=qwen3:8b
 ```
 
 Change `OLLAMA_MODEL` to whatever you prefer.

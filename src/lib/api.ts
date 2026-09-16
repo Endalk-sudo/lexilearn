@@ -89,6 +89,13 @@ export type DashboardStats = {
   learnedToday: number
   streak: number
   longestStreak: number
+  lastSessionDate: string
+  streakShieldAvailable: boolean
+  streakGap: number
+  streakShieldCooldownDays: number
+  todayCorrect: number
+  xpToday: number
+  challengeClaimedDate: string
   totalXp: number
   totalReviews: number
   totalCorrect: number
@@ -177,4 +184,6 @@ export const api = {
   submitQuizSession: (mode: QuizMode, total: number, correct: number, xpEarned: number) =>
     postJSON<{ ok: boolean }>('quizSession', { mode, total, correct, xpEarned }),
   searchWords: (query: string) => getJSON<WordDTO[]>('search', { query }),
+  repairStreak: () => postJSON<{ ok: boolean; streak: number }>('repairStreak', {}),
+  claimChallenge: (key: string) => postJSON<{ ok: boolean; xpAwarded: number; alreadyClaimed?: boolean }>('claimChallenge', { key }),
 }

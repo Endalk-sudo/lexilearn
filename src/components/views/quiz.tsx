@@ -2,63 +2,32 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { api, type QuizQuestion, type QuizMode } from '@/lib/api'
-import { useAppStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ListChecks, Volume2, Check, X, Clock, RotateCcw, Trophy, ArrowRight, FileText, ToggleLeft, Keyboard, Ear, Zap } from 'lucide-react'
+import { ListChecks, Volume2, Check, X, Clock, FileText, ToggleLeft, Keyboard, Ear, Zap, Flame, ArrowLeft, Trophy, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { speak } from '@/lib/tts'
 import { cn } from '@/lib/utils'
+import { SessionComplete, XpBurst } from '@/components/reward-celebration'
 
-const MODES: { mode: QuizMode; title: string; description: string; icon: React.ElementType }[] = [
-  { mode: 'mc', title: 'Multiple Choice', description: 'See a word, pick its definition.', icon: FileText },
-  { mode: 'reverse_mc', title: 'Reverse MC', description: 'See a definition, pick the word.', icon: ToggleLeft },
-  { mode: 'typing', title: 'Typing Test', description: 'See a definition, type the word.', icon: Keyboard },
-  { mode: 'spelling_bee', title: 'Spelling Bee', description: 'Listen to audio, type the spelling.', icon: Ear },
-  { mode: 'speed_round', title: 'Speed Round', description: '60 seconds — answer as many as you can.', icon: Zap },
+const MODES: { mode: QuizMode; title: string; description: string; icon: React.ElementType; tag: string }[] = [
+  { mode: 'mc', title: 'Multiple Choice', description: 'See a word, pick its meaning.', icon: FileText, tag: 'Warm-up' },
+  { mode: 'reverse_mc', title: 'Reverse Recall', description: 'See a meaning, retrieve the word.', icon: ToggleLeft, tag: 'Recall' },
+  { mode: 'typing', title: 'Typing Test', description: 'Retrieve the word from its definition.', icon: Keyboard, tag: 'Active recall' },
+  { mode: 'spelling_bee', title: 'Spelling Bee', description: 'Listen carefully and type what you hear.', icon: Ear, tag: 'Listening' },
+  { mode: 'speed_round', title: 'Speed Round', description: '60 seconds. Build a combo and answer fast.', icon: Zap, tag: 'Arcade' },
 ]
 
 export function QuizView() {
   const [mode, setMode] = useState<QuizMode | null>(null)
-  return (
-    <div className="space-y-4 max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <ListChecks className="h-6 w-6" />
-          Quiz Modes
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Pick a mode to test your knowledge.</p>
-      </div>
-      {!mode ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {MODES.map((m) => {
-            const Icon = m.icon
-            return (
-              <Card key={m.mode} className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setMode(m.mode)}>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="rounded-lg bg-primary/10 p-2">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="font-semibold">{m.title}</div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{m.description}</div>
-                  <Button variant="outline" size="sm" className="mt-3 w-full">
-                    Start <ArrowRight className="h-3 w-3 ml-1.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      ) : (
-        <QuizRunner mode={mode} onExit={() => setMode(null)} />
-      )}
-    </div>
-  )
+  return <div className="mx-auto max-w-4xl space-y-5"><div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-primary"><ListChecks className="h-3.5 w-3.5" /> Choose your challenge</div><h1 className="mt-2 text-3xl font-black tracking-tight">Quiz Arena</h1><p className="mt-2 text-sm text-muted-foreground">Pick a mode that matches how you want to train your English today.</p></div>{!mode ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{MODES.map((m) => <ModeCard key={m.mode} {...m} onClick={() => setMode(m.mode)} />)}</div> : <QuizRunner mode={mode} onExit={() => setMode(null)} />}</div>
+}
+
+function ModeCard({ mode, title, description, icon: Icon, tag, onClick }: { mode: QuizMode; title: string; description: string; icon: React.ElementType; tag: string; onClick: () => void }) {
+  return <motion.button whileHover={{ y: -3 }} whileTap={{ scale: .98 }} onClick={onClick} className="game-panel game-hover rounded-3xl p-5 text-left"><div className="flex items-start justify-between gap-3"><div className="rounded-2xl bg-primary/10 p-3 text-primary"><Icon className="h-5 w-5" /></div><Badge variant="secondary" className="rounded-lg text-[9px] uppercase tracking-wider">{tag}</Badge></div><h2 className="mt-5 text-base font-black">{title}</h2><p className="mt-1 min-h-10 text-sm leading-relaxed text-muted-foreground">{description}</p><div className="mt-5 text-xs font-bold uppercase tracking-wider text-primary">Play now →</div></motion.button>
 }
 
 function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
@@ -66,303 +35,93 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
   const [answer, setAnswer] = useState('')
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [graded, setGraded] = useState<null | boolean>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [graded, setGraded] = useState<boolean | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
   const [xpEarned, setXpEarned] = useState(0)
   const [completed, setCompleted] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(60)
+  const [combo, setCombo] = useState(0)
+  const [bestCombo, setBestCombo] = useState(0)
   const [ttsVoice, setTtsVoice] = useState('')
   const [ttsRate, setTtsRate] = useState(1)
-  const [timeLeft, setTimeLeft] = useState(60)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const [showXp, setShowXp] = useState(false)
+  const [lastXp, setLastXp] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [qs, settings] = await Promise.all([
-        api.generateQuiz(null, mode, mode === 'speed_round' ? 30 : 10),
-        api.getSettings(),
-      ])
-      setQuestions(qs)
-      setTtsVoice(settings.ttsVoice)
-      setTtsRate(settings.ttsRate)
-      setIdx(0)
-      setAnswer('')
-      setSelectedOption(null)
-      setGraded(null)
-      setCorrectCount(0)
-      setXpEarned(0)
-      setCompleted(false)
-      setTimeLeft(60)
-    } catch (e) {
-      console.error(e)
-      toast.error('Not enough words to generate a quiz. Try adding a custom deck.')
-    } finally {
-      setLoading(false)
-    }
+      const [qs, settings] = await Promise.all([api.generateQuiz(null, mode, mode === 'speed_round' ? 40 : 10), api.getSettings()])
+      setQuestions(qs); setTtsVoice(settings.ttsVoice); setTtsRate(settings.ttsRate); setIdx(0); setAnswer(''); setSelected(null); setGraded(null); setCorrectCount(0); setXpEarned(0); setCompleted(false); setTimeLeft(60); setCombo(0); setBestCombo(0); setStreak(0)
+    } catch (e) { console.error(e); toast.error('Not enough words to generate this quiz.') } finally { setLoading(false) }
   }, [mode])
-
   useEffect(() => { load() }, [load])
 
-  // Speed round timer
   useEffect(() => {
-    if (mode !== 'speed_round' || completed || loading || graded !== null) return
-    timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(timerRef.current!)
-          setCompleted(true)
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [mode, completed, loading, graded, idx])
-
-  // Auto-play spelling bee audio
-  useEffect(() => {
-    if (mode === 'spelling_bee' && questions[idx] && !graded) {
-      const ok = speak(questions[idx].audioWord!, { voice: ttsVoice, rate: ttsRate })
-      if (!ok) toast.error('TTS not available.')
-    }
+    if (mode === 'spelling_bee' && questions[idx] && graded === null) speak(questions[idx].audioWord!, { voice: ttsVoice, rate: ttsRate })
   }, [idx, mode, questions, graded, ttsVoice, ttsRate])
 
-  const finish = useCallback(async (finalCorrect: number, finalXp: number, total: number) => {
-    try {
-      await api.submitQuizSession(mode, total, finalCorrect, finalXp)
-    } catch (e) {
-      console.error(e)
-    }
+  const finish = useCallback(async (finalCorrect = correctCount, finalXp = xpEarned, total = questions.length) => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    await api.submitQuizSession(mode, total, finalCorrect, finalXp).catch(console.error)
+    const stats = await api.getDashboardStats().catch(() => null)
+    setStreak(stats?.streak ?? 0)
     setCompleted(true)
-  }, [mode])
+  }, [mode, correctCount, xpEarned, questions.length])
 
-  const gradeAnswer = useCallback((isCorrect: boolean) => {
+  useEffect(() => {
+    if (mode !== 'speed_round' || completed || loading || graded !== null) return
+    timerRef.current = setInterval(() => setTimeLeft((t) => {
+      if (t <= 1) {
+        if (timerRef.current) clearInterval(timerRef.current)
+        finish(correctCount, xpEarned, Math.min(idx + 1, questions.length))
+        return 0
+      }
+      return t - 1
+    }), 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [mode, completed, loading, graded, idx, finish, correctCount, xpEarned, questions.length])
+
+  const gradeAnswer = useCallback((ok: boolean) => {
     if (graded !== null) return
-    setGraded(isCorrect)
-    const newXp = isCorrect ? 5 : 0
-    const newCorrect = correctCount + (isCorrect ? 1 : 0)
-    setCorrectCount(newCorrect)
-    setXpEarned((x) => x + newXp)
-    if (isCorrect) toast.success('Correct! +5 XP')
-    else toast.error('Not quite right.')
+    const comboNext = ok ? combo + 1 : 0
+    const xp = mode === 'speed_round' && ok ? 5 + Math.min(5, Math.max(0, combo)) : ok ? 5 : 0
+    setGraded(ok); setSelected(ok ? selected : selected); setCorrectCount((x) => x + (ok ? 1 : 0)); setXpEarned((x) => x + xp); setLastXp(xp); setShowXp(true); setCombo(comboNext); setBestCombo((x) => Math.max(x, comboNext)); window.setTimeout(() => setShowXp(false), 850)
+    if (ok) toast.success(mode === 'speed_round' && comboNext > 1 ? `${comboNext}× combo! +${xp} XP` : `Correct! +${xp} XP`)
+    else toast.error('Not quite — keep going.')
+    if (mode === 'speed_round') window.setTimeout(() => { if (idx + 1 >= questions.length) finish(correctCount + (ok ? 1 : 0), xpEarned + xp, questions.length); else { setIdx((x) => x + 1); setAnswer(''); setSelected(null); setGraded(null) } }, 480)
+  }, [graded, combo, mode, selected, idx, questions.length, correctCount, xpEarned, finish])
 
-    // For speed round: auto-advance after a short pause
-    if (mode === 'speed_round') {
-      setTimeout(() => {
-        if (idx + 1 >= questions.length) {
-          finish(newCorrect, xpEarned + newXp, questions.length)
-        } else {
-          setIdx(idx + 1)
-          setAnswer('')
-          setSelectedOption(null)
-          setGraded(null)
-        }
-      }, 500)
-    }
-  }, [graded, correctCount, xpEarned, mode, idx, questions.length, finish])
+  const next = useCallback(() => { if (idx + 1 >= questions.length) finish(); else { setIdx((x) => x + 1); setAnswer(''); setSelected(null); setGraded(null) } }, [idx, questions.length, finish])
 
-  const next = useCallback(() => {
-    if (idx + 1 >= questions.length) {
-      finish(correctCount, xpEarned, questions.length)
-    } else {
-      setIdx(idx + 1)
-      setAnswer('')
-      setSelectedOption(null)
-      setGraded(null)
-    }
-  }, [idx, questions.length, correctCount, xpEarned, finish])
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-20 w-full" />
-      </div>
-    )
-  }
-
-  if (questions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <p className="text-muted-foreground">Need at least 4 words in the database to run this quiz.</p>
-          <Button variant="outline" className="mt-4" onClick={onExit}>Back to modes</Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (completed) {
-    const total = questions.length
-    const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <Trophy className="h-12 w-12 mx-auto text-amber-500 mb-3" />
-          <h3 className="text-xl font-bold">Quiz complete!</h3>
-          <p className="text-sm text-muted-foreground mt-1">Mode: {MODES.find((m) => m.mode === mode)?.title}</p>
-          <div className="grid grid-cols-3 gap-3 my-6 max-w-md mx-auto">
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-2xl font-bold">{correctCount}</div>
-              <div className="text-[10px] text-muted-foreground uppercase">Correct</div>
-            </div>
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-2xl font-bold">{total}</div>
-              <div className="text-[10px] text-muted-foreground uppercase">Total</div>
-            </div>
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-2xl font-bold">{pct}%</div>
-              <div className="text-[10px] text-muted-foreground uppercase">Accuracy</div>
-            </div>
-          </div>
-          <div className="text-sm text-emerald-600 font-medium mb-4">+{xpEarned} XP earned</div>
-          <div className="flex gap-2 justify-center">
-            <Button variant="outline" onClick={load}>
-              <RotateCcw className="h-4 w-4 mr-1.5" /> Try again
-            </Button>
-            <Button onClick={onExit}>Back to modes</Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (loading) return <div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-96 w-full" /></div>
+  if (!questions.length) return <Card className="game-panel rounded-3xl"><CardContent className="p-10 text-center"><p className="text-sm text-muted-foreground">Need at least 4 words to run a quiz.</p><Button variant="outline" className="mt-4 rounded-xl" onClick={onExit}>Back to modes</Button></CardContent></Card>
+  if (completed) return <SessionComplete correct={correctCount} total={mode === 'speed_round' ? Math.min(idx + 1, questions.length) : questions.length} xp={xpEarned} streak={streak} title={mode === 'speed_round' ? 'Time! Round complete.' : 'Quiz complete!'} subtitle={bestCombo > 1 ? `Best combo: ${bestCombo}×. You were in the zone.` : 'You tested retrieval instead of just recognizing the answer.'} onAgain={load} onDone={onExit} />
 
   const current = questions[idx]
+  const modeMeta = MODES.find((m) => m.mode === mode)!
+  return <div className="space-y-4">
+    <XpBurst amount={showXp ? lastXp : 0} />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><Button variant="ghost" size="sm" onClick={onExit} className="w-fit rounded-xl"><ArrowLeft className="mr-1 h-4 w-4" /> Exit</Button><div className="flex flex-wrap items-center gap-2"><Badge variant="secondary" className="rounded-lg">{modeMeta.title}</Badge>{mode === 'speed_round' && <Badge variant={timeLeft <= 10 ? 'destructive' : 'secondary'} className="rounded-lg font-mono"><Clock className="mr-1 h-3 w-3" />{timeLeft}s</Badge>}<Badge variant="outline" className="rounded-lg font-mono">{idx + 1}/{questions.length}</Badge>{mode === 'speed_round' && <Badge variant="outline" className="rounded-lg"><Flame className="mr-1 h-3 w-3 text-orange-500" />{combo}×</Badge>}</div></div>
+    <div className="h-2 overflow-hidden rounded-full bg-muted"><motion.div animate={{ width: `${((idx + 1) / questions.length) * 100}%` }} className="h-full rounded-full bg-primary" /></div>
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onExit}>← Exit</Button>
-        <div className="flex items-center gap-2">
-          {mode === 'speed_round' && (
-            <Badge variant={timeLeft <= 10 ? 'destructive' : 'secondary'} className="font-mono">
-              <Clock className="h-3 w-3 mr-1" /> {timeLeft}s
-            </Badge>
-          )}
-          <Badge variant="secondary" className="font-mono">
-            {idx + 1} / {questions.length}
-          </Badge>
-          <Badge variant="outline">Score: {correctCount}</Badge>
-        </div>
-      </div>
+    <AnimatePresence mode="wait"><motion.div key={idx} initial={{ opacity: 0, y: 12, scale: .99 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: .99 }}>
+      <Card className={cn('game-panel rounded-[2rem]', mode === 'speed_round' && 'border-primary/25')}>
+        <CardHeader className="p-6 pb-3 sm:p-8 sm:pb-4"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">{mode === 'speed_round' ? <><Zap className="h-3.5 w-3.5" /> Arcade mode</> : modeMeta.tag}</div><CardTitle className="mt-2 text-xl leading-snug sm:text-2xl">{current.prompt}</CardTitle>{current.promptWord && mode !== 'spelling_bee' && <div className="mt-4 flex items-center gap-3"><div className="text-4xl font-black tracking-tight sm:text-5xl">{current.promptWord.word}</div><Button size="icon" variant="outline" className="rounded-xl" onClick={() => speak(current.promptWord!.word, { voice: ttsVoice, rate: ttsRate })}><Volume2 className="h-4 w-4" /></Button></div>}</CardHeader>
+        <CardContent className="space-y-4 p-6 pt-4 sm:p-8 sm:pt-5">
+          {(mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round') && current.options && <div className="grid gap-2.5">{current.options.map((opt, i) => { const isCorrect = opt === current.correctAnswer; const isSelected = opt === selected; return <motion.div key={i} whileHover={graded === null ? { x: 2 } : undefined}><Button disabled={graded !== null} variant="outline" className={cn('h-auto min-h-14 w-full justify-start rounded-2xl px-4 py-3 text-left whitespace-normal', graded !== null && isCorrect && 'border-emerald-500/40 bg-emerald-500/10', graded !== null && isSelected && !isCorrect && 'border-rose-500/40 bg-rose-500/10', isSelected && graded === null && 'border-primary bg-primary/5')} onClick={() => { setSelected(opt); gradeAnswer(isCorrect) }}><span className="mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-xs font-bold">{String.fromCharCode(65 + i)}</span><span className="font-medium">{opt}</span>{graded !== null && isCorrect && <Check className="ml-auto h-4 w-4 text-emerald-600" />}{graded !== null && isSelected && !isCorrect && <X className="ml-auto h-4 w-4 text-rose-600" />}</Button></motion.div> })}</div>}
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-muted rounded overflow-hidden">
-        <motion.div
-          className="h-full bg-primary"
-          initial={{ width: 0 }}
-          animate={{ width: `${(idx / questions.length) * 100}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
+          {(mode === 'typing' || mode === 'spelling_bee') && <div className="space-y-3">{mode === 'spelling_bee' && <div className="flex justify-center"><Button variant="outline" size="lg" className="rounded-2xl" onClick={() => speak(current.audioWord!, { voice: ttsVoice, rate: ttsRate })}><Volume2 className="mr-2 h-5 w-5" /> Hear again</Button></div>}<input value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={graded !== null} autoFocus placeholder={mode === 'spelling_bee' ? 'Type what you hear…' : 'Type the word…'} className="w-full rounded-2xl border bg-background p-5 text-center font-mono text-xl outline-none focus:ring-2 focus:ring-primary" onKeyDown={(e) => { if (e.key === 'Enter' && graded === null && answer.trim()) gradeAnswer(answer.trim().toLowerCase() === current.correctAnswer.toLowerCase()) }} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />{graded !== null && <div className={cn('rounded-xl p-3 text-center text-sm font-semibold', graded ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600')}>{graded ? 'Correct!' : `Answer: ${current.correctAnswer}`}</div>}</div>}
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={idx}
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -30 }}
-          transition={{ duration: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{current.prompt}</CardTitle>
-              {current.promptWord && mode !== 'spelling_bee' && (
-                <div className="text-2xl font-bold mt-1">{current.promptWord.word}</div>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {(mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round') && current.options && (
-                <div className="grid gap-2">
-                  {current.options.map((opt, i) => {
-                    const isCorrect = opt === current.correctAnswer
-                    const isSelected = opt === selectedOption
-                    return (
-                      <Button
-                        key={i}
-                        variant={
-                          graded !== null && isCorrect ? 'default'
-                          : graded !== null && isSelected && !isCorrect ? 'destructive'
-                          : isSelected ? 'secondary'
-                          : 'outline'
-                        }
-                        className={cn(
-                          'justify-start text-left h-auto py-3 px-4 whitespace-normal',
-                          graded !== null && isCorrect && 'bg-emerald-500 text-white hover:bg-emerald-600',
-                          graded !== null && isSelected && !isCorrect && 'bg-rose-500 text-white hover:bg-rose-600',
-                        )}
-                        disabled={graded !== null}
-                        onClick={() => {
-                          if (graded !== null) return
-                          setSelectedOption(opt)
-                          gradeAnswer(opt === current.correctAnswer)
-                        }}
-                      >
-                        <span className="font-mono text-xs mr-2 opacity-70">{String.fromCharCode(65 + i)}.</span>
-                        <span>{opt}</span>
-                        {graded !== null && isCorrect && <Check className="h-4 w-4 ml-auto" />}
-                        {graded !== null && isSelected && !isCorrect && <X className="h-4 w-4 ml-auto" />}
-                      </Button>
-                    )
-                  })}
-                </div>
-              )}
+          {graded !== null && mode !== 'speed_round' && <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center"><div className="text-xs text-muted-foreground">{correctCount} correct so far · +{xpEarned} XP</div><Button onClick={next} className="rounded-xl">{idx + 1 >= questions.length ? 'See results' : 'Next'} <ArrowLeft className="ml-2 h-4 w-4 rotate-180" /></Button></div>}
+        </CardContent>
+      </Card>
+    </motion.div></AnimatePresence>
 
-              {(mode === 'typing' || mode === 'spelling_bee') && (
-                <div className="space-y-3">
-                  {mode === 'spelling_bee' && (
-                    <div className="flex justify-center">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={() => {
-                          const ok = speak(current.audioWord!, { voice: ttsVoice, rate: ttsRate })
-                          if (!ok) toast.error('TTS not available.')
-                        }}
-                      >
-                        <Volume2 className="h-5 w-5 mr-2" /> Play again
-                      </Button>
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    disabled={graded !== null}
-                    autoFocus
-                    placeholder={mode === 'spelling_bee' ? 'Type the word you hear…' : 'Type the answer…'}
-                    className="w-full text-center font-mono text-lg p-3 rounded-md border bg-background"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && graded === null && answer.trim()) {
-                        gradeAnswer(answer.trim().toLowerCase() === current.correctAnswer.toLowerCase())
-                      }
-                    }}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                  />
-                  {graded !== null && (
-                    <div className={cn('text-center text-sm font-medium', graded ? 'text-emerald-600' : 'text-rose-600')}>
-                      {graded ? 'Correct!' : `Answer: ${current.correctAnswer}`}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {graded !== null && mode !== 'speed_round' && (
-                <div className="flex justify-end">
-                  <Button onClick={next}>
-                    {idx + 1 >= questions.length ? 'See results' : 'Next'} <ArrowRight className="h-4 w-4 ml-1.5" />
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  )
+    {mode === 'speed_round' && <div className="grid grid-cols-3 gap-2"><MiniStat icon={Target} value={correctCount} label="Correct" /><MiniStat icon={Flame} value={`${combo}×`} label="Combo" /><MiniStat icon={Trophy} value={xpEarned} label="XP" /></div>}
+  </div>
 }
+
+function MiniStat({ icon: Icon, value, label }: { icon: React.ElementType; value: string | number; label: string }) { return <div className="rounded-2xl border bg-card/70 p-3 text-center"><Icon className="mx-auto h-4 w-4 text-primary" /><div className="mt-1 text-lg font-black tabular-nums">{value}</div><div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div></div> }

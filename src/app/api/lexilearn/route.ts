@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { calculateSm2, type Grade } from '@/lib/srs'
 import { v4 as uuid } from 'uuid'
+import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/lib/mentor-agent'
 
 // ---------- Types ----------
 export type WordDTO = {
@@ -306,6 +307,14 @@ async function getDashboardStats() {
   const totalXp = parseInt(await getStat('totalXp', '0'), 10) || 0
   const totalReviews = parseInt(await getStat('totalReviews', '0'), 10) || 0
   const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
+  const lastSessionDate = await getStat('lastSessionDate', '')
+  const streakShieldUsedDate = await getStat('streakShieldUsedDate', '')
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const challengeClaimedDate = await getStat('challengeClaimedDate', '')
+  const todayQuizSessions = await db.quizSession.findMany({ where: { completedAt: { gte: startOfToday, lte: endOfToday } } })
+  const todayCorrect = todayLogs.filter((l) => l.isCorrect).length + todayQuizSessions.reduce((sum, q) => sum + q.correct, 0)
+  const xpTodayFromReviews = todayLogs.reduce((sum, l) => sum + (l.grade === 5 ? 8 : l.grade === 4 ? 5 : l.grade >= 3 ? 3 : 1), 0)
+  const xpToday = xpTodayFromReviews + todayQuizSessions.reduce((sum, q) => sum + q.xpEarned, 0)
   const dailyGoal = parseInt(await getStat('dailyGoal', '20'), 10) || 20
   const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0
 
@@ -367,12 +376,34 @@ async function getDashboardStats() {
     heatmap.push({ date: key, count: entry.count, correct: entry.correct })
   }
 
+  let streakGap = 0
+  let streakShieldCooldownDays = 0
+  if (lastSessionDate) {
+    const last = new Date(lastSessionDate + 'T00:00:00')
+    const nowDay = new Date()
+    nowDay.setHours(0, 0, 0, 0)
+    streakGap = Math.max(0, Math.round((nowDay.getTime() - last.getTime()) / 86_400_000))
+  }
+  if (streakShieldUsedDate) {
+    const used = new Date(streakShieldUsedDate + 'T00:00:00')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    streakShieldCooldownDays = Math.max(0, 7 - Math.round((today.getTime() - used.getTime()) / 86_400_000))
+  }
+
   return {
     dueCount,
     newCount: newCardsCount,
     learnedToday: todayLogs.length,
     streak,
     longestStreak,
+    lastSessionDate,
+    streakShieldAvailable: !!lastSessionDate && streak > 0 && streakGap > 1 && streakShieldCooldownDays === 0,
+    streakGap,
+    streakShieldCooldownDays,
+    todayCorrect,
+    xpToday,
+    challengeClaimedDate,
     totalXp,
     totalReviews,
     totalCorrect,
@@ -596,6 +627,63 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(questions)
       }
 
+      case 'mentorOverview': {
+        const overview = await getMentorOverview()
+        return NextResponse.json(overview)
+      }
+
+      case 'mentorBranch': {
+        const branchId = url.searchParams.get('branchId')
+        if (!branchId) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
+        const branch = await db.mentorBranch.findUnique({ where: { id: branchId }, include: { project: true, nodes: { orderBy: { createdAt: 'asc' }, include: { attempts: { orderBy: { createdAt: 'asc' }, include: { feedback: true } } } } } })
+        if (!branch) return NextResponse.json({ error: 'branch not found' }, { status: 404 })
+        return NextResponse.json(branch)
+      }
+
+      case 'mentorNodeNext': {
+        const branchId = url.searchParams.get('branchId')
+        if (!branchId) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
+        const node = await generateNextNode(branchId)
+        return NextResponse.json(node)
+      }
+
+      case 'mentorIndexKnowledge': {
+        await ensureMentorSeed()
+        const { ollamaEmbed } = await import('@/lib/ollama')
+        const chunks = await db.mentorKnowledge.findMany({ where:{ embedding:null } })
+        let indexed = 0
+        for (const c of chunks) {
+          try { const [vec] = await ollamaEmbed(`${c.title}. ${c.content}`); if (vec?.length) { await db.mentorKnowledge.update({ where:{id:c.id}, data:{embedding:JSON.stringify(vec)} }); indexed++ } } catch {}
+        }
+        return NextResponse.json({ ok:true, indexed, total:chunks.length })
+      }
+
+      case 'mentorDueErrors': {
+        const errors = await db.mentorErrorCard.findMany({ where: { dueAt: { lte: new Date() } }, orderBy: { dueAt: 'asc' }, take: 30 })
+        return NextResponse.json(errors)
+      }
+
+      case 'mentorProfile': {
+        await ensureMentorSeed()
+        const [profile, mastery] = await Promise.all([db.mentorProfile.findUnique({ where: { id: 1 } }), db.mentorSkillMastery.findMany({ orderBy: { mastery: 'asc' } })])
+        return NextResponse.json({ profile, mastery })
+      }
+
+      case 'mentorWeeklyReport': {
+        const result = await buildWeeklyCoachReport()
+        return NextResponse.json(result)
+      }
+
+      case 'mentorPronunciationHistory': {
+        const items = await db.pronunciationAttempt.findMany({ orderBy:{createdAt:'desc'}, take:20 })
+        return NextResponse.json(items.map(x=>({id:x.id,target:x.target,transcript:x.transcript,accuracy:x.accuracy,missingWords:JSON.parse(x.missingWords||'[]'),extraWords:JSON.parse(x.extraWords||'[]'),feedback:JSON.parse(x.feedback||'{}'),createdAt:x.createdAt})))
+      }
+
+      case 'mentorNaturalnessHistory': {
+        const items = await db.naturalnessAttempt.findMany({ orderBy:{createdAt:'desc'}, take:20 })
+        return NextResponse.json(items.map(x=>({id:x.id,input:x.input,score:x.score,verdict:x.verdict,native:x.native,alternatives:JSON.parse(x.alternatives||'[]'),explanation:x.explanation,createdAt:x.createdAt})))
+      }
+
       case 'ollamaStatus': {
         const { checkOllamaStatus } = await import('@/lib/ollama')
         const status = await checkOllamaStatus()
@@ -714,6 +802,55 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
+      case 'claimChallenge': {
+        const { key } = body as { key?: string }
+        const today = new Date().toISOString().slice(0, 10)
+        const claimed = await getStat('challengeClaimedDate', '')
+        if (claimed === today) return NextResponse.json({ ok: true, xpAwarded: 0, alreadyClaimed: true })
+        const start = new Date(); start.setHours(0, 0, 0, 0)
+        const end = new Date(); end.setHours(23, 59, 59, 999)
+        const logs = await db.reviewLog.findMany({ where: { reviewedAt: { gte: start, lte: end } } })
+        const sessions = await db.quizSession.findMany({ where: { completedAt: { gte: start, lte: end } } })
+        const todayCorrect = logs.filter((l) => l.isCorrect).length + sessions.reduce((sum, q) => sum + q.correct, 0)
+        const streak = parseInt(await getStat('streak', '0'), 10) || 0
+        const targets: Record<string, { progress: number; target: number; reward: number }> = {
+          sprint: { progress: logs.length, target: 10, reward: 35 },
+          recall: { progress: todayCorrect, target: 8, reward: 40 },
+          streak: { progress: streak > 0 ? 1 : 0, target: 1, reward: 25 },
+        }
+        const challenge = targets[key || '']
+        if (!challenge || challenge.progress < challenge.target) return NextResponse.json({ error: 'Challenge is not complete yet' }, { status: 400 })
+        const cur = parseInt(await getStat('totalXp', '0'), 10) || 0
+        await setStat('totalXp', String(cur + challenge.reward))
+        await setStat('challengeClaimedDate', today)
+        return NextResponse.json({ ok: true, xpAwarded: challenge.reward, alreadyClaimed: false })
+      }
+
+      case 'repairStreak': {
+        const today = new Date().toISOString().slice(0, 10)
+        const lastSession = await getStat('lastSessionDate', '')
+        const usedDate = await getStat('streakShieldUsedDate', '')
+        if (!lastSession) return NextResponse.json({ ok: false, error: 'No streak shield available' }, { status: 400 })
+        if (usedDate) {
+          const used = new Date(usedDate + 'T00:00:00')
+          const nowDay = new Date(today + 'T00:00:00')
+          const cooldown = Math.max(0, 7 - Math.round((nowDay.getTime() - used.getTime()) / 86_400_000))
+          if (cooldown > 0) return NextResponse.json({ ok: false, error: `Streak shield recharges in ${cooldown} day${cooldown === 1 ? '' : 's'}` }, { status: 400 })
+        }
+        const last = new Date(lastSession + 'T00:00:00')
+        const now = new Date(today + 'T00:00:00')
+        const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000)
+        if (diff <= 1) return NextResponse.json({ ok: false, error: 'Your streak does not need repair' }, { status: 400 })
+        const streak = parseInt(await getStat('streak', '0'), 10) || 0
+        const repaired = Math.max(1, streak + 1)
+        await setStat('streak', String(repaired))
+        const longest = parseInt(await getStat('longestStreak', '0'), 10) || 0
+        if (repaired > longest) await setStat('longestStreak', String(repaired))
+        await setStat('lastSessionDate', today)
+        await setStat('streakShieldUsedDate', today)
+        return NextResponse.json({ ok: true, streak: repaired })
+      }
+
       case 'updateSettings': {
         const patch = body as any
         if (patch.ttsVoice !== undefined) await setStat('ttsVoice', patch.ttsVoice)
@@ -781,7 +918,7 @@ export async function POST(req: NextRequest) {
         const initialStats: Record<string, string> = {
           streak: '0', longestStreak: '0', lastSessionDate: '', totalXp: '0',
           dailyGoal: '20', ttsVoice: '', ttsRate: '1', theme: 'system',
-          totalReviews: '0', totalCorrect: '0', achievements: '[]',
+          totalReviews: '0', totalCorrect: '0', achievements: '[]', streakShieldUsedDate: '', challengeClaimedDate: '',
         }
         for (const [k, v] of Object.entries(initialStats)) {
           await db.appStat.create({ data: { key: k, value: v } })
@@ -789,88 +926,110 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
-      case 'mentor': {
-        const {
-          MENTOR_SYSTEM,
-          ollamaChat,
-          buildPracticePrompt,
-          buildWritingFeedbackPrompt,
-          buildConversationSystem,
-          buildExplainPrompt,
-        } = await import('@/lib/ollama')
+      case 'mentorExplain': {
+        const { buildExplainPrompt, ollamaChat, MENTOR_SYSTEM } = await import('@/lib/ollama')
+        if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
+        const response = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildExplainPrompt(body.query.trim(), body.context) }])
+        return NextResponse.json({ response })
+      }
 
+      case 'mentorProject': {
+        const { name, goal } = body as { name: string; goal?: string }
+        if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
+        const project = await db.mentorProject.create({ data: { name: name.trim(), goal: goal?.trim() || null } })
+        return NextResponse.json(project)
+      }
+
+      case 'mentorBranch': {
+        const { projectId, title, focusTag, mode = 'drill', difficultyCeiling = 3, locked = true } = body as any
+        if (!projectId || !title || !focusTag) return NextResponse.json({ error: 'projectId, title and focusTag required' }, { status: 400 })
+        const branch = await db.mentorBranch.create({ data: { projectId, title, focusTag, mode, difficultyCeiling, locked } })
+        return NextResponse.json(branch)
+      }
+
+      case 'mentorNext': {
+        if (!body.branchId) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
+        const node = await generateNextNode(body.branchId)
+        return NextResponse.json(node)
+      }
+
+      case 'mentorWeeklyReport': {
+        const result = await buildWeeklyCoachReport()
+        return NextResponse.json(result)
+      }
+
+      case 'mentorPronunciation': {
+        const { target, transcript } = body as any
+        if (!target?.trim() || !transcript?.trim()) return NextResponse.json({error:'target and transcript required'},{status:400})
+        return NextResponse.json(await evaluatePronunciation(target.trim(), transcript.trim()))
+      }
+
+      case 'mentorNaturalness': {
+        const { input } = body as any
+        if (!input?.trim()) return NextResponse.json({error:'input required'},{status:400})
+        return NextResponse.json(await evaluateNaturalness(input.trim()))
+      }
+
+      case 'mentorAttempt': {
+        const { nodeId, answer, confidence, timeMs, keystrokes, hintLevel = 0, selfCorrect } = body as any
+        if (!nodeId || !answer?.trim()) return NextResponse.json({ error: 'nodeId and answer required' }, { status: 400 })
+        const node = await db.mentorNode.findUnique({ where: { id: nodeId } })
+        if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
+        const attempt = await db.mentorAttempt.create({ data: { nodeId, branchId: node.branchId, answer: answer.trim(), confidence, timeMs, keystrokes, hintLevel, selfCorrect: selfCorrect ? String(selfCorrect) : null } })
+        const result = await evaluateAttempt(attempt.id)
+        return NextResponse.json({ attemptId: attempt.id, ...result })
+      }
+
+      case 'mentorHint': {
+        const attemptNodeId = body.nodeId as string
+        if (!attemptNodeId) return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
+        const node = await db.mentorNode.findUnique({ where: { id: attemptNodeId } })
+        if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
+        const hints = JSON.parse(node.hints || '[]') as string[]
+        const level = Math.min(Math.max(Number(body.level) || 1, 1), Math.max(hints.length, 1))
+        return NextResponse.json({ action: 'hint', level, text: hints[level - 1] || hints[hints.length - 1] || 'Look again at the target skill.' })
+      }
+
+      case 'mentorSelfCorrect': {
+        const attemptId = body.attemptId as string
+        if (!attemptId) return NextResponse.json({ error: 'attemptId required' }, { status: 400 })
+        const { correction } = body
+        const attempt = await db.mentorAttempt.update({ where: { id: attemptId }, data: { selfCorrect: correction || '' } })
+        return NextResponse.json({ ok: true, selfCorrect: attempt.selfCorrect })
+      }
+
+      case 'mentorFork': {
+        const { nodeId, title, focusTag, mode = 'scenario', difficultyCeiling = 3 } = body as any
+        const node = await db.mentorNode.findUnique({ where: { id: nodeId } })
+        if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
+        const branch = await db.mentorBranch.create({ data: { projectId: (await db.mentorBranch.findUniqueOrThrow({ where: { id: node.branchId } })).projectId, parentBranchId: node.branchId, parentNodeId: node.id, title: title || `Branch from node ${node.id.slice(-4)}`, focusTag: focusTag || JSON.parse(node.targetTags || '[]')[0] || 'naturalness', mode, difficultyCeiling, locked: true } })
+        return NextResponse.json(branch)
+      }
+
+      case 'mentor': {
+        // Legacy free-form mentor modes remain available; the new agentic flow uses mentorNext/mentorAttempt.
+        const { MENTOR_SYSTEM, ollamaChat, buildPracticePrompt, buildWritingFeedbackPrompt, buildConversationSystem, buildExplainPrompt } = await import('@/lib/ollama')
         const mode = body.mode as string
         if (!mode) return NextResponse.json({ error: 'mode required' }, { status: 400 })
-
         let responseText = ''
-
         if (mode === 'practice') {
-          const words = (body.words || []) as { word: string; definition?: string; amharic?: string }[]
-          const practiceType = body.practiceType || 'cloze'
-          const userPrompt = buildPracticePrompt({
-            words,
-            type: practiceType,
-            count: body.count || 5,
-            level: body.level,
-          })
-          responseText = await ollamaChat([
-            { role: 'system', content: MENTOR_SYSTEM },
-            { role: 'user', content: userPrompt },
-          ])
+          const userPrompt = buildPracticePrompt({ words: (body.words || []) as any, type: body.practiceType || 'cloze', count: body.count || 5, level: body.level })
+          responseText = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:userPrompt }])
         } else if (mode === 'writing') {
-          const text = body.text as string
-          if (!text?.trim()) return NextResponse.json({ error: 'text required' }, { status: 400 })
-          const userPrompt = buildWritingFeedbackPrompt(text, body.targetWords)
-          responseText = await ollamaChat([
-            { role: 'system', content: MENTOR_SYSTEM },
-            { role: 'user', content: userPrompt },
-          ])
+          if (!body.text?.trim()) return NextResponse.json({ error:'text required' }, { status:400 })
+          responseText = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildWritingFeedbackPrompt(body.text.trim(), body.targetWords) }])
         } else if (mode === 'conversation') {
-          const scenario = body.scenario || 'Casual conversation practice'
-          const prior = (body.messages || []) as { role: string; content: string }[]
-          const system = buildConversationSystem(scenario, body.targetWords)
-          const messages = [
-            { role: 'system' as const, content: system },
-            ...prior.map((m) => ({
-              role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-              content: m.content,
-            })),
-          ]
-          if (body.start || prior.length === 0) {
-            messages.push({
-              role: 'user',
-              content: 'Please start the conversation in character with a short, natural opening line and a question for me.',
-            })
-          }
-          responseText = await ollamaChat(messages, { temperature: 0.8 })
+          const system = buildConversationSystem(body.scenario || 'Casual conversation practice', body.targetWords)
+          const prior = (body.messages || []) as {role:string;content:string}[]
+          const messages:any[] = [{role:'system',content:system}, ...prior.map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}))]
+          if (body.start || prior.length === 0) messages.push({role:'user', content:'Start with one short natural question and stay in character.'})
+          responseText = await ollamaChat(messages, { temperature:0.8 })
         } else if (mode === 'explain') {
-          const query = body.query as string
-          if (!query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
-          const userPrompt = buildExplainPrompt(query, body.context)
-          responseText = await ollamaChat([
-            { role: 'system', content: MENTOR_SYSTEM },
-            { role: 'user', content: userPrompt },
-          ])
-        } else {
-          return NextResponse.json({ error: 'unknown mentor mode' }, { status: 400 })
-        }
-
-        // Persist lightly (optional)
-        try {
-          await db.mentorSession.create({
-            data: {
-              mode,
-              title: body.title || mode,
-              prompt: JSON.stringify(body).slice(0, 2000),
-              response: responseText.slice(0, 15000),
-              metadata: body.metadata ? JSON.stringify(body.metadata) : null,
-            },
-          })
-        } catch {
-          // schema may not be migrated yet — ignore
-        }
-
-        return NextResponse.json({ response: responseText })
+          if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
+          responseText = await ollamaChat([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:buildExplainPrompt(body.query.trim(),body.context)}])
+        } else return NextResponse.json({ error:'unknown mentor mode' }, {status:400})
+        await db.mentorSession.create({ data:{ mode, title:body.title||mode, prompt:JSON.stringify(body).slice(0,2000), response:responseText.slice(0,15000), metadata:body.metadata?JSON.stringify(body.metadata):null } }).catch(()=>{})
+        return NextResponse.json({response:responseText})
       }
 
       default:

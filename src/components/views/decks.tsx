@@ -54,7 +54,7 @@ export function DecksView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Word Decks</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Browse pre-built lists or create your own.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Pick a vocabulary world to explore, or build one around your own goal.</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-1.5" /> New deck
@@ -65,13 +65,13 @@ export function DecksView() {
         {decks.map((d) => (
           <Card
             key={d.id}
-            className="cursor-pointer hover:bg-accent transition-colors"
+            className="game-panel game-hover cursor-pointer rounded-2xl"
             onClick={() => navigate('deck-detail', { deckId: d.id })}
           >
             <CardContent className="p-5">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <div className="font-semibold">{d.name}</div>
+                  <div className="font-semibold tracking-tight">{d.name}</div>
                   {d.isCustom && <Badge variant="secondary" className="text-[10px] mt-1">Custom</Badge>}
                 </div>
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -79,8 +79,8 @@ export function DecksView() {
               <p className="text-sm text-muted-foreground line-clamp-2">
                 {d.description || 'No description'}
               </p>
-              <div className="mt-3 text-xs text-muted-foreground">
-                {d.wordCount} words
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{d.wordCount} words</span><span className="text-primary font-semibold">Open →</span>
               </div>
             </CardContent>
           </Card>
@@ -223,7 +223,7 @@ export function DeckDetailView() {
       )}
 
       {/* Word list */}
-      <Card>
+      <Card className="game-panel rounded-2xl">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Words ({deck.words.length})</CardTitle>
