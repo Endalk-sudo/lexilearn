@@ -44,11 +44,11 @@ export function SpellingInput({
             <div
               key={i}
               className={cn(
-                'h-11 w-8 sm:h-12 sm:w-10 flex items-center justify-center rounded-md border-2 font-mono text-lg font-semibold transition-colors',
+                'h-11 w-8 sm:h-12 sm:w-10 flex items-center justify-center rounded-md border-2 font-mono text-lg font-medium transition-colors',
                 isSpace && 'border-transparent bg-transparent w-2',
                 !isSpace && !typed && 'bg-muted/40 border-input',
-                isCorrect && 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300',
-                isWrong && 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300',
+                isCorrect && 'border-success bg-success-soft text-success',
+                isWrong && 'border-destructive bg-destructive-soft text-destructive',
               )}
             >
               {typed || (isSpace ? '\u00A0' : '')}

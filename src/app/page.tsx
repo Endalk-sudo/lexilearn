@@ -1,96 +1,89 @@
 'use client'
 
-import { Sidebar, MobileNav } from '@/components/sidebar'
-import { DashboardView } from '@/components/views/dashboard'
+import { useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { AppSidebar, MobileTabs, MobileTopBar, ShellOverlays } from '@/components/app-shell'
+import { TodayView } from '@/components/views/today'
 import { LearnView } from '@/components/views/learn'
 import { ReviewView } from '@/components/views/review'
 import { QuizView } from '@/components/views/quiz'
-import { DecksView, DeckDetailView } from '@/components/views/decks'
-import { StatsView } from '@/components/views/stats'
-import { SettingsView } from '@/components/views/settings'
-import { SearchView } from '@/components/views/search'
-import { MentorView } from '@/components/views/mentor'
-import { CoachLabView } from '@/components/views/coach-lab'
+import { LibraryView, DeckDetailView } from '@/components/views/library'
+import { ProgressView } from '@/components/views/progress'
+import { CoachView } from '@/components/views/coach'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { useAppStore } from '@/lib/store'
-import { useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-const VIEW_TITLES: Record<string, string> = {
-  dashboard: 'Dashboard',
-  learn: 'Learn New Words',
-  review: 'Review Session',
-  quiz: 'Quiz',
-  mentor: 'AI Mentor',
-  'coach-lab': 'AI Coach Lab',
-  decks: 'Word Decks',
-  'deck-detail': 'Deck Detail',
-  stats: 'Statistics',
-  settings: 'Settings',
-  search: 'Dictionary Search',
-}
+import { useAppStore, VIEW_TITLES } from '@/lib/store'
+import { useRouteSync } from '@/lib/router'
+import { fadeUp, useMotionSafe } from '@/lib/motion'
 
 function ViewContainer({ view }: { view: string }) {
   switch (view) {
-    case 'dashboard': return <DashboardView />
-    case 'learn': return <LearnView />
-    case 'review': return <ReviewView />
-    case 'quiz': return <QuizView />
-    case 'mentor': return <MentorView />
-    case 'coach-lab': return <CoachLabView />
-    case 'decks': return <DecksView />
-    case 'deck-detail': return <DeckDetailView />
-    case 'custom-deck': return <DecksView />
-    case 'stats': return <StatsView />
-    case 'settings': return <SettingsView />
-    case 'search': return <SearchView />
-    default: return <DashboardView />
+    case 'learn':
+      return <LearnView />
+    case 'review':
+      return <ReviewView />
+    case 'quiz':
+      return <QuizView />
+    case 'library':
+      return <LibraryView />
+    case 'library-deck':
+      return <DeckDetailView />
+    case 'progress':
+      return <ProgressView />
+    case 'coach':
+      return <CoachView />
+    case 'today':
+    default:
+      return <TodayView />
   }
 }
 
 export default function Home() {
   const view = useAppStore((s) => s.view)
-  const prevView = useRef(view)
+  const deckId = useAppStore((s) => s.deckId)
+  const { v, t } = useMotionSafe()
 
-  // Scroll to top on view change
-  useEffect(() => {
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
-  }, [view])
+  useRouteSync()
 
-  // Update page title
   useEffect(() => {
-    const title = VIEW_TITLES[view]
-    if (title) document.title = `${title} — LexiLearn`
-    prevView.current = view
+    window.scrollTo({ top: 0 })
+  }, [view, deckId])
+
+  useEffect(() => {
+    document.title = `${VIEW_TITLES[view]} · LexiLearn`
   }, [view])
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <main className="flex-1 min-w-0 pb-24 md:pb-8">
-        <div className="md:hidden sticky top-0 z-30 flex items-center gap-2 px-4 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
-            L
+    <div className="relative flex min-h-dvh">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:border focus:border-primary-line focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+      <AppSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileTopBar />
+        <main id="main" tabIndex={-1} className="flex-1 pb-28 focus:outline-none md:pb-12">
+          <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${view}-${deckId ?? ''}`}
+                variants={v(fadeUp)}
+                initial="hidden"
+                animate="show"
+                exit="exit"
+                transition={t()}
+              >
+                <ErrorBoundary key={`eb-${view}`}>
+                  <ViewContainer view={view} />
+                </ErrorBoundary>
+              </motion.div>
+            </AnimatePresence>
           </div>
-          <span className="font-semibold">LexiLearn</span>
-        </div>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ErrorBoundary key={`eb-${view}`}>
-                <ViewContainer view={view} />
-              </ErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
-      <MobileNav />
+        </main>
+      </div>
+      <MobileTabs />
+      <ShellOverlays />
     </div>
   )
 }

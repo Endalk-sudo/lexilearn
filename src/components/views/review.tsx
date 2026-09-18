@@ -1,99 +1,397 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { BrainCircuit, Sparkles, Volume2 } from 'lucide-react'
 import { api, type CardWithWord } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
-import { Card, CardContent } from '@/components/ui/card'
+import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Volume2, Sparkles, ArrowLeft, Clock3 } from 'lucide-react'
-import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
+import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
+import { SessionSkeleton } from '@/components/feedback/session-skeleton'
+import { EmptyState } from '@/components/feedback/empty-state'
+import { XpPopLayer, popXpAt, useXpPops } from '@/components/feedback/xp-pop'
 import { speak } from '@/lib/tts'
-import { GRADE_LABELS, type Grade } from '@/lib/srs'
-import { SessionComplete, XpBurst } from '@/components/reward-celebration'
+import { buzz, playSound } from '@/lib/feel'
+import { calculateSm2, GRADE_XP, type Grade, type SrsCard } from '@/lib/srs'
+import { resumeIndexFor, saveResume } from '@/lib/resume'
+import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
-const GRADES: { grade: Grade; key: string; label: string; hint: string; xp: number; tone: string }[] = [
-  { grade: 0, key: '1', label: 'Again', hint: 'I forgot', xp: 1, tone: 'rose' },
-  { grade: 3, key: '2', label: 'Hard', hint: 'It was difficult', xp: 3, tone: 'amber' },
-  { grade: 4, key: '3', label: 'Good', hint: 'I knew it', xp: 5, tone: 'emerald' },
-  { grade: 5, key: '4', label: 'Easy', hint: 'Instant recall', xp: 8, tone: 'sky' },
+const GRADES: { grade: Grade; key: string; label: string; hint: string; cls: string }[] = [
+  { grade: 0, key: '1', label: 'Again', hint: 'Forgot it', cls: 'text-destructive hover:border-destructive/40 hover:bg-destructive-soft' },
+  { grade: 3, key: '2', label: 'Hard', hint: 'Tough recall', cls: 'text-warning hover:border-warning/40 hover:bg-warning-soft' },
+  { grade: 4, key: '3', label: 'Good', hint: 'Knew it', cls: 'text-success hover:border-success/40 hover:bg-success-soft' },
+  { grade: 5, key: '4', label: 'Easy', hint: 'Instant', cls: 'text-primary hover:border-primary-line hover:bg-primary-soft' },
 ]
+
+/** Show where each grade will send the card, so the choice is informed. */
+function previewInterval(srs: CardWithWord['srs'], grade: Grade): string {
+  if (!srs) return ''
+  try {
+    const next = calculateSm2({ ...(srs as unknown as SrsCard) }, grade)
+    return next.interval <= 1 ? '1 day' : `${next.interval} days`
+  } catch {
+    return ''
+  }
+}
 
 export function ReviewView() {
   const [cards, setCards] = useState<CardWithWord[]>([])
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
   const [revealed, setRevealed] = useState(false)
+  const [lastGrade, setLastGrade] = useState<Grade>(4)
   const [ttsVoice, setTtsVoice] = useState('')
   const [ttsRate, setTtsRate] = useState(1)
-  const [completed, setCompleted] = useState(false)
+  const [done, setDone] = useState(false)
   const [correctCount, setCorrectCount] = useState(0)
   const [xpEarned, setXpEarned] = useState(0)
-  const [showXp, setShowXp] = useState(false)
-  const [lastXp, setLastXp] = useState(0)
-  const [streak, setStreak] = useState(0)
   const [levelBefore, setLevelBefore] = useState('')
   const [levelAfter, setLevelAfter] = useState('')
-  const gradeRef = useRef<HTMLDivElement>(null)
+  const [streak, setStreak] = useState(0)
+  const [newAfter, setNewAfter] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
+  const { pops, pop } = useXpPops()
+  const { v, t } = useMotionSafe()
+  const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  const loadCards = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [list, settings, stats] = await Promise.all([api.getReviewableCards(null, 30), api.getSettings(), api.getDashboardStats()])
-      setCards(list); setTtsVoice(settings.ttsVoice); setTtsRate(settings.ttsRate); setLevelBefore(stats.level.name)
-      setIdx(0); setRevealed(false); setCompleted(false); setCorrectCount(0); setXpEarned(0)
-    } catch (e) { console.error(e) } finally { setLoading(false) }
-  }, [])
-  useEffect(() => { loadCards() }, [loadCards])
-
-  const current = cards[idx]
-  const grade = useCallback(async (g: Grade) => {
-    if (!current || !revealed) return
-    const bonus = g === 5 ? 8 : g === 4 ? 5 : g === 3 ? 3 : 1
-    setCorrectCount((x) => x + (g >= 3 ? 1 : 0)); setXpEarned((x) => x + bonus); setLastXp(bonus); setShowXp(true); window.setTimeout(() => setShowXp(false), 900)
-    try { await api.submitReview(current.word.id, g, 'review') } catch (e) { console.error(e) }
-    if (idx + 1 >= cards.length) {
-      const stats = await api.getDashboardStats().catch(() => null)
-      setStreak(stats?.streak ?? 0); setLevelAfter(stats?.level.name ?? levelBefore); setCompleted(true); return
+      const [list, settings, stats] = await Promise.all([
+        api.getReviewableCards(null, 30),
+        api.getSettings(),
+        api.getDashboardStats(),
+      ])
+      setCards(list)
+      setTtsVoice(settings.ttsVoice)
+      setTtsRate(settings.ttsRate)
+      setLevelBefore(stats.level.name)
+      setStreak(stats.streak)
+      const start = list.length ? resumeIndexFor('review', list.length) : 0
+      setIdx(start)
+      setRevealed(false)
+      setDone(false)
+      setCorrectCount(0)
+      setXpEarned(0)
+      if (list.length) {
+        saveResume({
+          view: 'review',
+          label: 'Review',
+          detail: `${list.length - start} due`,
+          index: start,
+          total: list.length,
+        })
+      }
+    } catch {
+      /* offline */
+    } finally {
+      setLoading(false)
     }
-    setIdx((x) => x + 1); setRevealed(false)
-    if (g >= 3) toast.success(`${GRADE_LABELS[g]} · +${bonus} XP`)
-    else toast(`${GRADE_LABELS[g]} · keep this one in rotation`)
-  }, [current, revealed, idx, cards.length, levelBefore])
+  }, [])
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || loading || completed) return
-      if ((e.key === ' ' || e.key === 'Enter') && !revealed) { e.preventDefault(); setRevealed(true); return }
-      const found = GRADES.find((x) => x.key === e.key)
-      if (revealed && found) { e.preventDefault(); grade(found.grade) }
+    load()
+  }, [load])
+
+  const current = cards[idx]
+
+  const reveal = useCallback(() => {
+    if (!current) return
+    playSound('tap')
+    buzz('light')
+    setRevealed(true)
+  }, [current])
+
+  const grade = useCallback(
+    async (g: Grade, e?: { clientX: number; clientY: number }, buttonIndex?: number) => {
+      if (!current || !revealed) return
+      setLastGrade(g)
+      const xp = GRADE_XP[g]
+      const passed = g >= 3
+      playSound(passed ? 'correct' : 'wrong')
+      buzz(passed ? 'success' : 'error')
+      if (e) popXpAt(xp, e, pop)
+      else {
+        const el = typeof buttonIndex === 'number' ? gradeRefs.current[buttonIndex] : null
+        if (el) {
+          const rect = el.getBoundingClientRect()
+          pop(xp, rect.left + rect.width / 2 - 38, rect.top - 10)
+        } else {
+          popXpAt(xp, undefined, pop)
+        }
+      }
+      if (passed) setCorrectCount((c) => c + 1)
+      setXpEarned((x) => x + xp)
+      void api.submitReview(current.word.id, g, 'review').catch(() => {})
+
+      const last = idx + 1 >= cards.length
+      if (last) {
+        try {
+          const stats = await api.getDashboardStats()
+          setLevelAfter(stats.level.name)
+          setStreak(stats.streak)
+          setNewAfter(stats.newCount)
+        } catch {
+          /* offline */
+        }
+        setDone(true)
+        return
+      }
+      const nextIdx = idx + 1
+      setIdx(nextIdx)
+      setRevealed(false)
+      saveResume({
+        view: 'review',
+        label: 'Review',
+        detail: `${cards.length - nextIdx} due`,
+        index: nextIdx,
+        total: cards.length,
+      })
+    },
+    [cards.length, current, idx, pop, revealed]
+  )
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
+      if ((e.key === ' ' || e.key === 'Enter') && !revealed) {
+        e.preventDefault()
+        reveal()
+        return
+      }
+      if (revealed) {
+        const match = GRADES.find((g) => g.key === e.key)
+        if (match) {
+          e.preventDefault()
+          const buttonIndex = GRADES.indexOf(match)
+          void grade(match.grade, undefined, buttonIndex)
+        }
+      }
     }
-    window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler)
-  }, [revealed, grade, loading, completed])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [grade, reveal, revealed])
 
-  useEffect(() => { if (revealed) gradeRef.current?.querySelector('button')?.focus() }, [revealed])
+  const levelUp = useMemo(() => !!levelAfter && levelBefore !== levelAfter, [levelAfter, levelBefore])
 
-  if (loading) return <div className="mx-auto max-w-3xl space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96 w-full" /><Skeleton className="h-28 w-full" /></div>
-  if (!cards.length) return <Card className="game-panel rounded-3xl"><CardContent className="p-10 text-center"><Sparkles className="mx-auto mb-3 h-10 w-10 text-primary" /><h3 className="text-lg font-bold">All caught up.</h3><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Nothing is due right now. Keep your streak alive with a Daily Challenge or learn some new words.</p><div className="mt-5 flex justify-center gap-2"><Button variant="outline" className="rounded-xl" onClick={() => navigate('learn')}>Learn new</Button><Button className="rounded-xl" onClick={() => navigate('quiz')}>Play quiz</Button></div></CardContent></Card>
-  if (completed) return <SessionComplete correct={correctCount} total={cards.length} xp={xpEarned} streak={streak} title="Review streak secured" subtitle={levelAfter !== levelBefore ? `Level up: ${levelBefore} → ${levelAfter}` : 'You just gave your memory another repetition that matters.'} levelUp={levelAfter !== levelBefore} onAgain={loadCards} onDone={() => navigate('dashboard')} />
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <SessionSkeleton />
+      </div>
+    )
+  }
 
-  return <div className="mx-auto max-w-3xl space-y-5">
-    <XpBurst amount={showXp ? lastXp : 0} />
-    <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Button variant="ghost" size="sm" onClick={() => navigate('dashboard')} className="-ml-2 rounded-xl"><ArrowLeft className="h-4 w-4" /></Button><div><div className="text-xs font-bold uppercase tracking-[.15em] text-primary">Memory round</div><h1 className="text-2xl font-black tracking-tight">Review & remember</h1></div></div><Badge variant="secondary" className="font-mono">{idx + 1}/{cards.length}</Badge></div>
-    <div className="h-2 overflow-hidden rounded-full bg-muted"><motion.div animate={{ width: `${(idx / cards.length) * 100}%` }} className="h-full rounded-full bg-primary" /></div>
+  if (done) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <SessionCompleteV2
+          title="Review complete"
+          correct={correctCount}
+          total={cards.length}
+          xp={xpEarned}
+          streak={streak}
+          levelUp={levelUp}
+          onAgain={() => {
+            playSound('tap')
+            void load()
+          }}
+          onDone={() => navigate('today')}
+        />
+        {newAfter > 0 ? (
+          <NextStep
+            title="Queue cleared"
+            hint={`${newAfter} word${newAfter === 1 ? '' : 's'} have never been studied. Learning them now is the best use of a fresh head.`}
+            actionLabel="Learn new words"
+            onAction={() => navigate('learn')}
+          />
+        ) : (
+          <NextStep
+            title="Nothing left to review"
+            hint="Come back tomorrow — spaced repetition needs the gap to work."
+            actionLabel="Back to today"
+            onAction={() => navigate('today')}
+          />
+        )}
+      </div>
+    )
+  }
 
-    <AnimatePresence mode="wait"><motion.div key={idx} initial={{ opacity: 0, x: 22 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .2 }}>
-      <Card className="game-panel rounded-[2rem] overflow-hidden"><CardContent className="p-6 sm:p-9">
-        <div className="flex items-center justify-between"><Badge variant={current.srs?.status ? 'outline' : 'secondary'} className="capitalize">{current.srs?.status ?? 'New'}</Badge>{current.word.cefr && <Badge variant="outline" className="font-mono">{current.word.cefr}</Badge>}</div>
-        <div className="py-12 text-center sm:py-16"><div className="flex items-center justify-center gap-2"><h2 className="text-5xl font-black tracking-tight sm:text-6xl">{current.word.word}</h2><Button size="icon" variant="ghost" className="rounded-xl" onClick={() => speak(current.word.word, { voice: ttsVoice, rate: ttsRate })}><Volume2 className="h-5 w-5" /></Button></div>{current.word.ipa && <p className="mt-2 font-mono text-sm text-muted-foreground">{current.word.ipa}</p>}{current.word.pos && <p className="mt-1 text-sm italic text-muted-foreground">{current.word.pos}</p>}</div>
-        {!revealed ? <div className="rounded-3xl border border-dashed bg-muted/25 p-7 text-center sm:p-9"><div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BrainIcon /></div><h3 className="font-bold">Recall before you reveal</h3><p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">Say the meaning in your head, then check yourself.</p><Button size="lg" onClick={() => setRevealed(true)} className="mt-5 w-full rounded-xl sm:w-auto">Reveal answer</Button><p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Space / Enter</p></div> : <motion.div ref={gradeRef} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 border-t pt-6">{current.word.definitions.length > 0 && <div className="rounded-2xl bg-muted/35 p-4"><div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Meaning</div>{current.word.definitions.map((d, i) => <p key={i} className="text-sm leading-relaxed"><span className="mr-2 italic text-muted-foreground">{d.pos}</span>{d.text}</p>)}</div>}{current.word.amharic && <div className="rounded-2xl border p-4 text-sm"><div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">አማርኛ</div>{current.word.amharic}</div>}{current.word.examples[0] && <div className="rounded-2xl border-l-2 border-primary/40 bg-primary/[.04] p-4 text-sm italic">“{current.word.examples[0]}”</div>}<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{GRADES.map((g) => <Button key={g.grade} onClick={() => grade(g.grade)} className={`h-auto min-h-20 rounded-2xl border px-3 py-3 text-left text-foreground hover:border-primary/30 ${g.tone === 'rose' ? 'bg-rose-500/8' : g.tone === 'amber' ? 'bg-amber-500/8' : g.tone === 'emerald' ? 'bg-emerald-500/8' : 'bg-sky-500/8'}`} variant="outline"><span><span className="block text-sm font-black">{g.label}</span><span className="mt-1 block text-[10px] font-normal text-muted-foreground">{g.hint}</span></span><span className="ml-auto self-start rounded-md border bg-background/70 px-1.5 py-0.5 text-[9px] font-bold">{g.key}</span></Button>)}</div></motion.div>}
-      </CardContent></Card>
-    </motion.div></AnimatePresence>
-  </div>
+  if (!cards.length) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <EmptyState
+          icon={BrainCircuit}
+          title="Nothing is due right now"
+          hint="That is the point of spaced repetition — the next batch arrives exactly when you would start forgetting it."
+          actionLabel="Learn new words"
+          onAction={() => navigate('learn')}
+          secondary={
+            <Button variant="ghost" size="sm" onClick={() => navigate('library')}>
+              Browse your library
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  const progressPct = ((idx + (revealed ? 1 : 0)) / cards.length) * 100
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <XpPopLayer pops={pops} />
+
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="label text-primary">Review</div>
+          <div className="mt-1 text-sm text-muted-foreground num">
+            {idx + 1} / {cards.length} due
+          </div>
+        </div>
+        <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+          Space to reveal · 1–4 to grade
+        </span>
+      </div>
+
+      <div className="mb-4 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Review progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
+        <motion.div
+          className="h-full rounded-full bg-primary"
+          animate={{ width: `${progressPct}%` }}
+          transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
+        />
+      </div>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={current.word.id}
+          initial={gradeEnter(lastGrade).initial}
+          animate={gradeEnter(lastGrade).animate}
+          exit={gradeExit(lastGrade).exit}
+          transition={t()}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.5}
+          onDragEnd={(_, info) => {
+            if (info.offset.x < -90 && !revealed) reveal()
+          }}
+          className="touch-pan-y"
+        >
+          <div className="surface p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
+                  {current.word.word}
+                </h1>
+                {current.word.ipa ? (
+                  <p className="mt-1.5 font-mono text-sm text-muted-foreground">{current.word.ipa}</p>
+                ) : null}
+                {current.word.pos ? (
+                  <p className="mt-0.5 text-sm italic text-muted-foreground">{current.word.pos}</p>
+                ) : null}
+              </div>
+              <Button
+                size="icon-lg"
+                variant="outline"
+                aria-label={`Hear ${current.word.word}`}
+                onClick={() => {
+                  if (!speak(current.word.word, { voice: ttsVoice, rate: ttsRate })) {
+                    toast.error('Pronunciation is unavailable in this browser.')
+                  }
+                }}
+              >
+                <Volume2 className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {!revealed ? (
+              <div className="mt-5 rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-primary-soft text-primary" aria-hidden="true">
+                  <BrainCircuit className="h-4 w-4" />
+                </div>
+                <p className="mt-3 text-sm font-semibold">Recall it before you reveal</p>
+                <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                  Say the meaning out loud in your head, then check yourself.
+                </p>
+                <Button size="lg" onClick={reveal} className="mt-4 w-full sm:w-auto sm:px-10">
+                  Reveal answer
+                </Button>
+              </div>
+            ) : (
+              <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="mt-5 space-y-4 border-t border-border pt-5">
+                {current.word.definitions.length > 0 ? (
+                  <motion.div variants={v(listItem)} transition={t()}>
+                    <div className="label text-muted-foreground">Meaning</div>
+                    <ul className="mt-2 space-y-1.5">
+                      {current.word.definitions.slice(0, 2).map((d, i) => (
+                        <li key={i} className="text-[15px] leading-relaxed">
+                          {d.pos ? <span className="mr-1.5 italic text-muted-foreground">{d.pos}</span> : null}
+                          {d.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                ) : null}
+
+                {current.word.amharic ? (
+                  <motion.div variants={v(listItem)} transition={t()} className="rounded-md bg-muted/40 p-3.5">
+                    <div className="label text-muted-foreground">Amharic</div>
+                    <div className="mt-1 text-[15px]">{current.word.amharic}</div>
+                  </motion.div>
+                ) : null}
+
+                {current.word.examples[0] ? (
+                  <motion.blockquote
+                    variants={v(listItem)}
+                    transition={t()}
+                    className="border-l-2 border-primary-line bg-primary-soft px-3.5 py-3 text-sm italic leading-relaxed"
+                  >
+                    “{current.word.examples[0]}”
+                  </motion.blockquote>
+                ) : null}
+
+                <motion.div variants={v(listItem)} transition={t()}>
+                  <div className="label text-muted-foreground">How well did you recall it?</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {GRADES.map((g, i) => (
+                      <button
+                        key={g.grade}
+                        ref={(el) => {
+                          gradeRefs.current[i] = el
+                        }}
+                        type="button"
+                        onClick={(e) => void grade(g.grade, e, i)}
+                        className={cn(
+                          'flex min-h-16 flex-col items-start gap-0.5 rounded-lg border border-border bg-card px-3 py-3 text-left shadow-xs transition-colors duration-150 active:scale-[.98]',
+                          g.cls
+                        )}
+                      >
+                        <span className="text-sm font-semibold">{g.label}</span>
+                        <span className="text-xs text-muted-foreground">{g.hint}</span>
+                        <span className="mt-1 text-xs text-muted-foreground">
+                          +{GRADE_XP[g.grade]} XP · {g.key}
+                          {previewInterval(current.srs, g.grade) ? ` · ${previewInterval(current.srs, g.grade)}` : ''}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div variants={v(listItem)} transition={t()} className="flex justify-center">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate('coach')}>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Struggling with this one? Fix it with the AI Coach
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  )
 }
-
-function BrainIcon() { return <span className="text-lg">🧠</span> }

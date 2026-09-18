@@ -13,8 +13,6 @@ type Props = {
   data: ContributionDay[]
   /** Number of weeks to display. Defaults to 53 (full year). */
   weeks?: number
-  /** Accent hue in OKLCH (0-360). Defaults to 86 (golden). */
-  accentHue?: number
 }
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -28,7 +26,7 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
  * - Weekday labels on the left (Mon/Wed/Fri only, to match GitHub)
  * - Hover any cell to see date + count + accuracy
  */
-export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props) {
+export function ContributionCalendar({ data, weeks = 53 }: Props) {
   const [hovered, setHovered] = useState<ContributionDay | null>(null)
 
   // Pad/truncate to exactly `weeks * 7` entries, aligned Sunday-first.
@@ -129,7 +127,7 @@ export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props
       <div className="overflow-x-auto pb-1">
         <div className="inline-flex flex-col gap-1 min-w-max">
           {/* Month labels row */}
-          <div className="flex gap-[3px] pl-8 text-[10px] text-muted-foreground">
+          <div className="flex gap-[3px] pl-8 text-xs text-muted-foreground">
             {monthLabels.map((m, i) => (
               <div key={i} className="w-[11px] sm:w-[13px] text-left" style={{ minWidth: m ? '28px' : '11px' }}>
                 {m}
@@ -140,7 +138,7 @@ export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props
           {/* Main grid: weekday labels + week columns */}
           <div className="flex gap-[3px]">
             {/* Weekday labels (Mon, Wed, Fri) */}
-            <div className="flex flex-col gap-[3px] w-7 text-[10px] text-muted-foreground pr-1">
+            <div className="flex flex-col gap-[3px] w-7 text-xs text-muted-foreground pr-1">
               {WEEKDAY_LABELS.map((wd, i) => (
                 <div key={wd} className="h-[11px] sm:h-[13px] leading-[11px] sm:leading-[13px]">
                   {i === 1 || i === 3 || i === 5 ? wd : ''}
@@ -167,7 +165,7 @@ export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props
                       )}
                       style={
                         day.count > 0 && !isFuture
-                          ? { background: levelColor(day.count, accentHue) }
+                          ? { background: levelColor(day.count) }
                           : undefined
                       }
                       onMouseEnter={() => day.date && setHovered(day)}
@@ -189,14 +187,14 @@ export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
         <span>Less</span>
         {[0, 1, 2, 3, 4].map((lvl) => (
           <div
             key={lvl}
             className="h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px]"
             style={{
-              background: lvl === 0 ? 'var(--muted)' : levelColor([4, 10, 18, 30][lvl - 1], accentHue),
+              background: lvl === 0 ? 'var(--muted)' : levelColor([4, 10, 18, 30][lvl - 1]),
             }}
           />
         ))}
@@ -226,13 +224,13 @@ export function ContributionCalendar({ data, weeks = 53, accentHue = 86 }: Props
   )
 }
 
-/** 4 activity levels using the accent hue, plus muted for zero. */
-function levelColor(count: number, hue: number): string {
+/** 4 activity levels derived from the accent token, so themes re-skin for free. */
+function levelColor(count: number): string {
   if (count <= 0) return 'var(--muted)'
-  if (count < 4) return `oklch(0.90 0.06 ${hue})`
-  if (count < 10) return `oklch(0.82 0.12 ${hue})`
-  if (count < 20) return `oklch(0.72 0.16 ${hue})`
-  return `oklch(0.60 0.18 ${hue})`
+  if (count < 4) return 'color-mix(in oklab, var(--primary) 25%, var(--muted))'
+  if (count < 10) return 'color-mix(in oklab, var(--primary) 45%, var(--muted))'
+  if (count < 20) return 'color-mix(in oklab, var(--primary) 70%, var(--muted))'
+  return 'var(--primary)'
 }
 
 function formatDate(iso: string): string {

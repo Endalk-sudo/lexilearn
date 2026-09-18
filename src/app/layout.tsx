@@ -1,28 +1,53 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { OnboardingOverlay } from "@/components/onboarding-overlay";
+import { OnboardingV2 } from "@/components/onboarding-v2";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "LexiLearn — Local English Learning",
-  description: "A lightning-fast, 100% private, distraction-free English learning app with SM-2 spaced repetition, browser TTS, and offline-first local storage.",
+  title: {
+    default: "LexiLearn — Local English Learning",
+    template: "%s · LexiLearn",
+  },
+  description:
+    "A calm, private, offline-first English vocabulary app with SM-2 spaced repetition, browser pronunciation and zero telemetry.",
+  applicationName: "LexiLearn",
   keywords: ["LexiLearn", "vocabulary", "spelling", "SRS", "TOEFL", "IELTS", "GRE", "spaced repetition"],
   authors: [{ name: "LexiLearn" }],
   icons: {
-    icon: "/logo.svg",
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
   },
+  openGraph: {
+    title: "LexiLearn — Local English Learning",
+    description:
+      "Spaced repetition, pronunciation and quizzes. 100% local, no account, no telemetry.",
+    type: "website",
+    siteName: "LexiLearn",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfcfe" },
+    { media: "(prefers-color-scheme: dark)", color: "#16181d" },
+  ],
 };
 
 export default function RootLayout({
@@ -33,12 +58,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} grain font-sans antialiased`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
-          <OnboardingOverlay />
-          <Toaster richColors position="top-right" />
+          <OnboardingV2 />
+          <Toaster
+            position="bottom-right"
+            mobileOffset={{ bottom: 96, right: 16 }}
+            toastOptions={{ duration: 3200 }}
+          />
         </ThemeProvider>
       </body>
     </html>

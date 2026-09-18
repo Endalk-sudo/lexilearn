@@ -69,7 +69,14 @@ export type CardWithWord = {
   srs: SrsCardDTO | null
 }
 
-export type QuizMode = 'mc' | 'reverse_mc' | 'typing' | 'spelling_bee' | 'speed_round'
+export type QuizMode =
+  | 'mc'
+  | 'reverse_mc'
+  | 'typing'
+  | 'spelling_bee'
+  | 'speed_round'
+  /** Client-side matching game; it requests mc questions underneath. */
+  | 'match'
 
 export type QuizQuestion = {
   id: string

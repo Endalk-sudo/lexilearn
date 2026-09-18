@@ -1,69 +1,81 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { AlertTriangle, Volume2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, X } from 'lucide-react'
 import { isSpeechSupported } from '@/lib/tts'
 import { useAppStore } from '@/lib/store'
 
 const DISMISSED_KEY = 'lexilearn-tts-notice-dismissed'
 
+/**
+ * Only appears when pronunciation genuinely cannot work, so it never nags
+ * people whose browser is fine.
+ */
 export function TtsNotice() {
   const [visible, setVisible] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(DISMISSED_KEY)
-    if (dismissed) return
+    try {
+      if (localStorage.getItem(DISMISSED_KEY)) return
+    } catch {
+      return
+    }
     if (!isSpeechSupported()) {
       setVisible(true)
       return
     }
     if (typeof window === 'undefined') return
-    const check = () => {
-      const voices = window.speechSynthesis.getVoices()
-      if (voices.length === 0) {
-        setVisible(true)
-      }
+    const id = window.setTimeout(() => {
+      if (window.speechSynthesis?.getVoices().length === 0) setVisible(true)
+    }, 2000)
+    const onVoices = () => {
+      if (window.speechSynthesis.getVoices().length > 0) setVisible(false)
     }
-    const id = setTimeout(check, 2000)
-    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-      if (window.speechSynthesis.getVoices().length > 0) {
-        setVisible(false)
-      }
-    })
-    return () => clearTimeout(id)
+    window.speechSynthesis?.addEventListener?.('voiceschanged', onVoices)
+    return () => {
+      window.clearTimeout(id)
+      window.speechSynthesis?.removeEventListener?.('voiceschanged', onVoices)
+    }
   }, [])
 
   if (!visible) return null
 
   return (
-    <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-start gap-3">
-      <div className="rounded-full bg-amber-100 dark:bg-amber-900 p-2 shrink-0 mt-0.5">
-        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-          Pronunciation audio unavailable
-        </p>
-        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 leading-relaxed">
-          This browser doesn&apos;t support text-to-speech on Linux. Use <strong>Firefox</strong> for built-in voices, or visit{' '}
+    <div
+      role="status"
+      className="surface flex items-start gap-3 border-warning/30 bg-warning-soft p-3.5"
+    >
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-warning">Pronunciation audio is unavailable</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+          Your browser did not provide a speech voice, so listening exercises are skipped. Firefox usually
+          ships with voices. You can pick a voice in{' '}
           <button
-            onClick={() => navigate('settings')}
-            className="underline underline-offset-2 font-medium hover:text-amber-900 dark:hover:text-amber-100"
+            type="button"
+            onClick={() => navigate('progress', { progressTab: 'settings' })}
+            className="font-medium text-primary underline underline-offset-2"
           >
             Settings
-          </button>{' '}
-          for diagnostic info.
+          </button>
+          . Everything else works normally.
         </p>
       </div>
       <button
+        type="button"
+        aria-label="Dismiss pronunciation notice"
         onClick={() => {
-          localStorage.setItem(DISMISSED_KEY, 'true')
+          try {
+            localStorage.setItem(DISMISSED_KEY, 'true')
+          } catch {
+            /* storage unavailable */
+          }
           setVisible(false)
         }}
-        className="rounded-md p-1 hover:bg-amber-200/50 dark:hover:bg-amber-800/50 shrink-0"
+        className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        <X className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <X className="h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   )

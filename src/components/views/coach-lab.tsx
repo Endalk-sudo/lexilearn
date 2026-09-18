@@ -33,7 +33,7 @@ const SPEAK_PROMPTS = [
 ]
 
 export function CoachLabView() {
-  const navigate = useAppStore(s=>s.navigate)
+  const setCoachTab = useAppStore(s=>s.setCoachTab)
   const [mastery,setMastery]=useState<Mastery[]>([])
   const [branches,setBranches]=useState<Branch[]>([])
   const [report,setReport]=useState<Report|null>(null)
@@ -125,9 +125,9 @@ export function CoachLabView() {
       <div><h2 className="text-lg font-bold">Skill map</h2><p className="text-sm text-muted-foreground">Weaknesses become training paths. Stronger skills unlock harder work.</p></div>
       <div className="grid gap-4 md:grid-cols-3">
         {GROUPS.map(group=><Card key={group.name}><CardHeader className="pb-3"><CardTitle className="text-sm">{group.name}</CardTitle></CardHeader><CardContent className="space-y-3 pt-0">
-          {group.tags.map((tag,i)=>{const pct=Math.round(get(tag)*100); const unlocked=pct>=75 || i===0; return <button key={tag} onClick={()=>navigate('mentor')} className={cn('w-full rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm', !unlocked&&'opacity-75')}>
-            <div className="flex items-center gap-2"><div className={cn('flex h-7 w-7 items-center justify-center rounded-lg',pct>=75?'bg-emerald-500/10 text-emerald-600':'bg-primary/10 text-primary')}><CircleDot className="h-3.5 w-3.5"/></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold">{tag.replaceAll('_',' ')}</span>{unlocked?<Check className="h-3.5 w-3.5 text-emerald-500"/>:<Badge variant="outline" className="text-[9px]">LOCKED</Badge>}</div><Progress value={pct} className="mt-2 h-1.5"/></div><ChevronRight className="h-4 w-4 text-muted-foreground"/></div>
-            <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>{pct}% mastery</span><span>{mastery.find(x=>x.tag===tag)?.attempts||0} attempts</span></div>
+          {group.tags.map((tag,i)=>{const pct=Math.round(get(tag)*100); const unlocked=pct>=75 || i===0; return <button key={tag} onClick={()=>setCoachTab('coach')} className={cn('w-full rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm', !unlocked&&'opacity-75')}>
+            <div className="flex items-center gap-2"><div className={cn('flex h-7 w-7 items-center justify-center rounded-lg',pct>=75?'bg-emerald-500/10 text-emerald-600':'bg-primary/10 text-primary')}><CircleDot className="h-3.5 w-3.5"/></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold">{tag.replaceAll('_',' ')}</span>{unlocked?<Check className="h-3.5 w-3.5 text-emerald-500"/>:<Badge variant="outline" className="text-xs">LOCKED</Badge>}</div><Progress value={pct} className="mt-2 h-1.5"/></div><ChevronRight className="h-4 w-4 text-muted-foreground"/></div>
+            <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{pct}% mastery</span><span>{mastery.find(x=>x.tag===tag)?.attempts||0} attempts</span></div>
           </button>})}
         </CardContent></Card>)}
       </div>
@@ -139,9 +139,9 @@ export function CoachLabView() {
         <div className="space-y-2">
           {branches.length ? branches.map((b, i) => {
             const pct=Math.round(get(b.focusTag)*100); const gated=b.difficultyCeiling>=4 && pct<75
-            return <button key={b.id} onClick={()=>navigate('mentor')} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all hover:border-primary/25 hover:bg-primary/[.03]">
+            return <button key={b.id} onClick={()=>setCoachTab('coach')} className="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all hover:border-primary/25 hover:bg-primary/[.03]">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold">{i+1}</div>
-              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{b.title}</span>{gated&&<Badge variant="outline" className="text-[9px]">MASTERY GATE</Badge>}</div><div className="mt-1 text-[11px] text-muted-foreground">{b.focusTag.replaceAll('_',' ')} · {b.mode} · level {b.difficultyCeiling}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{width:`${pct}%`}}/></div></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground"/></button>
+              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{b.title}</span>{gated&&<Badge variant="outline" className="text-xs">MASTERY GATE</Badge>}</div><div className="mt-1 text-xs text-muted-foreground">{b.focusTag.replaceAll('_',' ')} · {b.mode} · level {b.difficultyCeiling}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{width:`${pct}%`}}/></div></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground"/></button>
           }) : <p className="text-sm text-muted-foreground">Create your first Mentor path to start building the map.</p>}
         </div>
       </CardContent>
@@ -163,11 +163,11 @@ export function CoachLabView() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Mic className="h-4 w-4 text-primary"/>Pronunciation Gym</CardTitle><CardDescription>Speak a target sentence. We compare the transcript and coach what to retry.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-2xl border bg-muted/20 p-4"><div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Target</div><p className="mt-2 text-lg font-semibold leading-relaxed">{target}</p><div className="mt-3 flex gap-2"><Button variant="outline" size="sm" onClick={()=>speak(target)} className="gap-2"><Volume2 className="h-4 w-4"/>Listen</Button><Button variant="ghost" size="sm" onClick={()=>setTarget(SPEAK_PROMPTS[Math.floor(Math.random()*SPEAK_PROMPTS.length)])}>New sentence</Button></div></div>
+            <div className="rounded-2xl border bg-muted/20 p-4"><div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target</div><p className="mt-2 text-lg font-semibold leading-relaxed">{target}</p><div className="mt-3 flex gap-2"><Button variant="outline" size="sm" onClick={()=>speak(target)} className="gap-2"><Volume2 className="h-4 w-4"/>Listen</Button><Button variant="ghost" size="sm" onClick={()=>setTarget(SPEAK_PROMPTS[Math.floor(Math.random()*SPEAK_PROMPTS.length)])}>New sentence</Button></div></div>
             <div className="flex flex-col gap-2 sm:flex-row"><Button onClick={startListening} disabled={listening} className="gap-2 flex-1">{listening?<><MicOff className="h-4 w-4 animate-pulse"/>Listening…</>:<><Mic className="h-4 w-4"/>Speak now</>}</Button><Button variant="outline" onClick={evaluatePron} disabled={pronLoading||!transcript.trim()} className="gap-2">{pronLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Check className="h-4 w-4"/>}<span>{pronLoading?'Evaluating…':'Evaluate'}</span></Button></div>
             <Textarea value={transcript} onChange={e=>setTranscript(e.target.value)} placeholder="Your speech transcript appears here…" className="min-h-[80px]" />
             {pron&&<div className="space-y-3 rounded-2xl border p-4"><div className="flex items-end justify-between"><div><div className="text-xs text-muted-foreground">Speech match</div><div className="text-3xl font-black">{Math.round(pron.accuracy*100)}%</div></div><Badge>{pron.verdict}</Badge></div><Progress value={pron.accuracy*100} /><p className="text-sm leading-relaxed">{pron.feedback}</p>{pron.focus&&<div className="text-xs text-muted-foreground">Focus next: <span className="font-semibold text-foreground">{pron.focus}</span></div>}</div>}
-            {typeof window !== 'undefined' && !(window as any).SpeechRecognition && !(window as any).webkitSpeechRecognition && <p className="text-[11px] text-muted-foreground">Speech recognition is unavailable in this browser. Chrome or Edge is recommended for the full speaking loop.</p>}
+            {typeof window !== 'undefined' && !(window as any).SpeechRecognition && !(window as any).webkitSpeechRecognition && <p className="text-xs text-muted-foreground">Speech recognition is unavailable in this browser. Chrome or Edge is recommended for the full speaking loop.</p>}
           </CardContent>
         </Card>
 
@@ -176,17 +176,17 @@ export function CoachLabView() {
           <CardContent className="space-y-3">
             <Textarea value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setNatural(null)}} placeholder="Write a sentence you would actually say…" className="min-h-[100px]" />
             <Button onClick={evaluateNatural} disabled={naturalLoading||!naturalInput.trim()} className="w-full gap-2">{naturalLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}Check naturalness</Button>
-            {natural&&<motion.div initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="space-y-3 rounded-2xl border bg-muted/10 p-4"><div className="flex items-center justify-between"><div className="text-2xl font-black">{Math.round(natural.score*100)}%</div><Badge variant="outline">{natural.verdict}</Badge></div><div><div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Native version</div><p className="mt-1 text-sm font-semibold">{natural.native}</p></div><div><div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Why</div><p className="mt-1 text-sm text-muted-foreground">{natural.explanation}</p></div>{natural.alternatives?.length>0&&<div><div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Alternatives</div><div className="mt-1 space-y-1">{natural.alternatives.map((x,i)=><div key={i} className="rounded-lg bg-background px-3 py-2 text-sm">{x}</div>)}</div></div>}</motion.div>}
+            {natural&&<motion.div initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="space-y-3 rounded-2xl border bg-muted/10 p-4"><div className="flex items-center justify-between"><div className="text-2xl font-black">{Math.round(natural.score*100)}%</div><Badge variant="outline">{natural.verdict}</Badge></div><div><div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Native version</div><p className="mt-1 text-sm font-semibold">{natural.native}</p></div><div><div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Why</div><p className="mt-1 text-sm text-muted-foreground">{natural.explanation}</p></div>{natural.alternatives?.length>0&&<div><div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alternatives</div><div className="mt-1 space-y-1">{natural.alternatives.map((x,i)=><div key={i} className="rounded-lg bg-background px-3 py-2 text-sm">{x}</div>)}</div></div>}</motion.div>}
           </CardContent>
         </Card>
       </div>
     </section>
 
     <Card className="border-dashed">
-      <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-semibold">Ready to turn a weakness into a skill?</div><p className="text-sm text-muted-foreground">Mentor can start a focused branch from your current map.</p></div><Button onClick={()=>navigate('mentor')} className="gap-2">Open Mentor <ArrowRight className="h-4 w-4"/></Button></CardContent>
+      <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-semibold">Ready to turn a weakness into a skill?</div><p className="text-sm text-muted-foreground">Mentor can start a focused branch from your current map.</p></div><Button onClick={()=>setCoachTab('coach')} className="gap-2">Open Mentor <ArrowRight className="h-4 w-4"/></Button></CardContent>
     </Card>
   </div>
 }
 
-function MiniStat({icon:Icon,label,value}:{icon:any;label:string;value:string}){return <div className="rounded-2xl border bg-background/70 p-3"><Icon className="h-4 w-4 text-primary"/><div className="mt-2 truncate text-sm font-bold capitalize">{value}</div><div className="text-[10px] text-muted-foreground">{label}</div></div>}
+function MiniStat({icon:Icon,label,value}:{icon:any;label:string;value:string}){return <div className="rounded-2xl border bg-background/70 p-3"><Icon className="h-4 w-4 text-primary"/><div className="mt-2 truncate text-sm font-bold capitalize">{value}</div><div className="text-xs text-muted-foreground">{label}</div></div>}
 function ReportList({title,items}:{title:string;items:string[]}){return <div><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>{items.length?<div className="space-y-1.5">{items.map((x,i)=><div key={i} className="flex gap-2 text-sm"><ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary"/><span>{x}</span></div>)}</div>:<div className="text-sm text-muted-foreground">Nothing recorded yet.</div>}</div>}
