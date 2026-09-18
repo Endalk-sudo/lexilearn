@@ -224,10 +224,15 @@ export function LearnView() {
           />
         ) : (
           <NextStep
-            title="Turn today into a score"
-            hint="A five-question quiz is the fastest way to check what actually stuck."
-            actionLabel="Quick quiz"
-            onAction={() => navigate('quiz')}
+            title="Now hear what you just learned"
+            hint="Dictation replays today’s words by ear — the fastest way to make them stick."
+            actionLabel="Start dictation"
+            onAction={() => navigate('dictation')}
+            secondary={
+              <Button variant="outline" size="sm" onClick={() => navigate('quiz')}>
+                Quiz instead
+              </Button>
+            }
           />
         )}
       </div>

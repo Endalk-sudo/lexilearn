@@ -28,14 +28,14 @@ export function CoachView() {
     >
       <div>
         <div className="label text-primary">AI Coach</div>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Practice</h1>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Mentor</h1>
       </div>
       <SegmentedControl
         ariaLabel="Coach sections"
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'coach', label: 'Practice', icon: Sparkles },
+          { value: 'coach', label: 'Mentor', icon: Sparkles },
           { value: 'lab', label: 'Insights', icon: FlaskConical },
         ]}
       />

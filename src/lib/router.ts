@@ -5,7 +5,7 @@ import { useAppStore, type LibraryTab, type ProgressTab, type RouteState, type V
 
 /**
  * Tiny hash router. Keeps browser back/forward and deep links working
- * (#/review, #/library/decks/<id>, #/progress/settings) without turning the
+ * (#/review, #/dictation, #/library/decks/<id>, #/progress/settings) without turning the
  * local-first SPA into a multi-route app.
  */
 
@@ -14,6 +14,7 @@ const HASH_FOR_VIEW: Record<ViewName, string> = {
   learn: 'learn',
   review: 'review',
   quiz: 'quiz',
+  dictation: 'dictation',
   library: 'library',
   'library-deck': 'library',
   progress: 'progress',
@@ -35,6 +36,7 @@ export function parseHash(hash: string): RouteState {
     case 'learn':
     case 'review':
     case 'quiz':
+    case 'dictation':
     case 'coach':
       return { view: head, deckId: null, libraryTab, progressTab }
     case 'library':

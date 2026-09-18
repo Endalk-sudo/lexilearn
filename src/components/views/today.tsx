@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  BookOpen, BrainCircuit, ChevronRight, CircleCheck, Compass, Flame,
+  BookOpen, BrainCircuit, ChevronRight, CircleCheck, Compass, Ear, Flame,
   Play, ShieldCheck, Sparkles, Target, Trophy, Zap,
 } from 'lucide-react'
 import { api, type DashboardStats } from '@/lib/api'
@@ -36,6 +36,7 @@ export function TodayView() {
   const [loading, setLoading] = useState(true)
   const [resume, setResume] = useState<ResumeState | null>(null)
   const navigate = useAppStore((s) => s.navigate)
+  const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const { v, t } = useMotionSafe()
 
   const load = useCallback(async () => {
@@ -281,8 +282,9 @@ export function TodayView() {
           />
         </motion.div>
       ) : (
-        <motion.section variants={v(listItem)} transition={t()} className="grid gap-3 sm:grid-cols-3">
+        <motion.section variants={v(listItem)} transition={t()} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <QuietLink icon={Sparkles} label="Quick quiz" hint="Five modes, 60-second rush" onClick={() => navigate('quiz')} />
+          <QuietLink icon={Ear} label="Dictation" hint="Hear it, type it" onClick={() => { setDictationDeckId(null); navigate('dictation') }} />
           <QuietLink icon={BookOpen} label="Dictionary" hint="Look up any word" onClick={() => navigate('library', { libraryTab: 'dictionary' })} />
           <QuietLink icon={Trophy} label="Progress" hint={`${stats.masteredCount} words mastered`} onClick={() => navigate('progress')} />
         </motion.section>

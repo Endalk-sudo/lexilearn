@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft, BookOpen, BrainCircuit, CornerDownLeft, GraduationCap,
+  ArrowLeft, BookOpen, BrainCircuit, CornerDownLeft, Ear, GraduationCap,
   Plus, Search, Sparkles, TrendingUp, Volume2,
 } from 'lucide-react'
 import { api, type WordDTO } from '@/lib/api'
@@ -40,6 +40,7 @@ type Quick = { label: string; hint: string; icon: React.ElementType; view: ViewN
 const QUICK: Quick[] = [
   { label: 'Review due cards', hint: 'Clear today\u2019s queue', icon: BrainCircuit, view: 'review' },
   { label: 'Learn new words', hint: 'Recall, listen, spell', icon: GraduationCap, view: 'learn' },
+  { label: 'Dictation', hint: 'Hear it, type it', icon: Ear, view: 'dictation' },
   { label: 'Dictionary', hint: 'Look up any word', icon: BookOpen, view: 'library', tab: 'dictionary' },
   { label: 'Progress', hint: 'Streaks and mastery', icon: TrendingUp, view: 'progress' },
   { label: 'AI Coach', hint: 'Fix mistakes, speak', icon: Sparkles, view: 'coach' },
@@ -47,6 +48,7 @@ const QUICK: Quick[] = [
 
 export function SearchPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useAppStore((s) => s.navigate)
+  const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const setSearchQuery = useAppStore((s) => s.setSearchQuery)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<WordDTO[]>([])
@@ -112,6 +114,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const go = useCallback(
     (quick: Quick) => {
       playSound('tap')
+      if (quick.view === 'dictation') setDictationDeckId(null)
       if (quick.tab) navigate(quick.view, { libraryTab: quick.tab })
       else navigate(quick.view)
       onClose()

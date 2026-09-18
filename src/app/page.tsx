@@ -7,6 +7,7 @@ import { TodayView } from '@/components/views/today'
 import { LearnView } from '@/components/views/learn'
 import { ReviewView } from '@/components/views/review'
 import { QuizView } from '@/components/views/quiz'
+import { DictationView } from '@/components/views/dictation'
 import { LibraryView, DeckDetailView } from '@/components/views/library'
 import { ProgressView } from '@/components/views/progress'
 import { CoachView } from '@/components/views/coach'
@@ -23,6 +24,8 @@ function ViewContainer({ view }: { view: string }) {
       return <ReviewView />
     case 'quiz':
       return <QuizView />
+    case 'dictation':
+      return <DictationView deckId={useAppStore.getState().dictationDeckId} />
     case 'library':
       return <LibraryView />
     case 'library-deck':

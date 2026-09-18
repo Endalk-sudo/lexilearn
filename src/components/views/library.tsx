@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, BookOpen, Layers, Library as LibraryIcon, Pencil, Plus,
+  ArrowLeft, BookOpen, Ear, Layers, Library as LibraryIcon, Pencil, Plus,
   Search as SearchIcon, Trash2, Upload, Volume2,
 } from 'lucide-react'
 import {
@@ -467,6 +467,7 @@ const STATUS_VARIANT: Record<string, 'outline' | 'soft' | 'success' | 'warning'>
 export function DeckDetailView() {
   const deckId = useAppStore((s) => s.deckId)
   const navigate = useAppStore((s) => s.navigate)
+  const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const [deck, setDeck] = useState<DeckDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
@@ -570,6 +571,17 @@ export function DeckDetailView() {
             <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" />
               Import
+            </Button>
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={() => {
+                setDictationDeckId(deck.id)
+                navigate('dictation')
+              }}
+            >
+              <Ear className="h-4 w-4" />
+              Dictate
             </Button>
             <Button size="sm" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -701,13 +713,23 @@ export function DeckDetailView() {
             </motion.ul>
           )}
 
-          <NextStep
-            title="Ready to study this deck?"
-            hint="Spaced repetition will decide what to show you and when."
-            actionLabel="Start learning"
-            onAction={() => navigate('learn')}
-            className={cn('mt-2')}
-          />
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <NextStep
+              title="Study this deck"
+              hint="Spaced repetition decides what to show and when."
+              actionLabel="Start learning"
+              onAction={() => navigate('learn')}
+            />
+            <NextStep
+              title="Hear this deck"
+              hint="Every word and sentence, dictated aloud."
+              actionLabel="Start dictation"
+              onAction={() => {
+                setDictationDeckId(deck.id)
+                navigate('dictation')
+              }}
+            />
+          </div>
         </>
       )}
 

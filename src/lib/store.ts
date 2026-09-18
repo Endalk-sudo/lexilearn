@@ -4,7 +4,7 @@ import { create } from 'zustand'
 
 /**
  * Canonical views. One flat level - no more alias views, no nested tab strips.
- * Five of these are bottom tabs; 'quiz' and 'library-deck' are drill-ins
+ * Five of these are bottom tabs; 'quiz', 'dictation' and 'library-deck' are drill-ins
  * reached from an action, never a tab of their own.
  */
 export type ViewName =
@@ -14,6 +14,7 @@ export type ViewName =
   | 'quiz'
   | 'library'
   | 'library-deck'
+  | 'dictation'
   | 'progress'
   | 'coach'
 
@@ -46,6 +47,7 @@ export type RouteState = {
 type AppState = RouteState & {
   coachTab: CoachTab
   quizMode: QuizMode | null
+  dictationDeckId: string | null
   searchQuery: string
   paletteOpen: boolean
   navigate: (view: ViewName, opts?: NavigateOptions) => void
@@ -54,6 +56,7 @@ type AppState = RouteState & {
   setProgressTab: (tab: ProgressTab) => void
   setCoachTab: (tab: CoachTab) => void
   setQuizMode: (mode: QuizMode | null) => void
+  setDictationDeckId: (dictationDeckId: string | null) => void
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
 }
@@ -65,6 +68,7 @@ export const useAppStore = create<AppState>((set) => ({
   progressTab: 'overview',
   coachTab: 'coach',
   quizMode: null,
+  dictationDeckId: null,
   searchQuery: '',
   paletteOpen: false,
 
@@ -83,6 +87,7 @@ export const useAppStore = create<AppState>((set) => ({
   setProgressTab: (progressTab) => set({ progressTab }),
   setCoachTab: (coachTab) => set({ coachTab }),
   setQuizMode: (quizMode) => set({ quizMode }),
+  setDictationDeckId: (dictationDeckId) => set({ dictationDeckId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
 }))
@@ -95,6 +100,7 @@ export const VIEW_TITLES: Record<ViewName, string> = {
   learn: 'Learn',
   review: 'Review',
   quiz: 'Quiz',
+  dictation: 'Dictation',
   library: 'Library',
   'library-deck': 'Deck',
   progress: 'Progress',

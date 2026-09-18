@@ -211,10 +211,15 @@ export function ReviewView() {
           />
         ) : (
           <NextStep
-            title="Nothing left to review"
-            hint="Come back tomorrow — spaced repetition needs the gap to work."
-            actionLabel="Back to today"
-            onAction={() => navigate('today')}
+            title="Queue cleared — cement it by ear"
+            hint="A short dictation round replays what you just recalled, through a different sense."
+            actionLabel="Start dictation"
+            onAction={() => navigate('dictation')}
+            secondary={
+              <Button variant="outline" size="sm" onClick={() => navigate('today')}>
+                Back to today
+              </Button>
+            }
           />
         )}
       </div>

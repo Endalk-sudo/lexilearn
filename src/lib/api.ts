@@ -168,7 +168,7 @@ export const api = {
   getDueCards: (limit = 20) => getJSON<CardWithWord[]>('due', { limit }),
   getNewCards: (deckId: string | null, limit = 10) => getJSON<CardWithWord[]>('new', { deckId, limit }),
   getReviewableCards: (deckId: string | null, limit = 50) => getJSON<CardWithWord[]>('reviewable', { deckId, limit }),
-  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' = 'review') =>
+  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' = 'review') =>
     postJSON<{ ok: boolean }>('review', { wordId, grade, mode }),
   getDecks: () => getJSON<DeckSummary[]>('decks'),
   getDeck: (deckId: string) => getJSON<DeckDetail>('deck', { deckId }),
