@@ -92,7 +92,7 @@ export function useRouteSync() {
         libraryTab: state.libraryTab,
         progressTab: state.progressTab,
       })
-      if (window.location.hash !== hash) window.history.pushState(null, '', hash)
+      if (window.location.hash !== hash) window.location.hash = hash
     })
 
     const onUrlChange = () => apply(window.location.hash)
