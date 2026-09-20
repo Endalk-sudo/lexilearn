@@ -17,7 +17,6 @@ import { Checkmark } from '@/components/feedback/checkmark'
 import { XpPopLayer, popXpFromElement, useXpPops } from '@/components/feedback/xp-pop'
 import { speak } from '@/lib/tts'
 import { buzz, playSound } from '@/lib/feel'
-import { celebrate } from '@/components/feedback/confetti'
 import { resumeIndexFor, saveResume } from '@/lib/resume'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -89,8 +88,13 @@ export function LearnView() {
     }
   }, [])
 
+  const didInitRef = useRef(false)
+
+  // Initial data fetch on mount (guarded so StrictMode double-effects don't refetch).
   useEffect(() => {
-    load()
+    if (didInitRef.current) return
+    didInitRef.current = true
+    void load()
   }, [load])
 
   const current = cards[idx]
@@ -338,11 +342,11 @@ export function LearnView() {
               <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
                 Trying to retrieve it — even when you are unsure — is what builds the memory.
               </p>
-              <Button ref={primaryRef} size="lg" onClick={reveal} className="mt-5 w-full sm:w-auto sm:px-10">
+              <Button ref={primaryRef} size="lg" onClick={reveal} data-testid="learn-reveal" className="mt-5 w-full sm:w-auto sm:px-10">
                 Reveal and listen
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <p className="mt-3 text-xs text-muted-foreground">Space to reveal · swipe left</p>
+              <p className="mt-3 text-xs text-muted-foreground"><span className="hidden sm:inline">Space to reveal · swipe left</span><span className="sm:hidden">Tap to reveal</span></p>
             </motion.div>
           </motion.div>
         ) : null}
@@ -384,7 +388,7 @@ export function LearnView() {
                   Try again — check the spelling. One more attempt.
                 </p>
               ) : null}
-              <Button ref={primaryRef} onClick={submitSpelling} disabled={!spelling.trim()} className="mt-4 w-full">
+              <Button ref={primaryRef} onClick={submitSpelling} disabled={!spelling.trim()} data-testid="learn-check" className="mt-4 w-full">
                 Check answer
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -411,7 +415,7 @@ export function LearnView() {
                     : `The correct spelling is “${current.word.word}”. It will come back sooner so you get another go.`}
                 </p>
               </div>
-              <Button ref={primaryRef} onClick={() => void next()} className="mt-5 w-full">
+              <Button ref={primaryRef} onClick={() => void next()} data-testid="learn-next" className="mt-5 w-full">
                 {idx + 1 >= cards.length ? 'Finish session' : 'Next word'}
                 <ArrowRight className="h-4 w-4" />
               </Button>

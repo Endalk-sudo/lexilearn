@@ -28,9 +28,13 @@ export const metadata: Metadata = {
   keywords: ["LexiLearn", "vocabulary", "spelling", "SRS", "TOEFL", "IELTS", "GRE", "spaced repetition"],
   authors: [{ name: "LexiLearn" }],
   icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
-    apple: [{ url: "/logo.png", type: "image/png" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     title: "LexiLearn — Local English Learning",
     description:

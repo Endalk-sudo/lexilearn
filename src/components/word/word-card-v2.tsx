@@ -257,7 +257,7 @@ export function WordCardV2({
             </motion.div>
           ) : (
             <motion.div key="hidden" variants={v(fadeInish)} initial="hidden" animate="show" className="overflow-hidden">
-              <Button variant="outline" onClick={() => setRevealed(true)} className="mt-5 h-12 w-full text-sm font-medium">
+              <Button variant="outline" onClick={() => setRevealed(true)} data-testid="wordcard-reveal" className="mt-5 h-12 w-full text-sm font-medium">
                 Reveal meaning
                 <span className="ml-auto hidden font-mono text-xs text-muted-foreground sm:inline">SPACE</span>
               </Button>

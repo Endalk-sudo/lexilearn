@@ -49,7 +49,7 @@ export function OnboardingV2() {
 
   useEffect(() => {
     try {
-      if (!localStorage.getItem(KEY) && !localStorage.getItem('lexilearn-onboarding-dismissed')) {
+      if (!localStorage.getItem(KEY)) {
         const id = window.setTimeout(() => setOpen(true), 600)
         return () => window.clearTimeout(id)
       }
@@ -77,7 +77,6 @@ export function OnboardingV2() {
   async function finish() {
     try {
       localStorage.setItem(KEY, '1')
-      localStorage.setItem('lexilearn-onboarding-dismissed', 'true')
     } catch {
       /* storage unavailable */
     }

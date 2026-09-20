@@ -92,8 +92,13 @@ export function ReviewView() {
     }
   }, [])
 
+  const didInitRef = useRef(false)
+
+  // Initial data fetch on mount (guarded so StrictMode double-effects don't refetch).
   useEffect(() => {
-    load()
+    if (didInitRef.current) return
+    didInitRef.current = true
+    void load()
   }, [load])
 
   const current = cards[idx]
@@ -259,7 +264,8 @@ export function ReviewView() {
           </div>
         </div>
         <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
-          Space to reveal · 1–4 to grade
+          <span className="hidden sm:inline">Space to reveal · 1–4 to grade</span>
+          <span className="sm:hidden">Tap to reveal</span>
         </span>
       </div>
 
@@ -322,7 +328,7 @@ export function ReviewView() {
                 <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                   Say the meaning out loud in your head, then check yourself.
                 </p>
-                <Button size="lg" onClick={reveal} className="mt-4 w-full sm:w-auto sm:px-10">
+                <Button size="lg" onClick={reveal} data-testid="review-reveal" className="mt-4 w-full sm:w-auto sm:px-10">
                   Reveal answer
                 </Button>
               </div>
@@ -369,6 +375,7 @@ export function ReviewView() {
                           gradeRefs.current[i] = el
                         }}
                         type="button"
+                        data-testid={`grade-${g.label.toLowerCase()}`}
                         onClick={(e) => void grade(g.grade, e, i)}
                         className={cn(
                           'flex min-h-16 flex-col items-start gap-0.5 rounded-lg border border-border bg-card px-3 py-3 text-left shadow-xs transition-colors duration-150 active:scale-[.98]',

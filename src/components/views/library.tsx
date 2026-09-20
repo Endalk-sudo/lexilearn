@@ -139,6 +139,7 @@ function DecksPanel() {
                 <div className="flex items-start justify-between gap-2">
                   <button
                     type="button"
+                    data-testid={`deck-card-${deck.id}`}
                     onClick={() => navigate('library-deck', { deckId: deck.id })}
                     className="min-w-0 flex-1 text-left"
                   >
@@ -619,8 +620,8 @@ export function DeckDetailView() {
                 spellCheck={false}
               />
             </div>
-            <span className="text-sm text-muted-foreground num">
-              {words.length} / {deck.words.length}
+            <span className="text-sm text-muted-foreground num" role="status" aria-live="polite" data-testid="deck-filter-count">
+              showing {words.length} of {deck.words.length}
             </span>
           </div>
 

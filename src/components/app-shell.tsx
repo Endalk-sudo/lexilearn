@@ -77,6 +77,7 @@ function Badge({ value, tone = 'primary' }: { value: number; tone?: 'primary' | 
   if (!value) return null
   return (
     <span
+      title={value > 99 ? `${value} items` : undefined}
       className={cn(
         'ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold num',
         tone === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
@@ -196,7 +197,7 @@ export function AppSidebar() {
         <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
           <span className="flex items-center gap-1.5 text-xs font-medium">
             <Flame className="h-3.5 w-3.5 text-streak" aria-hidden="true" />
-            <span className="num">{streakValue}</span>-day streak
+            <span className="num">{streakValue}-day</span> streak
           </span>
           <OnlineDot />
         </div>

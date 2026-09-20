@@ -71,6 +71,7 @@ export function QuizView() {
 }
 
 function ModeCard({
+  mode,
   title,
   description,
   icon: Icon,
@@ -87,6 +88,8 @@ function ModeCard({
   const { v, t } = useMotionSafe()
   return (
     <motion.button
+      data-testid={`quiz-mode-${mode}`}
+      aria-label={`Start ${title}`}
       variants={v(listItem)}
       transition={t()}
       type="button"
@@ -505,6 +508,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                         setSelected(option)
                         gradeAnswer(isRight, e)
                       }}
+                      data-testid={`quiz-option-${i}`}
                       className={cn(
                         'flex min-h-12 w-full items-center gap-3 rounded-md border border-border bg-card px-3.5 py-3 text-left text-sm shadow-xs transition-colors duration-150',
                         graded === null && 'hover:border-primary-line hover:bg-primary-soft',

@@ -11,7 +11,9 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "e2e": "python3 tests/e2e/test_phased.py",
+    "e2e:shots": "ls -lh /tmp/e2e-shots/final-*.png"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
