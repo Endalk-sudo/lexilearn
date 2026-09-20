@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { OnboardingV2 } from "@/components/onboarding-v2";
+import { ServiceWorkerRegistrar, OfflineBanner } from "@/components/pwa";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,6 +66,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} grain font-sans antialiased`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <OfflineBanner />
           {children}
           <OnboardingV2 />
           <Toaster
@@ -72,6 +74,7 @@ export default function RootLayout({
             mobileOffset={{ bottom: 96, right: 16 }}
             toastOptions={{ duration: 3200 }}
           />
+          <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>
     </html>

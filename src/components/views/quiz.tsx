@@ -18,7 +18,7 @@ import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
 import { XpPopLayer, popXpAt, useXpPops } from '@/components/feedback/xp-pop'
 import { MatchGame, type MatchPair } from '@/components/quiz/match-game'
 import { speak } from '@/lib/tts'
-import { buzz, playSound } from '@/lib/feel'
+import { buzz, playSound, typeFeelFromKey } from '@/lib/feel'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
@@ -541,6 +541,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                   spellCheck={false}
                   className="w-full rounded-md border border-input bg-card p-4 text-center font-mono text-lg outline-none transition-colors focus-visible:border-primary-line"
                   onKeyDown={(e) => {
+                    typeFeelFromKey(e)
                     if (e.key === 'Enter' && graded === null && answer.trim()) {
                       gradeAnswer(answer.trim().toLowerCase() === current.correctAnswer.toLowerCase())
                     }

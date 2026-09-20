@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
+import { typeFeelFromKey } from '@/lib/feel'
 import { useEffect, useRef } from 'react'
 
 export type SpellingInputProps = {
@@ -66,6 +67,7 @@ export function SpellingInput({
         placeholder={placeholder ?? 'Type the word…'}
         className="text-center font-mono text-lg"
         onKeyDown={(e) => {
+          typeFeelFromKey(e)
           if (e.key === 'Enter' && onSubmit) {
             e.preventDefault()
             onSubmit()

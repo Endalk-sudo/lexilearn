@@ -10,8 +10,8 @@ import { fadeUp, useMotionSafe } from '@/lib/motion'
 
 /**
  * One AI Coach destination with two depths: every-day practice, and the
- * analytics lab for people who want the numbers. The sub-views own their own
- * headings, so nothing is announced twice.
+ * analytics lab for people who want the numbers. Each sub-view owns its
+ * own page header, so exactly one <h1> is on screen at a time.
  */
 export function CoachView() {
   const tab = useAppStore((s) => s.coachTab)
@@ -24,12 +24,8 @@ export function CoachView() {
       initial="hidden"
       animate="show"
       transition={t()}
-      className="mx-auto max-w-4xl space-y-5"
+      className="space-y-5"
     >
-      <div>
-        <div className="label text-primary">AI Coach</div>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Mentor</h1>
-      </div>
       <SegmentedControl
         ariaLabel="Coach sections"
         value={tab}

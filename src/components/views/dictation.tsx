@@ -26,7 +26,7 @@ import { EmptyState } from '@/components/feedback/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkmark } from '@/components/feedback/checkmark'
 import { XpPopLayer, popXpFromElement, useXpPops } from '@/components/feedback/xp-pop'
-import { buzz, playSound } from '@/lib/feel'
+import { buzz, playSound, typeFeelFromKey } from '@/lib/feel'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { fadeUp, gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
@@ -585,6 +585,7 @@ function DictationSession({
                   aria-describedby="dictation-hint"
                   className="mt-2 min-h-20 w-full rounded-md border border-input bg-card p-4 text-base leading-relaxed outline-none transition-colors focus-visible:border-primary-line md:text-[15px]"
                   onKeyDown={(e) => {
+                    typeFeelFromKey(e)
                     if (e.key === 'Enter' && !e.shiftKey && typed.trim()) {
                       e.preventDefault()
                       void handleCheck()

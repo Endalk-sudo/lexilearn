@@ -88,3 +88,90 @@ export function useFeelVersion() {
   }, [])
   return ref
 }
+
+/* ---------------------------------------------------------------------------
+ * Typing sounds - the "hook" layer.
+ * A shared AudioContext (creating one per keystroke is too expensive), very
+ * low gain, randomized pitch so rapid typing sounds organic instead of
+ * machine-gun, and a minimum spacing so it never becomes noise.
+ * ------------------------------------------------------------------------- */
+
+let sharedCtx: AudioContext | null = null
+let lastTypeAt = 0
+
+function typeCtx(): AudioContext | null {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!Ctx) return null
+    if (!sharedCtx) sharedCtx = new Ctx()
+    if (sharedCtx.state === 'suspended') sharedCtx.resume().catch(() => {})
+    return sharedCtx
+  } catch { return null }
+}
+
+function blip(freq: number, dur: number, gain: number, type: OscillatorType = 'sine', slideTo?: number) {
+  const c = typeCtx()
+  if (!c) return
+  try {
+    const o = c.createOscillator()
+    const g = c.createGain()
+    const t0 = c.currentTime
+    o.type = type
+    o.frequency.setValueAtTime(freq, t0)
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur)
+    g.gain.setValueAtTime(gain, t0)
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+    o.connect(g)
+    g.connect(c.destination)
+    o.start(t0)
+    o.stop(t0 + dur + 0.01)
+  } catch { /* audio unavailable */ }
+}
+
+/** Soft tick for a regular keystroke. Pitch wobbles ±60 cents around 560 Hz. */
+export function playType() {
+  if (!isSoundEnabled() || typeof window === 'undefined') return
+  const now = performance.now()
+  if (now - lastTypeAt < 30) return
+  lastTypeAt = now
+  const cents = (Math.random() - 0.5) * 120
+  blip(560 * Math.pow(2, cents / 1200), 0.03, 0.016, 'sine')
+}
+
+ /** Lower "thock" for the space bar. */
+export function playSpace() {
+  if (!isSoundEnabled() || typeof window === 'undefined') return
+  const now = performance.now()
+  if (now - lastTypeAt < 30) return
+  lastTypeAt = now
+  blip(300, 0.045, 0.026, 'sine')
+}
+
+/** Quieter, slightly lower tick when deleting. */
+export function playDelete() {
+  if (!isSoundEnabled() || typeof window === 'undefined') return
+  const now = performance.now()
+  if (now - lastTypeAt < 30) return
+  lastTypeAt = now
+  blip(380, 0.03, 0.013, 'sine')
+}
+
+/** Quick upward chirp when a message/answer is sent. */
+export function playSend() {
+  if (!isSoundEnabled() || typeof window === 'undefined') return
+  blip(480, 0.07, 0.035, 'sine', 720)
+}
+
+/**
+ * Shared keydown classifier for text inputs: maps a keyboard event to the
+ * right typing sound. Attach in onKeyDown of any free-text input.
+ * Ignores modifiers, navigation and shortcut combos.
+ */
+export function typeFeelFromKey(e: { key: string; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean }) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (e.key === 'Backspace' || e.key === 'Delete') { playDelete(); return }
+  if (e.key.length !== 1) return
+  if (e.key === ' ') { playSpace(); return }
+  playType()
+}
+
