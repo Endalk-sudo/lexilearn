@@ -13,13 +13,15 @@
 - Error cards scheduled for future repair.
 - Mastery updated after attempts.
 - Local RAG hook using Ollama embeddings and a built-in grammar knowledge seed.
-- Three-pane Mentor UI: learning map, challenge/answer pane, persistent memory pane.
+- Conversation-style Mentor UI (v0.3.0): one focused column, the attempt →
+  self-correction → lesson flow reads as a chat; branch/memory/learning-map
+  live in popovers; follow-up retrieval question is an inline exchange.
 - Keyboard-first interactions: H for hint, R for next after feedback, Cmd/Ctrl+Enter to submit.
 - SpeechSynthesis read-aloud for question/native answer.
 
 ## Recommended local setup
 
-Set `OLLAMA_MODEL` to an instruction model you have installed. Set `OLLAMA_EMBED_MODEL` to an embedding model. Current Ollama documentation supports JSON-schema structured outputs and tool calling; this implementation uses the structured-output capability for the contract layer. The built-in embedding provider defaults to `nomic-embed-text-v2-moe` for multilingual retrieval and can be changed with `OLLAMA_EMBED_MODEL`.
+Set `OLLAMA_MODEL` to an instruction model you have installed. Set `OLLAMA_EMBED_MODEL` to an embedding model. Current Ollama documentation supports JSON-schema structured outputs and tool calling; this implementation uses the structured-output capability for the contract layer. The built-in embedding provider defaults to `nomic-embed-text-v2-moe` for multilingual retrieval and can be changed with `OLLAMA_EMBED_MODEL`. See `MENTOR_SETUP.md` for the full setup.
 
 ## Product suggestions
 

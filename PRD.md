@@ -1,8 +1,8 @@
 # LexiLearn — Product Requirements Document
 
-**Version:** 0.2.1
+**Version:** 0.3.0
 **Status:** In Development
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-20
 
 ---
 
@@ -23,6 +23,8 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 - **SM-2 spaced repetition** — scientifically-backed review scheduling
 - **Amharic support** — built-in Amharic translations for vocabulary cards
 - **No account required** — single-user app, zero friction to start
+- **AI Mentor & Coach** — adaptive tutoring, naturalness coaching and speech practice, all through local Ollama (nothing leaves the machine)
+- **Works offline** — service worker caches the shell and your data; only AI generation needs the local Ollama process
 
 ---
 
@@ -114,6 +116,28 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-504 | Reset all progress (SRS cards, logs, XP, streaks, settings; preserves word decks) | P1 |
 | F-505 | TTS diagnostics panel | P2 |
 
+### 3.7 AI Mentor (local, optional)
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| F-600 | Mentor generates focus-locked practice branches (drill / scenario / exam / review) with a difficulty ceiling | P1 |
+| F-601 | Agentic loop per question: generate → validate → diagnose → schedule error cards for future repair | P1 |
+| F-602 | Every answer is self-corrected before evaluation, then scored on grammar, spelling, naturalness, register, pragmatics, task completion | P1 |
+| F-603 | Feedback includes inline corrections, a native rewrite, a one-lesson explanation, a follow-up retrieval question, and a root-cause note | P1 |
+| F-604 | Hint ladder (up to 4 levels) without leaking the answer; `H` opens it, `R` fetches the next challenge | P2 |
+| F-605 | Skill mastery per focus tag and due error cards, shown in the Mentor's Memory and Map panels | P2 |
+| F-606 | Coach Lab: mastery map, weekly coach report, browser speech practice, naturalness coaching (all local) | P2 |
+| F-607 | All inference through local Ollama; structured JSON contracts with schema validation and one repair attempt | P1 |
+
+### 3.8 Feel & Offline
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| F-700 | Synthesized typing sounds on every text input — pitch-randomized, debounced, gated by the existing sound toggle | P2 |
+| F-701 | Session sounds (correct / wrong / level-up) and haptics, opt-in | P2 |
+| F-702 | Service worker caches the app shell and read-only API responses so learning and reviewing work offline | P1 |
+| F-703 | Honest offline banner explaining exactly what still works (everything except AI generation) | P2 |
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -124,9 +148,9 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | **Performance** | Initial page load < 3s on broadband |
 | **Storage** | SQLite database stored locally at `db/custom.db` |
 | **Privacy** | No network requests except local API calls; no analytics, telemetry, or third-party tracking |
-| **Offline** | Fully functional without internet (after initial load) |
+| **Offline** | App shell, data and all review flows work offline via service worker; only AI generation requires the local Ollama process |
 | **Browser Support** | Chrome 90+, Firefox 90+, Edge 90+, Safari 15+ |
-| **Responsive** | Works on desktop and mobile (sidebar collapses to bottom nav) |
+| **Responsive** | Works on desktop and mobile (left rail on desktop, bottom tab bar on mobile) |
 | **Accessibility** | Semantic HTML, keyboard navigation, visible focus states |
 | **Data Safety** | Cascading deletes preserve referential integrity; reset preserves word data |
 
@@ -144,7 +168,10 @@ Frontend:  Next.js 16 (App Router, Turbopack, standalone output)
            Recharts (charts)
 
 Backend:   Next.js API Routes (single catch-all at /api/lexilearn)
-           Prisma ORM 6.11, SQLite
+           Drizzle ORM (better-sqlite3 driver), SQLite at db/custom.db
+
+AI:        Local Ollama (qwen3:8b default, nomic-embed-text-v2-moe for
+           embeddings) — structured JSON contracts, no cloud calls
 
 DevOps:    pnpm, ESLint 9 (core-web-vitals + typescript)
 ```
@@ -157,6 +184,11 @@ Deck ──1:N── Word ──1:1── SrsCard
 ReviewLog (per-review audit trail)
 QuizSession (quiz completion records)
 AppStat (key-value store: streak, XP, settings)
+
+AI Mentor:
+MentorProject ──1:N── Branch ──1:N── Node ──1:N── Attempt
+SkillMastery (per focus tag)   ErrorCard (scheduled repairs)
+Turn / Memory / Knowledge (conversation + local RAG seed)
 ```
 
 ### 5.3 API Design
@@ -187,45 +219,55 @@ src/
 │   │   └── route.ts              # Health check
 │   ├── globals.css
 │   ├── layout.tsx
+│   ├── error.tsx / not-found.tsx
 │   └── page.tsx                  # Client-side SPA entry
+├── db/
+│   ├── schema.ts                 # Drizzle schema (23 tables)
+│   ├── env.ts                    # DB path resolution
+│   └── id.ts                     # cuid-style ids
 ├── components/
 │   ├── views/                    # Page-level views
-│   │   ├── dashboard.tsx
-│   │   ├── learn.tsx
+│   │   ├── today.tsx             # Dashboard ("Today")
+│   │   ├── learn.tsx             # Recall → Listen → Spell
 │   │   ├── review.tsx
-│   │   ├── quiz.tsx
-│   │   ├── decks.tsx
-│   │   ├── stats.tsx
-│   │   ├── settings.tsx
-│   │   └── search.tsx
-│   ├── word/                     # Word display components
-│   │   ├── word-card.tsx
-│   │   └── spelling-input.tsx
-│   ├── ui/                       # shadcn/ui primitives
-│   ├── sidebar.tsx
-│   ├── contribution-calendar.tsx
-│   ├── onboarding-overlay.tsx
-│   ├── quick-start-card.tsx
-│   ├── tts-notice.tsx
-│   ├── error-boundary.tsx
-│   ├── bulk-add-words-dialog.tsx
-│   └── word-form-dialog.tsx
+│   │   ├── quiz.tsx              # Six modes incl. drag-to-match
+│   │   ├── dictation.tsx         # Dictation practice
+│   │   ├── library.tsx           # Decks + deck detail + dictionary
+│   │   ├── progress.tsx          # Overview + Settings
+│   │   ├── coach.tsx             # AI Coach hub
+│   │   ├── coach-lab.tsx         # Mastery map, report, speech, naturalness
+│   │   └── mentor.tsx            # Conversation-style Mentor
+│   ├── word/                     # word-card-v2.tsx, spelling-input.tsx
+│   ├── quiz/                     # match-game.tsx (drag-to-match)
+│   ├── feedback/                 # pressable, empty-state, session-complete-v2, xp-pop
+│   ├── layout/                   # page-header, next-step
+│   ├── pwa.tsx                   # SW registration + offline banner
+│   └── ui/                       # shadcn/ui primitives
 ├── lib/
 │   ├── api.ts                    # Client-side API client
-│   ├── db.ts                     # Prisma singleton
+│   ├── db.ts                     # Drizzle + better-sqlite3 singleton
 │   ├── srs.ts                    # SM-2 algorithm + helpers
-│   ├── store.ts                  # Zustand view router
+│   ├── store.ts                  # Zustand store
+│   ├── router.ts                 # URL hash state sync
+│   ├── feel.ts                   # Sound, haptics, typing sounds
+│   ├── motion.ts                 # Motion-safe framer variants
+│   ├── mentor-agent.ts           # Local agentic tutoring loop
+│   ├── ollama.ts                 # Local Ollama client + embeddings
+│   ├── gamification.ts           # XP, levels, streaks
+│   ├── dictation.ts              # Dictation item ladder
+│   ├── keys.ts                   # Platform key helpers
 │   ├── tts.ts                    # Browser Speech Synthesis
 │   ├── csv-parser.ts             # CSV/TSV word import
 │   └── utils.ts                  # cn() helper
-├── hooks/                        # (empty, reserved)
 scripts/
 ├── seed.ts                       # Vocabulary seed data
-└── backfill-activity.ts
-prisma/
-└── schema.prisma                 # Database schema
+├── backfill-activity.ts
+└── verify-db.ts
+public/
+├── sw.js                         # Offline service worker
+└── manifest.webmanifest
 db/
-└── custom.db                     # SQLite database
+└── custom.db                     # SQLite database (created on first run)
 ```
 
 ---
@@ -248,20 +290,20 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 ### 7.1 Navigation
 
-- **Desktop:** Left sidebar with 7 navigation items (Dashboard, Learn, Review, Quiz, Decks, Stats, Settings) + search bar
-- **Mobile:** Fixed bottom navigation bar with same items
-- **Views:** Client-side routing via Zustand store (no page reloads)
+- **Desktop:** Left sidebar with 5 flat destinations (Today, Learn, Review, Library, Progress) + a floating AI Coach button + search palette
+- **Mobile:** Fixed bottom navigation bar with the same five tabs + safe-area insets; AI Coach opens from Today, Review and Settings
+- **Views:** Client-side routing via Zustand store, synced to the URL hash (`#/today`, `#/review`, `#/library/<deckId>`, `#/progress/settings`) so back/forward and deep links work
 
 ### 7.2 Key Screens
 
-1. **Dashboard** — Hero stats (due, new, daily goal, streak), XP/level progress, contribution calendar, card status overview, 7-day forecast
-2. **Learn** — Card-by-card flow: Recall → Reveal → Spell → Grade → Next
-3. **Review** — Flashcard with reveal, 4-grade buttons, keyboard shortcuts
-4. **Quiz** — Mode selection → Quiz runner → Results summary
-5. **Decks** — Grid of deck cards → Deck detail with word list, bulk add, CRUD
-6. **Stats** — KPIs, weekly chart, pie chart, grade distribution, heatmap, per-deck table
-7. **Settings** — TTS config, daily goal, theme, danger zone (reset)
-8. **Search** — Search input → results list → word detail card
+1. **Today** — one primary action, three stat tiles, resume, momentum (level + daily challenge in one card)
+2. **Learn** — Recall → Listen → Spell per new word, with typing sounds
+3. **Review** — due cards with grade buttons that show the resulting interval
+4. **Quiz** — six modes (MC, reverse MC, typing, spelling bee, speed round, drag-to-match) → session summary
+5. **Dictation** — listen and type back, word → phrase → sentence ladder
+6. **Library** — decks + deck detail + dictionary behind one segmented control
+7. **Progress** — stats overview + settings (theme, TTS, daily goal, Feel toggles, typed-confirm reset)
+8. **Coach** — AI hub opening Coach Lab (mastery map, weekly report, speech practice, naturalness) and the **Mentor** — a conversation-style adaptive tutor with memory and learning-map panels
 
 ### 7.3 Design Tokens
 
@@ -288,13 +330,16 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| PWA install prompt | P1 | Standalone output already configured |
 | Word import from Free Dictionary API | P2 | Auto-populate definitions on word add |
-| Audio recording for pronunciation comparison | P2 | MediaRecorder API |
+| True phoneme-level pronunciation scoring | P2 | Local Whisper/whisper.cpp + forced alignment |
 | Deck sharing (export/import JSON) | P2 | Portable deck format |
 | Multi-language UI (Amharic interface) | P3 | next-intl already a dependency |
 | Review scheduling notifications | P3 | Web Push API |
 | Statistics export (PDF/CSV) | P3 | |
+| Mentor as the adaptive engine behind Learn/Review/Quiz | P2 | Currently a separate surface |
+| Offline job queue for slow local inference | P3 | Visible "thinking" state, resumable requests |
+| Pronunciation mode with Whisper/Piper | P2 | Same learner model scores spoken English |
+| Branch mastery gates | P3 | Unlock advanced scenarios at 75% prerequisite mastery |
 
 ---
 
@@ -302,6 +347,7 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.3.0 | 2026-09-20 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, drag-to-match quiz, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration |
 | 0.2.1 | 2026-07-29 | CRUD for words, bulk add, UI/UX improvements |
 | 0.2.0 | 2026-07-28 | Core features: Learn, Review, Quiz, Decks, Stats, Settings |
 | 0.1.0 | 2026-07-28 | Initial commit, project scaffold |

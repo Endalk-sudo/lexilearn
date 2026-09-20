@@ -100,8 +100,8 @@ by the single canonical set of views.
 ## 7. Verified
 
 - `tsc --noEmit` — clean
-- `next build` — clean (5 routes, `/_not-found` generated)
-- Dev server: `GET /` → 200, `/api/lexilearn?action=dashboard|decks` → 200 with real data
+- `next build` — clean (routes: `/`, `/_not-found`, `/api`, `/api/lexilearn`; standalone output)
+- Dev server: `GET /` → 200, `/sw.js` → 200, manifest served, `/api/lexilearn?action=dashboard` → 200 with real data
 - Compiled CSS contains the new tokens, `.surface`, ripple and tabular figures
 - No dangling imports after the legacy deletions
 
@@ -109,3 +109,25 @@ Not fixed (pre-existing, unrelated to this pass): `eslint` reports
 `react-hooks/set-state-in-effect` warnings-as-errors from React 19's new lint rule across
 both old and new files (e.g. `hooks/use-mobile.ts`, `ui/carousel.tsx`). The build is
 unaffected; converting those to `useSyncExternalStore` is a good follow-up.
+
+---
+
+## 8. Follow-up pass (v0.3.1, 2026-09-20)
+
+Same design language, three additions on top:
+
+- **Mentor conversation redesign** — the two-pane layout became one focused
+  column: context strip (mastery ring + branch meta), the attempt →
+  self-correction → lesson flow as chat-like bubbles, confidence as a 1–5 tap
+  row, a three-step progress line (Answer → Self-correct → Diagnosis), branch
+  maker reduced to a human 4-field card, and Memory / Map popovers in the header.
+- **Typing sounds** (`src/lib/feel.ts`) — synthesized keystroke layer on every
+  text input (Mentor, quiz typing, dictation, spelling, Coach Lab): shared
+  AudioContext, pitch-randomized ticks, 30 ms debounce, gated by the existing
+  sound toggle.
+- **Offline layer** — hand-rolled `public/sw.js` (network-first shell,
+  cache-first immutable assets, network-first-with-fallback for read-only
+  `/api/lexilearn` GETs) plus `src/components/pwa.tsx`: production-only SW
+  registration and an honest offline banner stating exactly what still works.
+
+Re-verified after this pass: `tsc` clean, build clean, dev smoke incl. `/sw.js`.

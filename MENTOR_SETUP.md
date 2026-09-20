@@ -1,16 +1,32 @@
 # LexiLearn — AI Mentor (Local Ollama) Setup
 
-## What was added
+> Status note (2026-09-20): the Mentor has been rebuilt as a
+> conversation-style tutor. The storage layer migrated from Prisma to
+> Drizzle ORM (`src/db/schema.ts`, same SQLite file, same tables), so the
+> old Prisma setup commands in this file were removed. See
+> "Fresh database setup" for the current flow.
 
-- New **Mentor** section in the navigation (desktop sidebar + mobile bottom nav)
-- Full local Ollama integration (optional — the rest of the app works without it)
-- Four Mentor modes:
-  1. **Practice Generator** — cloze, rewrite, error correction, use-in-paragraph, discussion questions from your target words
-  2. **Writing Coach** — paste/write a paragraph → detailed correction + explanations + Amharic glosses when helpful
-  3. **Conversation / Role-play** — scenario-based chat with gentle corrections
-  4. **Deep Explainer** — ask “what’s the difference…”, “why is this wrong…”, etc.
-- New Prisma models: `MentorSession`, `ErrorLog`, `PracticeMaterial` (ready for future adaptive features)
-- Environment variables for model selection
+## What the Mentor is now
+
+- **Mentor** — the **AI Coach screen** (`#/coach`) has two tabs: **Mentor**
+  and **Lab**. The Mentor tab is a conversation-style adaptive tutor: you
+  answer in a chat-like flow — your attempt → self-correction → diagnosis →
+  lesson → follow-up retrieval question. Branch, memory (recent mistakes,
+  skill strengths) and learning map live in popovers, so the main column
+  stays focused. Open it from the AI Coach button (Today, Review, Settings).
+- **Lab (Coach Lab)** — mastery map, weekly coach report, browser speech
+  practice, naturalness coaching.
+
+Four Mentor modes per branch:
+  1. **Drill** — fast reps on one rule
+  2. **Scenario** — roleplay real situations
+  3. **Exam** — timed, rubric-based
+  4. **Review** — repair recurring mistakes (driven by your error cards)
+
+Under the hood: agentic loop (generate → validate → diagnose → schedule)
+in `src/lib/mentor-agent.ts`, structured JSON contracts with schema
+validation and one repair attempt, persistent branches/nodes/attempts,
+skill mastery per focus tag, and error cards scheduled for future repair.
 
 ## Requirements
 
@@ -18,58 +34,55 @@
 2. At least one model pulled, e.g.:
 
 ```bash
-ollama pull qwen3:8b
-# or
-ollama pull qwen2.5
-# or
-ollama pull gemma2
+ollama pull qwen3:8b          # default chat model
+ollama pull nomic-embed-text-v2-moe   # embeddings for local retrieval
 ```
 
-3. In the project `.env`:
+3. In the project `.env` (all optional — these are the defaults):
 
 ```
-DATABASE_URL=file:../db/custom.db
+DATABASE_URL=file:./db/custom.db
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3:8b
+OLLAMA_EMBED_MODEL=nomic-embed-text-v2-moe
 ```
 
-Change `OLLAMA_MODEL` to whatever you prefer.
+The database lives at `db/custom.db` (override with `LEXILEARN_DB_URL`).
+Without Ollama running, the rest of LexiLearn (Learn, Review, Quiz,
+Library, Progress) keeps working normally — the Mentor surfaces a clear
+empty state instead of breaking.
 
-## After pulling this code
+## Fresh database setup
+
+The schema ships with the repo in `src/db/schema.ts` (Drizzle, 23
+tables). The existing `db/custom.db` is already compatible; for a brand
+new database file, run the seed script which provisions tables and seed
+decks:
 
 ```bash
-# Install deps
-pnpm install   # or npm install
-
-# Push new schema (MentorSession etc.)
-npx prisma db push
-
-# Generate client
-npx prisma generate
-
-# Seed if needed
+pnpm install
 npx tsx scripts/seed.ts
-
-# Run
 pnpm dev
 ```
 
-Open the app → **Mentor** in the sidebar.  
-If Ollama is not running you will see clear instructions. The rest of LexiLearn (Learn, Review, Quiz, Decks, Stats…) continues to work normally.
+> Housekeeping note: `package.json` still lists legacy Prisma scripts
+> (`postinstall`, `db:push`, `db:generate`, `db:migrate`, `db:reset`)
+> from before the Drizzle migration. They are inert without a
+> `prisma/` directory and are safe to remove in a cleanup pass.
 
 ## Design notes
 
-- Visual style kept as a blend of clean/minimal + energetic (warm primary, smooth Framer Motion transitions, micro-feedback).
-- Mentor is deliberately optional so the core spaced-repetition experience stays fast and offline-first.
+- Visual style follows the "Quiet focus" design system (`REDESIGN.md`).
+- The Mentor is deliberately optional so the core spaced-repetition
+  experience stays fast and works offline.
 - All AI traffic stays on localhost. Nothing is sent to the cloud.
 
-## Next recommended improvements (still open)
+## Still open
 
-- Wire ErrorLog automatically from writing corrections
-- Save generated practice materials into PracticeMaterial and review them later
-- Speaking mode (browser SpeechRecognition → Ollama feedback)
-- AI-generated short reading passages that use your current SRS words
-- Stronger micro-interactions across Learn/Review cards
-- Performance pass (React Query caching, virtualized word lists, etc.)
+- Wire Mentor as the adaptive engine behind Learn / Review / Quiz
+- True phoneme-level pronunciation scoring (local Whisper pipeline)
+- Weekly coach report e-mailed/exported
+- Branch mastery gates
+- Offline job queue for slow local inference
 
-The foundation is now in place.
+The foundation is in place.
