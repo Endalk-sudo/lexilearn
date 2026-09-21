@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { StatTile } from '@/components/ui/stat-tile'
-import { ContributionCalendar } from '@/components/contribution-calendar'
+import { ContributionCalendar } from '@/features/progress/components/contribution-calendar'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'

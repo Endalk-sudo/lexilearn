@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '@/lib/api'
-import { parseCsv, CSV_FORMAT_HINT, CSV_PLACEHOLDER, type ParsedWord } from '@/lib/csv-parser'
+import { parseCsv, CSV_FORMAT_HINT, CSV_PLACEHOLDER, type ParsedWord } from '@/features/library/lib/csv-parser'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { api, type WordDTO } from '@/lib/api'
 import { useAppStore, type LibraryTab, type ViewName } from '@/lib/store'
-import { WordCardV2 } from '@/components/word/word-card-v2'
+import { WordCardV2 } from '@/components/word-card-v2'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { speak } from '@/lib/tts'

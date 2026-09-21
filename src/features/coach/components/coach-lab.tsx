@@ -20,7 +20,7 @@ import { useAppStore } from '@/lib/store'
 import { speak } from '@/lib/tts'
 import { typeFeelFromKey } from '@/lib/feel'
 import { fadeUp, stagger, useMotionSafe } from '@/lib/motion'
-import { fmtTag } from '@/components/views/mentor'
+import { fmtTag } from '@/features/coach/components/mentor'
 
 type Mastery = { tag:string; mastery:number; attempts:number; correct:number; lastSeen?:string|null }
 type Branch = { id:string; title:string; focusTag:string; mode:string; difficultyCeiling:number; locked:boolean; parentBranchId?:string|null; parentNodeId?:string|null }

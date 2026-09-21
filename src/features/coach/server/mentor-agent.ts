@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { mentorProfile, mentorProject, mentorSkillMastery, mentorErrorCard, mentorKnowledge, mentorBranch, mentorNode, mentorAttempt, mentorFeedback, mentorTurn, mentorWeeklyReport, pronunciationAttempt, naturalnessAttempt, appStat, reviewLog } from '@/db/schema'
 import { eq, lte, asc, desc, isNull, gte, sql } from 'drizzle-orm'
-import { ollamaChat, ollamaEmbed, MENTOR_SYSTEM } from '@/lib/ollama'
+import { ollamaChat, ollamaEmbed, MENTOR_SYSTEM } from '@/features/coach/server/ollama'
 
 const QuestionSchema = z.object({
   action: z.literal('question'),
@@ -317,7 +317,7 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
     recurringErrors: errors.map(e => ({tag:e.tag,type:e.errorType,wrong:e.wrong,right:e.right})),
     vocabularyReviews: { count: reviews.length, correct: reviews.filter(r=>r.isCorrect).length },
   }
-  const { MENTOR_SYSTEM } = await import('@/lib/ollama')
+  const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
   let report: WeeklyReport
   try {
     report = await structured<any>([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Create a concise weekly English coach report from the following evidence. Be honest and specific. Identify real strengths, recurring weaknesses, confidence calibration, and 2-3 next focuses. Do not invent data.\n${JSON.stringify(evidence)}` }], WeeklyReportSchema, 0.2)
@@ -343,7 +343,7 @@ export async function evaluatePronunciation(target: string, transcript: string) 
   const missing = expected.filter(w=>!heardSet.has(w)), extra = heard.filter(w=>!expectedSet.has(w))
   const positionMatches = expected.reduce((n,w,i)=>n+(heard[i]===w?1:0),0)
   const accuracy = expected.length ? Math.max(0, Math.min(1, (positionMatches / expected.length) * 0.75 + (1 - missing.length/expected.length) * 0.25)) : 0
-  const { MENTOR_SYSTEM } = await import('@/lib/ollama')
+  const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
   let feedback:any
   try { feedback = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Evaluate pronunciation practice using only this speech-to-text evidence. Target: ${target}\nHeard: ${transcript}\nMissing words: ${JSON.stringify(missing)}\nExtra words: ${JSON.stringify(extra)}\nGive actionable pronunciation feedback without pretending you heard phonemes.`}], PronunciationSchema, 0.2) }
   catch { feedback = { verdict: accuracy>=.9?'Clear':accuracy>=.7?'Mostly clear':'Needs another attempt', feedback: accuracy>=.9?'The transcript closely matches the target. Focus on rhythm and natural stress.':`Try again and aim to say the whole phrase clearly. ${missing.length ? `You may be dropping: ${missing.slice(0,3).join(', ')}.`:''}`, focus: missing[0] || 'stress and rhythm' } }
@@ -353,7 +353,7 @@ export async function evaluatePronunciation(target: string, transcript: string) 
 }
 
 export async function evaluateNaturalness(input: string) {
-  const { MENTOR_SYSTEM } = await import('@/lib/ollama')
+  const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
   let result:any
   try { result = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Judge how natural this English sentence sounds to a proficient native speaker. Preserve the intended meaning. Score naturalness 0-1. Provide one native version, 2 alternatives, a short explanation, and a verdict. Sentence: ${input}`}], NaturalnessSchema, 0.15) }
   catch { result = { score:0.7, verdict:'Understandable but can sound more natural', native:input, alternatives:[input], explanation:'Try using the common collocation and word order native speakers usually choose.' } }

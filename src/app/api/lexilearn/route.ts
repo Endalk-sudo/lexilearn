@@ -7,7 +7,7 @@ import { deck, word, srsCard, reviewLog, quizSession, appStat, mentorProject, me
 import { eq, gt, gte, lt, lte, and, isNull, notExists, asc, desc, like, sql } from 'drizzle-orm'
 import { calculateSm2, type Grade } from '@/lib/srs'
 import { v4 as uuid } from 'uuid'
-import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/lib/mentor-agent'
+import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
 // ---------- Types ----------
 export type WordDTO = {
@@ -663,7 +663,7 @@ export async function GET(req: NextRequest) {
 
       case 'mentorIndexKnowledge': {
         await ensureMentorSeed()
-        const { ollamaEmbed } = await import('@/lib/ollama')
+        const { ollamaEmbed } = await import('@/features/coach/server/ollama')
         const chunks = await db.select().from(mentorKnowledge).where(isNull(mentorKnowledge.embedding))
         let indexed = 0
         for (const c of chunks) {
@@ -699,7 +699,7 @@ export async function GET(req: NextRequest) {
       }
 
       case 'ollamaStatus': {
-        const { checkOllamaStatus } = await import('@/lib/ollama')
+        const { checkOllamaStatus } = await import('@/features/coach/server/ollama')
         const status = await checkOllamaStatus()
         return NextResponse.json(status)
       }
@@ -936,7 +936,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'mentorExplain': {
-        const { buildExplainPrompt, ollamaChat, MENTOR_SYSTEM } = await import('@/lib/ollama')
+        const { buildExplainPrompt, ollamaChat, MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
         if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
         const response = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildExplainPrompt(body.query.trim(), body.context) }])
         return NextResponse.json({ response })
@@ -1021,7 +1021,7 @@ export async function POST(req: NextRequest) {
 
       case 'mentor': {
         // Legacy free-form mentor modes remain available; the new agentic flow uses mentorNext/mentorAttempt.
-        const { MENTOR_SYSTEM, ollamaChat, buildPracticePrompt, buildWritingFeedbackPrompt, buildConversationSystem, buildExplainPrompt } = await import('@/lib/ollama')
+        const { MENTOR_SYSTEM, ollamaChat, buildPracticePrompt, buildWritingFeedbackPrompt, buildConversationSystem, buildExplainPrompt } = await import('@/features/coach/server/ollama')
         const mode = body.mode as string
         if (!mode) return NextResponse.json({ error: 'mode required' }, { status: 400 })
         let responseText = ''

@@ -20,9 +20,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
-import { WordCardV2 } from '@/components/word/word-card-v2'
-import { WordFormDialog } from '@/components/word-form-dialog'
-import { BulkAddWordsDialog } from '@/components/bulk-add-words-dialog'
+import { WordCardV2 } from '@/components/word-card-v2'
+import { WordFormDialog } from '@/features/library/components/word-form-dialog'
+import { BulkAddWordsDialog } from '@/features/library/components/bulk-add-words-dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -31,7 +31,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { CSV_FORMAT_HINT, CSV_PLACEHOLDER, parseCsv } from '@/lib/csv-parser'
+import { CSV_FORMAT_HINT, CSV_PLACEHOLDER, parseCsv } from '@/features/library/lib/csv-parser'
 import { speak } from '@/lib/tts'
 import { playSound } from '@/lib/feel'
 import { toast } from 'sonner'

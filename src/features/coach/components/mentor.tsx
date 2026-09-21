@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { fadeUp, revealBlock, springSoft, useMotionSafe } from '@/lib/motion'
 import { buzz, playSend, playSound, typeFeelFromKey } from '@/lib/feel'
-import { isMac } from '@/lib/keys'
+import { isMac } from '@/features/coach/lib/keys'
 import { speak } from '@/lib/tts'
 
 type Branch = { id:string; title:string; focusTag:string; mode:string; difficultyCeiling:number; locked:boolean; createdAt:string }

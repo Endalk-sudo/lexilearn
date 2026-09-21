@@ -6,7 +6,7 @@
  * in plain node.
  */
 
-import type { WordDTO } from './api'
+import type { WordDTO } from '@/lib/api'
 
 export type DictationKind = 'word' | 'phrase' | 'sentence'
 export type DictationGrade = 0 | 3 | 4 | 5

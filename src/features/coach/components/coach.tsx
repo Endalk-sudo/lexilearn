@@ -3,8 +3,8 @@
 import { motion } from 'framer-motion'
 import { FlaskConical, Sparkles } from 'lucide-react'
 import { SegmentedControl } from '@/components/layout/segmented-control'
-import { MentorView } from '@/components/views/mentor'
-import { CoachLabView } from '@/components/views/coach-lab'
+import { MentorView } from '@/features/coach/components/mentor'
+import { CoachLabView } from '@/features/coach/components/coach-lab'
 import { useAppStore } from '@/lib/store'
 import { fadeUp, useMotionSafe } from '@/lib/motion'
 

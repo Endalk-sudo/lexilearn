@@ -10,11 +10,11 @@ import {
   accuracyOf, buildItems, DICTATION_XP, diffWords, gradeFor, groupDiff,
   loadRung, MIN_SESSION_ITEMS, nextRung, RUNG_LABELS, saveRung, tokenize,
   type DictationGrade, type DictationItem, type DiffSegment, type Rung,
-} from '@/lib/dictation'
+} from '@/features/dictation/lib/dictation'
 import {
   createDictationPlayer, PRESET_RATES, useAudioReadiness,
   type AudioProbe, type DictationPlayer, type DictationPreset,
-} from '@/lib/dictation-audio'
+} from '@/features/dictation/lib/dictation-audio'
 import { api, type CardWithWord, type WordDTO } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/page-header'
