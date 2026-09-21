@@ -1,6 +1,6 @@
 from playwright.sync_api import sync_playwright
 import json, time, re
-BASE="http://localhost:3000"
+BASE="http://127.0.0.1:3000"
 results=[]; shots="/tmp/e2e-shots"
 def rec(phase,name,ok,detail=""):
     results.append({"phase":phase,"name":name,"ok":bool(ok),"detail":str(detail)[:300]})
