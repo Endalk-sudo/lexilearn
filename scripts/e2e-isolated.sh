@@ -22,9 +22,12 @@ cd "$ROOT"
 PORT="${LEXILEARN_E2E_PORT:-3100}"
 BASE="http://127.0.0.1:${PORT}"
 SRC_DB="$ROOT/db/custom.db"
-TMP_DB="$(mktemp -t lexilearn-e2e-XXXXXX).db"
-SERVER_LOG="$(mktemp -t lexilearn-e2e-server-XXXXXX).log"
-SUITE_LOG="$(mktemp -t lexilearn-e2e-suite-XXXXXX).log"
+# One temp directory holds the db clone and all logs, so cleanup is a single
+# rm -rf — appending extensions to mktemp output would leak the base files.
+TMP_DIR="$(mktemp -d -t lexilearn-e2e-XXXXXX)"
+TMP_DB="$TMP_DIR/study.db"
+SERVER_LOG="$TMP_DIR/server.log"
+SUITE_LOG="$TMP_DIR/suite.log"
 SERVER_PID=""
 
 cleanup() {
@@ -32,7 +35,7 @@ cleanup() {
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
   fi
-  rm -f "$TMP_DB" "$TMP_DB-wal" "$TMP_DB-shm" "$SUITE_LOG"
+  rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
