@@ -1,0 +1,64 @@
+name: E2E
+
+# Browser e2e against the production standalone build. The suites grade real
+# cards and write real words, so they run against a throwaway database clone
+# (see scripts/e2e-isolated.sh) — never a developer's study db.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The SQLite file is created by `prisma db push`; no secrets needed.
+      DATABASE_URL: file:./db/custom.db
+      LEXILEARN_E2E_PORT: "3100"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare database
+        # drizzle-kit is the runtime schema tool (the app talks to SQLite through
+        # drizzle + better-sqlite3); prisma is legacy here.
+        env:
+          LEXILEARN_DB_URL: file:./db/custom.db
+        run: |
+          npx drizzle-kit push --force
+          npm run db:seed
+
+      - name: Build
+        run: npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Run e2e suites (isolated db)
+        run: bash scripts/e2e-isolated.sh
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: /tmp/e2e-shots
+          if-no-files-found: ignore
+          retention-days: 7

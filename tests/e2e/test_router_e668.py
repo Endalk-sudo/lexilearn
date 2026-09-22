@@ -7,10 +7,11 @@ Exercises every path that syncs the hash router:
   - browser back/forward through hash entries
 Listens for the E668 error and any page errors on console.
 """
+import os
 import sys
 from playwright.sync_api import sync_playwright
 
-BASE = "http://localhost:3000"
+BASE = os.environ.get("LEXILEARN_E2E_BASE", "http://127.0.0.1:3000")
 errors = []
 
 def track(page, tag):

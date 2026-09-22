@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { deck, word, srsCard, reviewLog, quizSession, appStat, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
 import { eq, gt, gte, lt, lte, and, isNull, notExists, asc, desc, like, sql } from 'drizzle-orm'
 import { calculateSm2, type Grade } from '@/lib/srs'
+import { dayKey, startOfDay, addDays } from '@/lib/date'
 import { v4 as uuid } from 'uuid'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
@@ -95,7 +96,7 @@ function toSrsDto(c: any): SrsCardDTO {
 }
 
 async function updateStreakAndXp(grade: Grade) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = dayKey(new Date())
   const lastSession = await getStat('lastSessionDate', '')
   let streak = parseInt(await getStat('streak', '0'), 10) || 0
   let longest = parseInt(await getStat('longestStreak', '0'), 10) || 0
@@ -284,6 +285,41 @@ async function generateQuiz(deckId: string | null, mode: string, count: number) 
   return questions
 }
 
+/**
+ * The 53-week contribution window, Sunday-aligned, ending on the current
+ * week's Saturday — the same shape GitHub uses.
+ */
+function heatmapWindow() {
+  const today = startOfDay(new Date())
+  const endOfGrid = addDays(today, 6 - today.getDay())
+  const startOfGrid = addDays(endOfGrid, -(53 * 7 - 1))
+  return { startOfGrid, endOfGrid }
+}
+
+/**
+ * Sparse contribution calendar: only the days that actually have activity,
+ * inside the 53-week window, oldest first.
+ *
+ * The full grid is 371 rows of which almost all are zero for a new learner, so
+ * shipping it on every dashboard load was pure waste. The client rebuilds the
+ * grid from the dates, which also removes any reliance on array position.
+ */
+function buildHeatmap(logs: { reviewedAt: Date; isCorrect: boolean }[]) {
+  const { startOfGrid, endOfGrid } = heatmapWindow()
+  const windowStart = dayKey(startOfGrid)
+  const windowEnd = dayKey(endOfGrid)
+  const byDay = new Map<string, { date: string; count: number; correct: number }>()
+  for (const log of logs) {
+    const key = dayKey(log.reviewedAt)
+    if (key < windowStart || key > windowEnd) continue
+    const entry = byDay.get(key) ?? { date: key, count: 0, correct: 0 }
+    entry.count += 1
+    if (log.isCorrect) entry.correct += 1
+    byDay.set(key, entry)
+  }
+  return [...byDay.values()].sort((a, b) => (a.date < b.date ? -1 : 1))
+}
+
 async function getDashboardStats() {
   const now = new Date()
   const startOfToday = new Date()
@@ -309,7 +345,6 @@ async function getDashboardStats() {
   const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
   const lastSessionDate = await getStat('lastSessionDate', '')
   const streakShieldUsedDate = await getStat('streakShieldUsedDate', '')
-  const todayKey = new Date().toISOString().slice(0, 10)
   const challengeClaimedDate = await getStat('challengeClaimedDate', '')
   const todayQuizSessions = await db.select().from(quizSession).where(and(gte(quizSession.completedAt, startOfToday), lte(quizSession.completedAt, endOfToday)))
   const todayCorrect = todayLogs.filter((l) => l.isCorrect).length + todayQuizSessions.reduce((sum, q) => sum + q.correct, 0)
@@ -346,35 +381,10 @@ async function getDashboardStats() {
     const next = new Date(d)
     next.setDate(d.getDate() + 1)
     const count = await db.$count(srsCard, and(gte(srsCard.nextReview, d), lt(srsCard.nextReview, next)))
-    forecast.push({ date: d.toISOString().slice(0, 10), count })
+    forecast.push({ date: dayKey(d), count })
   }
 
-  const heatmap: { date: string; count: number; correct: number }[] = []
-  const byDay = new Map<string, { count: number; correct: number }>()
-  for (const log of allLogs) {
-    const day = log.reviewedAt.toISOString().slice(0, 10)
-    const entry = byDay.get(day) ?? { count: 0, correct: 0 }
-    entry.count += 1
-    if (log.isCorrect) entry.correct += 1
-    byDay.set(day, entry)
-  }
-  // Full year (53 weeks × 7 days), aligned to week-start (Sunday)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  // Find the Sunday of the current week, then go back 52 weeks
-  const daysSinceSunday = today.getDay() // 0=Sun .. 6=Sat
-  const endOfGrid = new Date(today)
-  endOfGrid.setDate(today.getDate() - daysSinceSunday + 6) // upcoming Saturday
-  const startOfGrid = new Date(endOfGrid)
-  startOfGrid.setDate(endOfGrid.getDate() - (53 * 7 - 1))
-  const totalDays = 53 * 7
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startOfGrid)
-    d.setDate(startOfGrid.getDate() + i)
-    const key = d.toISOString().slice(0, 10)
-    const entry = byDay.get(key) ?? { count: 0, correct: 0 }
-    heatmap.push({ date: key, count: entry.count, correct: entry.correct })
-  }
+  const heatmap = buildHeatmap(allLogs)
 
   let streakGap = 0
   let streakShieldCooldownDays = 0
@@ -478,36 +488,14 @@ async function getAnalytics() {
     next.setDate(d.getDate() + 1)
     const dayLogs = allLogsAsc.filter((l) => l.reviewedAt >= d && l.reviewedAt < next)
     weeklyActivity.push({
-      date: d.toISOString().slice(0, 10),
+      date: dayKey(d),
       count: dayLogs.length,
       correct: dayLogs.filter((l) => l.isCorrect).length,
     })
   }
 
-  // Full-year contribution calendar (53 weeks × 7 days, Sunday-aligned)
-  const heatmapByDay = new Map<string, { count: number; correct: number }>()
-  for (const log of allLogsAsc) {
-    const day = log.reviewedAt.toISOString().slice(0, 10)
-    const entry = heatmapByDay.get(day) ?? { count: 0, correct: 0 }
-    entry.count += 1
-    if (log.isCorrect) entry.correct += 1
-    heatmapByDay.set(day, entry)
-  }
-  const todayMidnight = new Date()
-  todayMidnight.setHours(0, 0, 0, 0)
-  const daysSinceSunday = todayMidnight.getDay()
-  const endOfGrid = new Date(todayMidnight)
-  endOfGrid.setDate(todayMidnight.getDate() - daysSinceSunday + 6)
-  const startOfGrid = new Date(endOfGrid)
-  startOfGrid.setDate(endOfGrid.getDate() - (53 * 7 - 1))
-  const heatmap: { date: string; count: number; correct: number }[] = []
-  for (let i = 0; i < 53 * 7; i++) {
-    const d = new Date(startOfGrid)
-    d.setDate(startOfGrid.getDate() + i)
-    const key = d.toISOString().slice(0, 10)
-    const entry = heatmapByDay.get(key) ?? { count: 0, correct: 0 }
-    heatmap.push({ date: key, count: entry.count, correct: entry.correct })
-  }
+  // Sparse contribution calendar — the client rebuilds the 53-week grid.
+  const heatmap = buildHeatmap(allLogsAsc)
 
   const gradeDistribution = [
     { grade: 0, count: allLogs.filter((l) => l.grade === 0).length },
@@ -792,7 +780,7 @@ export async function POST(req: NextRequest) {
         await setStat('totalReviews', String(rev + (total || 0)))
         const cor = parseInt(await getStat('totalCorrect', '0'), 10) || 0
         await setStat('totalCorrect', String(cor + (correct || 0)))
-        const today = new Date().toISOString().slice(0, 10)
+        const today = dayKey(new Date())
         const lastSession = await getStat('lastSessionDate', '')
         if (lastSession !== today) {
           let streak = parseInt(await getStat('streak', '0'), 10) || 0
@@ -815,7 +803,7 @@ export async function POST(req: NextRequest) {
 
       case 'claimChallenge': {
         const { key } = body as { key?: string }
-        const today = new Date().toISOString().slice(0, 10)
+        const today = dayKey(new Date())
         const claimed = await getStat('challengeClaimedDate', '')
         if (claimed === today) return NextResponse.json({ ok: true, xpAwarded: 0, alreadyClaimed: true })
         const start = new Date(); start.setHours(0, 0, 0, 0)
@@ -838,7 +826,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'repairStreak': {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = dayKey(new Date())
         const lastSession = await getStat('lastSessionDate', '')
         const usedDate = await getStat('streakShieldUsedDate', '')
         if (!lastSession) return NextResponse.json({ ok: false, error: 'No streak shield available' }, { status: 400 })

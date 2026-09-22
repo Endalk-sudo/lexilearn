@@ -12,10 +12,10 @@ Phases:
   I. Onboarding first-run + completion
   J. Router back/forward + reload resume
 """
-import json, re, sys, time
+import json, os, re, sys, time
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:3000"
+BASE = os.environ.get("LEXILEARN_E2E_BASE", "http://127.0.0.1:3000")
 R = []
 def rec(phase, name, ok, detail=""):
     R.append({"phase": phase, "name": name, "ok": bool(ok), "detail": str(detail)[:280]})
@@ -25,6 +25,18 @@ def api(pg, action, **params):
     q = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
     q = "&" + q if q else ""
     return pg.evaluate(f"fetch('/api/lexilearn?action={action}{q}').then(r=>r.json())")
+
+def post(pg, action, body):
+    """POST helper — used by the cleanup phase to undo test-created data."""
+    return pg.evaluate(
+        """([action, body]) => fetch('/api/lexilearn?action=' + action, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(body),
+           }).then((r) => r.json())""",
+        [action, body],
+    )
+
 
 def nav(hash_, w=1600):
     """Navigate to a hash route. Hash-only changes don't fire a navigation,
@@ -185,19 +197,32 @@ with sync_playwright() as p:
                     save.first.click(); pg.wait_for_timeout(1400)
                     found = json.dumps(api(pg, "search", query="e2e-test-word-xyz"))
                     rec("F-library", "word created+persisted", "e2e-test-word-xyz" in found.lower(), found[:110])
-    # CSV bulk import
-    nav("#/library", 1200)
-    bulk = pg.get_by_role("button", name=re.compile("bulk|import", re.I))
+    # CSV bulk import — the "Import" action only exists on a deck detail page,
+    # so open the deck first, then import a pasted list.
+    nav("#/library", 1400)
+    deck2 = pg.locator("main").get_by_role("button").filter(has_text=re.compile("common|toefl|ielts|gre|academic", re.I)).first
+    if deck2.count() > 0:
+        deck2.click(); pg.wait_for_timeout(1400)
+    bulk = pg.get_by_role("button", name=re.compile("^import$", re.I))
+    if bulk.count() == 0:
+        bulk = pg.get_by_role("button", name=re.compile("bulk|import a list", re.I))
+    rec("F-library", "import action visible", bulk.count() > 0, f"import btns={bulk.count()}")
     if bulk.count() > 0:
         bulk.first.click(); pg.wait_for_timeout(700)
         dlg = pg.get_by_role("dialog")
         if dlg.count() > 0:
-            dlg.locator("textarea").first.fill("zzz-csv-alpha, meaning one\nzzz-csv-beta, meaning two")
-            go = dlg.get_by_role("button", name=re.compile("add|import|save", re.I))
+            ta = dlg.locator("textarea").first
+            ta.fill("zzz-csv-alpha, meaning one\nzzz-csv-beta, meaning two")
+            pg.wait_for_timeout(400)
+            go = dlg.get_by_role("button", name=re.compile("import|add|save", re.I))
             if go.count() > 0:
-                go.first.click(); pg.wait_for_timeout(1600)
+                go.first.click(); pg.wait_for_timeout(1800)
                 found = json.dumps(api(pg, "search", query="zzz-csv-alpha"))
                 rec("F-library", "csv import persisted", "zzz-csv-alpha" in found.lower(), found[:110])
+            else:
+                rec("F-library", "csv import persisted", False, "no confirm button")
+        else:
+            rec("F-library", "csv import persisted", False, "dialog did not open")
     nav("#/library?tab=dictionary", 1300)
     t = pg.locator("main").inner_text()
     rec("F-library", "dictionary tab", "dictionary" in t.lower() or "search" in t.lower(), t[:90])
@@ -302,6 +327,20 @@ with sync_playwright() as p:
     mob.goto(f"{BASE}/#/today", wait_until="domcontentloaded", timeout=15000); mob.wait_for_timeout(1200)
     mob.screenshot(path="/tmp/e2e-shots/deep-K-mobile.png")
     mob.close()
+
+    # ---------- Phase Z: cleanup — never leave test data behind ----------
+    # The suite writes real words (a manual add + a CSV import). Remove them so
+    # repeated runs can't drift the user's library, counters or heatmap.
+    for probe in ("e2e-test-word-xyz", "zzz-csv-alpha", "zzz-csv-beta"):
+        try:
+            found = api(pg, "search", query=probe) or []
+            for w in found:
+                if isinstance(w, dict) and w.get("id"):
+                    post(pg, "deleteWord", {"wordId": w["id"]})
+            left = api(pg, "search", query=probe) or []
+            rec("Z-cleanup", f"removed {probe}", len(left) == 0, f"deleted {len(found)}, left {len(left)}")
+        except Exception as e:
+            rec("Z-cleanup", f"removed {probe}", False, e)
 
     # hygiene
     rec("Hygiene", "zero uncaught", len(uncaught) == 0, uncaught[:4])

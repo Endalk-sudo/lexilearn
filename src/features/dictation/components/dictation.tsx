@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle, ArrowRight, AudioLines, Check, ChevronDown, Ear,
-  Keyboard, Lightbulb, Play, RotateCcw, Snail, Volume2, X,
+  Keyboard, Lightbulb, Play, Settings2, Snail, Volume2, X,
 } from 'lucide-react'
 import {
   accuracyOf, buildItems, DICTATION_XP, diffWords, gradeFor, groupDiff,
@@ -53,7 +53,9 @@ type Phase = 'start' | 'loading' | 'session' | 'done'
 export function DictationView({ deckId }: { deckId?: string | null }) {
   const [phase, setPhase] = useState<Phase>('start')
   const [preset, setPreset] = useState<DictationPreset>('normal')
-  const [rung, setRung] = useState<Rung>(0)
+  // Rung is persisted client-side (localStorage): read it lazily as the
+  // initial state instead of syncing it with setState inside a mount effect.
+  const [rung, setRung] = useState<Rung>(() => loadRung())
   const [rungOverride, setRungOverride] = useState<Rung | null>(null)
   const [session, setSession] = useState<DictationSessionData | null>(null)
   const [summary, setSummary] = useState<DictationSummary | null>(null)
@@ -61,19 +63,16 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
   const { v, t } = useMotionSafe()
   const readiness = useAudioReadiness(true)
 
-  const playerRef = useRef<DictationPlayer | null>(null)
-  if (!playerRef.current) playerRef.current = createDictationPlayer()
-  useEffect(() => () => playerRef.current?.stop(), [])
-
-  useEffect(() => {
-    setRung(loadRung())
-  }, [])
+  // Lazily created once: the player only touches browser audio APIs when its
+  // methods run, so constructing it during render is side-effect free.
+  const [player] = useState<DictationPlayer>(() => createDictationPlayer())
+  useEffect(() => () => player.stop(), [player])
 
   const start = useCallback(
     async (override?: Rung | null) => {
       const picked: Rung = override ?? rungOverride ?? rung
       setPhase('loading')
-      playerRef.current?.stop()
+      player.stop()
       try {
         const [reviewable, fresh] = await Promise.all([
           api.getReviewableCards(deckId ?? null, 50),
@@ -94,7 +93,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
         setPhase('start')
       }
     },
-    [deckId, rung, rungOverride]
+    [deckId, player, rung, rungOverride]
   )
 
   return (
@@ -118,6 +117,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
           onRungOverride={setRungOverride}
           onStart={() => void start()}
           onBrowse={() => navigate('library')}
+          onOpenVoiceSettings={() => navigate('progress', { progressTab: 'settings' })}
         />
       ) : null}
 
@@ -134,7 +134,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
           key={session.items.map((i) => i.wordId + i.kind).join('|')}
           items={session.items}
           rungUsed={session.rungUsed}
-          player={playerRef.current}
+          player={player}
           preset={preset}
           onPreset={setPreset}
           audioReady={readiness.status === 'ready'}
@@ -146,7 +146,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
             setPhase('done')
           }}
           onExit={() => {
-            playerRef.current?.stop()
+            player.stop()
             setPhase('start')
           }}
         />
@@ -173,6 +173,7 @@ function DictationStart({
   onRungOverride,
   onStart,
   onBrowse,
+  onOpenVoiceSettings,
 }: {
   readiness: { status: 'probing' | 'ready' | 'unavailable'; probe?: AudioProbe }
   preset: DictationPreset
@@ -182,10 +183,10 @@ function DictationStart({
   onRungOverride: (r: Rung | null) => void
   onStart: () => void
   onBrowse: () => void
+  onOpenVoiceSettings: () => void
 }) {
   const { v, t } = useMotionSafe()
-  const activeRung = rungOverride ?? rung
-  const audioReady = readiness.status !== 'unavailable'
+  const available = readiness.status !== 'unavailable'
 
   return (
     <motion.div variants={v(stagger(0.05))} initial="hidden" animate="show" className="space-y-4">
@@ -291,11 +292,31 @@ function DictationStart({
           })}
         </div>
 
-        <Button size="lg" onClick={onStart} disabled={!audioReady} className="mt-5 w-full">
-          <Ear className="h-4 w-4" />
-          Start dictation
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        {available ? (
+          <Button size="lg" onClick={onStart} data-testid="dictation-start" className="mt-5 w-full">
+            <Ear className="h-4 w-4" />
+            Start dictation
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <>
+            {/* No voice: say so plainly and offer the one action that fixes it,
+                instead of leaving a greyed-out button with no way forward. */}
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row" data-testid="dictation-unavailable">
+              <Button size="lg" disabled className="flex-1">
+                <AlertTriangle className="h-4 w-4" />
+                Dictation needs a voice
+              </Button>
+              <Button size="lg" variant="outline" onClick={onOpenVoiceSettings} className="sm:w-auto">
+                <Settings2 className="h-4 w-4" />
+                Open voice settings
+              </Button>
+            </div>
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Everything else keeps working — your words, streak and progress are untouched.
+            </p>
+          </>
+        )}
         <p className="mt-3 text-center text-xs text-muted-foreground">
           8 items · words, then phrases, then sentences · grades your review queue
         </p>
@@ -334,26 +355,21 @@ function DictationSession({
   onExit: () => void
 }) {
   const [idx, setIdx] = useState(0)
-  const [typed, setTyped] = useState('')
-  const [attempts, setAttempts] = useState(0)
   const [replays, setReplays] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [hintStage, setHintStage] = useState(0)
+  const [shakeKey, setShakeKey] = useState(0)
+  const [accSum, setAccSum] = useState(0)
+  const [answered, setAnswered] = useState(0)
+  const [xpEarned, setXpEarned] = useState(0)
   const [result, setResult] = useState<{
     tokens: ReturnType<typeof diffWords>
     accuracy: number
     grade: DictationGrade
     xp: number
   } | null>(null)
-  const [accSum, setAccSum] = useState(0)
-  const [answered, setAnswered] = useState(0)
-  const [xpEarned, setXpEarned] = useState(0)
-  const [shakeKey, setShakeKey] = useState(0)
-  const { pops, pop } = useXpPops()
-  const { v, t } = useMotionSafe()
-  const primaryRef = useRef<HTMLButtonElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
   const finishingRef = useRef(false)
+  const { pops } = useXpPops()
+  const { v, t } = useMotionSafe()
 
   const item = items[idx]
   const targetWords = tokenize(item.text).length
@@ -372,25 +388,22 @@ function DictationSession({
     [player, preset]
   )
 
-  // Fresh item: clear everything and auto-play once. The effect runs on idx
-  // only, so toggling speed mid-item never resets what the learner typed.
+  // Fresh item: only side effects (audio + focus) run here. The per-item
+  // answer state (typed/attempts/hint/result) resets via the keyed child
+  // <AnimatePresence>/<motion.div key=...> below, which remounts on each item —
+  // syncing derived state with setState inside an effect causes cascading
+  // renders.
   useEffect(() => {
-    setTyped('')
-    setAttempts(0)
-    setReplays(0)
-    setHintStage(0)
-    setResult(null)
     let playId = 0
     if (audioReady) {
       playId = window.setTimeout(() => {
-        setPlaying(true)
-        player
-          .play(items[idx].text, { preset })
-          .catch(() => toast.error('Audio failed to play. Check your voice in Settings.'))
-          .finally(() => setPlaying(false))
+        void speakNow(items[idx].text)
       }, 400)
     }
-    const focusId = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 500)
+    const focusId = window.setTimeout(
+      () => document.getElementById('dictation-input')?.focus({ preventScroll: true } as FocusOptions),
+      500
+    )
     return () => {
       window.clearTimeout(playId)
       window.clearTimeout(focusId)
@@ -404,47 +417,16 @@ function DictationSession({
     void speakNow(item.text)
   }, [audioReady, item.text, playing, speakNow])
 
-  const handleCheck = useCallback(async () => {
-    if (!item || result || !typed.trim()) return
-    const tokens = diffWords(item.text, typed)
-    const accuracy = accuracyOf(tokens, targetWords)
-    if (accuracy === 100) {
-      const grade = gradeFor(100, attempts, false)
-      const xp = DICTATION_XP[grade]
-      setResult({ tokens, accuracy, grade, xp })
-      setAccSum((s) => s + accuracy)
+  const recordPerfect = useCallback(
+    (r: { tokens: ReturnType<typeof diffWords>; accuracy: number; grade: DictationGrade; xp: number }) => {
+      setResult(r)
+      setAccSum((s) => s + r.accuracy)
       setAnswered((a) => a + 1)
-      setXpEarned((x) => x + xp)
-      playSound('correct')
-      buzz('success')
-      popXpFromElement(xp, primaryRef.current, pop)
-      void api.submitReview(item.wordId, grade, 'dictation').catch(() => {})
-      return
-    }
-    setAttempts((a) => a + 1)
-    setShakeKey((k) => k + 1)
-    playSound('wrong')
-    buzz('error')
-    void speakNow(item.text, true)
-  }, [attempts, item, pop, result, speakNow, targetWords, typed])
+      setXpEarned((x) => x + r.xp)
+    },
+    []
+  )
 
-  const handleHint = useCallback(async () => {
-    if (!item || result) return
-    if (hintStage >= 2) {
-      const tokens = diffWords(item.text, typed)
-      const accuracy = accuracyOf(tokens, targetWords)
-      setResult({ tokens, accuracy, grade: 0, xp: DICTATION_XP[0] })
-      setAccSum((s) => s + accuracy)
-      setAnswered((a) => a + 1)
-      setXpEarned((x) => x + DICTATION_XP[0])
-      playSound('wrong')
-      buzz('error')
-      void api.submitReview(item.wordId, 0, 'dictation').catch(() => {})
-      return
-    }
-    setHintStage((s) => s + 1)
-    playSound('tap')
-  }, [hintStage, item, result, targetWords, typed])
 
   const next = useCallback(async () => {
     if (finishingRef.current || !result) return
@@ -510,17 +492,11 @@ function DictationSession({
         </Button>
       </div>
 
-      <div className="mb-4 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Dictation progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
-        <motion.div
-          className="h-full rounded-full bg-primary"
-          animate={{ width: `${progressPct}%` }}
-          transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
-        />
-      </div>
+      <DictationProgressBar value={progressPct} />
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={item.wordId + item.kind}
+          key={`dictation-item-${idx}-${item.wordId}-${item.kind}`}
           initial={gradeEnter(4).initial}
           animate={gradeEnter(4).animate}
           exit={gradeExit(4).exit}
@@ -566,60 +542,14 @@ function DictationSession({
           </div>
 
           {!result ? (
-            <div className="surface p-5 sm:p-6">
-              <label htmlFor="dictation-input" className="label text-muted-foreground">
-                Type exactly what you hear
-              </label>
-              <div key={shakeKey} className={cn(attempts > 0 && 'shake')}>
-                <textarea
-                  ref={inputRef}
-                  id="dictation-input"
-                  value={typed}
-                  onChange={(e) => setTyped(e.target.value)}
-                  placeholder={item.kind === 'word' ? 'Type the word…' : 'Type it word for word…'}
-                  rows={item.kind === 'sentence' ? 3 : 2}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-describedby="dictation-hint"
-                  className="mt-2 min-h-20 w-full rounded-md border border-input bg-card p-4 text-base leading-relaxed outline-none transition-colors focus-visible:border-primary-line md:text-[15px]"
-                  onKeyDown={(e) => {
-                    typeFeelFromKey(e)
-                    if (e.key === 'Enter' && !e.shiftKey && typed.trim()) {
-                      e.preventDefault()
-                      void handleCheck()
-                    }
-                  }}
-                />
-              </div>
-              {attempts > 0 ? (
-                <p role="status" aria-live="polite" className="mt-3 rounded-md border border-warning/30 bg-warning-soft p-3 text-center text-sm font-medium text-warning">
-                  Not quite — listen once more and compare. Replays are always free.
-                </p>
-              ) : null}
-              {hintStage > 0 ? (
-                <p id="dictation-hint" className="mt-3 rounded-md bg-muted/50 p-3 font-mono text-sm leading-relaxed text-muted-foreground">
-                  {hintPreview(item.text, hintStage)}{' '}
-                  <span className="font-sans">— hints are free, grades stay fair</span>
-                </p>
-              ) : (
-                <p id="dictation-hint" className="mt-2 text-xs text-muted-foreground">
-                  Capital letters and punctuation don&apos;t count — only the words do.
-                </p>
-              )}
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <Button ref={primaryRef} onClick={() => void handleCheck()} disabled={!typed.trim()} className="flex-1">
-                  <Check className="h-4 w-4" />
-                  Check it
-                </Button>
-                <Button variant="outline" onClick={() => void handleHint()} className="sm:w-auto">
-                  <Lightbulb className="h-4 w-4" />
-                  {hintStage === 0 ? 'Need a hint?' : hintStage === 1 ? 'One more hint?' : 'Show me the answer'}
-                </Button>
-              </div>
-              <p className="mt-3 text-center text-xs text-muted-foreground">Enter to check · Space replays the audio</p>
-            </div>
+            <DictationItemAnswer
+              key={`answer-${idx}-${item.wordId}-${item.kind}`}
+              item={item}
+              shakeKey={shakeKey}
+              speakNow={speakNow}
+              onPerfect={recordPerfect}
+              onWrongAttempt={() => setShakeKey((k) => k + 1)}
+            />
           ) : (
             <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="surface p-5 sm:p-6">
               <motion.div variants={v(listItem)} transition={t()} className="flex flex-col items-center text-center">
@@ -652,7 +582,7 @@ function DictationSession({
                 </p>
               </motion.div>
               <motion.div variants={v(listItem)} transition={t()}>
-                <Button ref={primaryRef} onClick={() => void next()} className="mt-4 w-full">
+                <Button onClick={() => void next()} data-testid="dictation-next" className="mt-4 w-full">
                   {idx + 1 >= items.length ? 'Finish session' : 'Next one'}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -662,6 +592,144 @@ function DictationSession({
           )}
         </motion.div>
       </AnimatePresence>
+    </div>
+  )
+}
+
+/**
+ * Session progress bar — kept outside DictationSession so the session body can
+ * focus on per-item state without extra motion glue.
+ */
+function DictationProgressBar({ value }: { value: number }) {
+  const { t } = useMotionSafe()
+  return (
+    <div className="mb-4 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Dictation progress" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
+      <motion.div
+        className="h-full rounded-full bg-primary"
+        animate={{ width: `${value}%` }}
+        transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
+      />
+    </div>
+  )
+}
+
+function DictationItemAnswer({
+  item,
+  shakeKey,
+  speakNow,
+  onPerfect,
+  onWrongAttempt,
+}: {
+  item: DictationItem
+  shakeKey: number
+  speakNow: (text: string, forceSlow?: boolean) => void
+  onPerfect: (r: { tokens: ReturnType<typeof diffWords>; accuracy: number; grade: DictationGrade; xp: number }) => void
+  onWrongAttempt: () => void
+}) {
+  const [typed, setTyped] = useState('')
+  const [attempts, setAttempts] = useState(0)
+  const [hintStage, setHintStage] = useState(0)
+  const targetWords = tokenize(item.text).length
+  const { pop } = useXpPops()
+  const primaryRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Autofocus the fresh card (the parent also focuses by id; this covers
+  // remount races where the element is not in the DOM yet).
+  useEffect(() => {
+    const id = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  const handleCheck = useCallback(() => {
+    if (!typed.trim()) return
+    const tokens = diffWords(item.text, typed)
+    const accuracy = accuracyOf(tokens, targetWords)
+    if (accuracy === 100) {
+      const grade = gradeFor(100, attempts, false)
+      const xp = DICTATION_XP[grade]
+      onPerfect({ tokens, accuracy, grade, xp })
+      playSound('correct')
+      buzz('success')
+      popXpFromElement(xp, primaryRef.current, pop)
+      void api.submitReview(item.wordId, grade, 'dictation').catch(() => {})
+      return
+    }
+    setAttempts((a) => a + 1)
+    onWrongAttempt()
+    playSound('wrong')
+    buzz('error')
+    void speakNow(item.text, true)
+  }, [attempts, item, onPerfect, onWrongAttempt, pop, speakNow, targetWords, typed])
+
+  const handleHint = useCallback(() => {
+    if (hintStage >= 2) {
+      const tokens = diffWords(item.text, typed)
+      const accuracy = accuracyOf(tokens, targetWords)
+      onPerfect({ tokens, accuracy, grade: 0, xp: DICTATION_XP[0] })
+      playSound('wrong')
+      buzz('error')
+      void api.submitReview(item.wordId, 0, 'dictation').catch(() => {})
+      return
+    }
+    setHintStage((s) => s + 1)
+    playSound('tap')
+  }, [hintStage, item, onPerfect, targetWords, typed])
+
+  return (
+    <div className="surface p-5 sm:p-6">
+      <label htmlFor="dictation-input" className="label text-muted-foreground">
+        Type exactly what you hear
+      </label>
+      <div key={shakeKey} className={cn(attempts > 0 && 'shake')}>
+        <textarea
+          ref={inputRef}
+          id="dictation-input"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          placeholder={item.kind === 'word' ? 'Type the word…' : 'Type it word for word…'}
+          rows={item.kind === 'sentence' ? 3 : 2}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          aria-describedby="dictation-hint"
+          className="mt-2 min-h-20 w-full rounded-md border border-input bg-card p-4 text-base leading-relaxed outline-none transition-colors focus-visible:border-primary-line md:text-[15px]"
+          onKeyDown={(e) => {
+            typeFeelFromKey(e)
+            if (e.key === 'Enter' && !e.shiftKey && typed.trim()) {
+              e.preventDefault()
+              handleCheck()
+            }
+          }}
+        />
+      </div>
+      {attempts > 0 ? (
+        <p role="status" aria-live="polite" className="mt-3 rounded-md border border-warning/30 bg-warning-soft p-3 text-center text-sm font-medium text-warning">
+          Not quite — listen once more and compare. Replays are always free.
+        </p>
+      ) : null}
+      {hintStage > 0 ? (
+        <p id="dictation-hint" className="mt-3 rounded-md bg-muted/50 p-3 font-mono text-sm leading-relaxed text-muted-foreground">
+          {hintPreview(item.text, hintStage)}{' '}
+          <span className="font-sans">— hints are free, grades stay fair</span>
+        </p>
+      ) : (
+        <p id="dictation-hint" className="mt-2 text-xs text-muted-foreground">
+          Capital letters and punctuation don&apos;t count — only the words do.
+        </p>
+      )}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button ref={primaryRef} onClick={handleCheck} disabled={!typed.trim()} data-testid="dictation-check" className="flex-1">
+          <Check className="h-4 w-4" />
+          Check it
+        </Button>
+        <Button variant="outline" onClick={handleHint} className="sm:w-auto">
+          <Lightbulb className="h-4 w-4" />
+          {hintStage === 0 ? 'Need a hint?' : hintStage === 1 ? 'One more hint?' : 'Show me the answer'}
+        </Button>
+      </div>
+      <p className="mt-3 text-center text-xs text-muted-foreground">Enter to check · Space replays the audio</p>
     </div>
   )
 }

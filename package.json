@@ -7,12 +7,17 @@
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production node .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
-    "postinstall": "prisma generate",
-    "db:push": "prisma db push --accept-data-loss",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:verify": "tsx scripts/verify-db.ts",
+    "db:backfill": "tsx scripts/backfill-activity.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:reset": "tsx scripts/reset-db.ts && drizzle-kit push",
     "e2e": "python3 tests/e2e/test_phased.py",
+    "e2e:deep": "python3 tests/e2e/test_deep_integration.py",
+    "e2e:router": "python3 tests/e2e/test_router_e668.py",
+    "e2e:isolated": "bash scripts/e2e-isolated.sh",
     "e2e:shots": "ls -lh /tmp/e2e-shots/final-*.png"
   },
   "dependencies": {
@@ -87,9 +92,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
+      "better-sqlite3",
       "sharp",
       "@swc/core",
       "@parcel/watcher"

@@ -21,27 +21,30 @@ export function getEnglishVoices(): SpeechSynthesisVoice[] {
   return getAvailableVoices().filter((v) => v.lang.toLowerCase().startsWith('en'))
 }
 
-let voicesReady = false
-let voiceInitAttempted = false
-
-function tryInitVoices(): void {
-  if (voiceInitAttempted) return
-  voiceInitAttempted = true
-  if (!isSpeechSupported()) return
-  const v = window.speechSynthesis.getVoices()
-  if (v.length > 0) {
-    voicesReady = true
+/**
+ * Resolve the voice to speak with: the user's choice if it still exists, then
+ * any English voice, otherwise nothing (the caller falls back to an `en-US`
+ * hint so a browser with only a default voice still reads English as English).
+ *
+ * This used to sit behind a module-level "voices ready" flag, which was set by
+ * a single retry plus a `voiceschanged` listener. Browsers that populate voices
+ * late *and* never fire that event (seen on some Linux/Chrome builds) stayed
+ * flagged as not-ready for the whole session, so speech fell back to the system
+ * default language. Looking up voices on every utterance removes that trap:
+ * `getVoices()` is synchronous and cheap.
+ */
+function resolveVoice(preferred?: string): SpeechSynthesisVoice | null {
+  let all: SpeechSynthesisVoice[] = []
+  try {
+    all = window.speechSynthesis.getVoices()
+  } catch {
+    return null
   }
-}
-
-if (typeof window !== 'undefined') {
-  window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-    voicesReady = true
-  })
-  tryInitVoices()
-  if (!voicesReady) {
-    setTimeout(tryInitVoices, 500)
+  if (preferred) {
+    const match = all.find((v) => v.name === preferred)
+    if (match) return match
   }
+  return all.find((v) => v.lang.toLowerCase().startsWith('en')) ?? null
 }
 
 function buildUtterance(text: string, opts: SpeakOpts): SpeechSynthesisUtterance {
@@ -50,22 +53,12 @@ function buildUtterance(text: string, opts: SpeakOpts): SpeechSynthesisUtterance
   utterance.pitch = opts.pitch ?? 1
   utterance.volume = opts.volume ?? 1
 
-  if (voicesReady) {
-    const all = window.speechSynthesis.getVoices()
-    if (opts.voice) {
-      const match = all.find((v) => v.name === opts.voice)
-      if (match) {
-        utterance.voice = match
-        utterance.lang = match.lang
-      }
-    }
-    if (!utterance.voice) {
-      const enVoice = all.find((v) => v.lang.toLowerCase().startsWith('en'))
-      if (enVoice) {
-        utterance.voice = enVoice
-        utterance.lang = enVoice.lang
-      }
-    }
+  const voice = resolveVoice(opts.voice)
+  if (voice) {
+    utterance.voice = voice
+    utterance.lang = voice.lang
+  } else {
+    utterance.lang = 'en-US'
   }
 
   utterance.onerror = (e) => {

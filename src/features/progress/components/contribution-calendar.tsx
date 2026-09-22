@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { addDays, dayKey, parseDayKey, startOfDay } from '@/lib/date'
 
 export type ContributionDay = {
   date: string // YYYY-MM-DD
@@ -29,11 +30,22 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 export function ContributionCalendar({ data, weeks = 53 }: Props) {
   const [hovered, setHovered] = useState<ContributionDay | null>(null)
 
-  // Pad/truncate to exactly `weeks * 7` entries, aligned Sunday-first.
+  // Rebuild the grid from dates, so the payload can be sparse (only active
+  // days) without the layout depending on array position.
   const { grid, monthLabels, totalReviews, totalDays, longestStreak, currentStreak } = useMemo(() => {
-    const padded: ContributionDay[] = [...data]
-    while (padded.length < weeks * 7) {
-      padded.unshift({ date: '', count: 0, correct: 0 })
+    const byDate = new Map<string, ContributionDay>()
+    for (const d of data) if (d.date) byDate.set(d.date, d)
+
+    const today = startOfDay(new Date())
+    const endOfGrid = addDays(today, 6 - today.getDay()) // upcoming Saturday
+    const startOfGrid = addDays(endOfGrid, -(weeks * 7 - 1))
+    const windowStart = dayKey(startOfGrid)
+    const windowEnd = dayKey(endOfGrid)
+
+    const padded: ContributionDay[] = []
+    for (let i = 0; i < weeks * 7; i++) {
+      const key = dayKey(addDays(startOfGrid, i))
+      padded.push(byDate.get(key) ?? { date: key, count: 0, correct: 0 })
     }
 
     // Group into weeks (columns)
@@ -42,53 +54,38 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
       cols.push(padded.slice(w * 7, (w + 1) * 7))
     }
 
-    // Month labels: for each week column, check if its first non-empty day starts a new month
+    // Month labels: a column gets a label when its first day starts a new month
     const monthLabels: (string | null)[] = cols.map((week, w) => {
-      const firstDay = week.find((d) => d.date)
-      if (!firstDay) return null
-      const d = new Date(firstDay.date + 'T00:00:00')
-      const month = d.getMonth()
-      // Show label if this is the first column, or the previous column's first day is in a different month
+      const month = parseDayKey(week[0].date).getMonth()
       if (w === 0) return MONTH_LABELS[month]
-      const prevWeek = cols[w - 1]
-      const prevFirst = prevWeek.find((d) => d.date)
-      if (!prevFirst) return MONTH_LABELS[month]
-      const prevD = new Date(prevFirst.date + 'T00:00:00')
-      return prevD.getMonth() !== month ? MONTH_LABELS[month] : null
+      return parseDayKey(cols[w - 1][0].date).getMonth() !== month ? MONTH_LABELS[month] : null
     })
 
-    // Aggregate stats
-    const real = padded.filter((d) => d.date)
-    const totalReviews = real.reduce((s, d) => s + d.count, 0)
-    const totalDays = real.filter((d) => d.count > 0).length
+    // Aggregate stats over days inside the visible window only.
+    const inWindow = data.filter((d) => d.date && d.date >= windowStart && d.date <= windowEnd)
+    const totalReviews = inWindow.reduce((s, d) => s + d.count, 0)
+    const totalDays = inWindow.reduce((s, d) => s + (d.count > 0 ? 1 : 0), 0)
 
-    // Compute streaks (consecutive days with count > 0, ending today or yesterday)
+    // Streaks walk the calendar, so a quiet day always breaks the run even when
+    // the payload only contains active days.
+    const active = new Set(inWindow.filter((d) => d.count > 0).map((d) => d.date))
     let longest = 0
-    let current = 0
-    let run = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayStr = today.toISOString().slice(0, 10)
-    const yesterday = new Date(today)
-    yesterday.setDate(today.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().slice(0, 10)
-    let lastActiveWasYesterdayOrToday = false
-    for (let i = real.length - 1; i >= 0; i--) {
-      const d = real[i]
-      if (d.count > 0) {
-        run += 1
-        if (d.date === todayStr || d.date === yesterdayStr) {
-          lastActiveWasYesterdayOrToday = true
-        }
-      } else {
-        if (run > longest) longest = run
-        run = 0
-      }
+    for (const key of active) {
+      if (active.has(dayKey(addDays(parseDayKey(key), -1)))) continue // not a run start
+      let len = 1
+      for (let d = addDays(parseDayKey(key), 1); active.has(dayKey(d)); d = addDays(d, 1)) len += 1
+      if (len > longest) longest = len
     }
-    if (run > longest) longest = run
-    // Current streak = run ending today or yesterday
-    if (lastActiveWasYesterdayOrToday) {
-      current = run
+    const yesterday = addDays(today, -1)
+    let cursor: Date | null = active.has(dayKey(today))
+      ? today
+      : active.has(dayKey(yesterday))
+        ? yesterday
+        : null
+    let current = 0
+    while (cursor && active.has(dayKey(cursor))) {
+      current += 1
+      cursor = addDays(cursor, -1)
     }
 
     return {
@@ -111,6 +108,11 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
         <span className="text-muted-foreground">
           in the last year
         </span>
+        {totalDays > 0 && (
+          <span className="text-muted-foreground">
+            · active on <span className="font-medium text-foreground">{totalDays}</span> day{totalDays === 1 ? '' : 's'}
+          </span>
+        )}
         {currentStreak > 0 && (
           <span className="text-muted-foreground">
             · <span className="font-medium text-foreground">{currentStreak}-day</span> current streak
@@ -150,16 +152,15 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
             {grid.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-[3px]">
                 {week.map((day, di) => {
-                  const isFuture = day.date ? new Date(day.date + 'T00:00:00') > new Date(new Date().setHours(0, 0, 0, 0)) : false
-                  const isHovered = hovered?.date === day.date && day.date !== ''
+                  const isFuture = parseDayKey(day.date) > startOfDay(new Date())
+                  const isHovered = hovered?.date === day.date
                   return (
                     <div
                       key={di}
                       className={cn(
                         'h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px] transition-all',
-                        day.date === '' && 'opacity-0',
                         isFuture && 'opacity-30',
-                        !isFuture && day.count === 0 && day.date !== '' && 'bg-muted',
+                        !isFuture && day.count === 0 && 'bg-muted',
                         !isHovered && 'hover:ring-1 hover:ring-foreground/30',
                         isHovered && 'ring-2 ring-foreground/60 scale-125 z-10',
                       )}
@@ -168,15 +169,11 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
                           ? { background: levelColor(day.count) }
                           : undefined
                       }
-                      onMouseEnter={() => day.date && setHovered(day)}
+                      onMouseEnter={() => setHovered(day)}
                       onMouseLeave={() => setHovered(null)}
-                      title={
-                        day.date
-                          ? `${formatDate(day.date)}: ${day.count} review${day.count === 1 ? '' : 's'}${
-                              day.count > 0 ? ` · ${day.correct}/${day.count} correct` : ''
-                            }`
-                          : ''
-                      }
+                      title={`${formatDate(day.date)}: ${day.count} review${day.count === 1 ? '' : 's'}${
+                        day.count > 0 ? ` · ${day.correct}/${day.count} correct` : ''
+                      }`}
                     />
                   )
                 })}
