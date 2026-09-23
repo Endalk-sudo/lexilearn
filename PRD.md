@@ -2,7 +2,7 @@
 
 **Version:** 0.3.0
 **Status:** In Development
-**Last Updated:** 2026-09-20
+**Last Updated:** 2026-09-23
 
 ---
 
@@ -46,7 +46,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-001 | Users can browse pre-built word decks (TOEFL, IELTS, Common 5000) | P0 |
+| F-001 | Users can browse pre-built word decks (TOEFL, IELTS, Common 500) | P0 |
 | F-002 | Users can create custom word decks with a name and description | P0 |
 | F-003 | Users can add individual words to any deck (word, POS, IPA, definition, example, CEFR level, synonyms, antonyms, Amharic translation) | P0 |
 | F-004 | Users can bulk-import words via CSV or tab-separated text | P0 |
@@ -120,7 +120,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-600 | Mentor generates focus-locked practice branches (drill / scenario / exam / review) with a difficulty ceiling | P1 |
+| F-600 | Mentor generates focus-locked practice branches (question / scenario / challenge / review) with a difficulty ceiling | P1 |
 | F-601 | Agentic loop per question: generate → validate → diagnose → schedule error cards for future repair | P1 |
 | F-602 | Every answer is self-corrected before evaluation, then scored on grammar, spelling, naturalness, register, pragmatics, task completion | P1 |
 | F-603 | Feedback includes inline corrections, a native rewrite, a one-lesson explanation, a follow-up retrieval question, and a root-cause note | P1 |
@@ -193,11 +193,23 @@ Turn / Memory / Knowledge (conversation + local RAG seed)
 
 ### 5.3 API Design
 
-All API calls go through a single endpoint with action-based routing:
+All API calls go through a single endpoint with action-based routing. POST
+bodies are validated with zod before touching the database; failures come back
+flat as `{ "error": string }` with a 4xx/5xx status.
 
 ```
-GET  /api/lexilearn?action=due|new|reviewable|decks|deck|dashboard|analytics|settings|quiz|search
-POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord|deleteWord|deleteDeck|quizSession|updateSettings|reset
+GET  /api/lexilearn?action=due|new|reviewable|decks|deck|dashboard|analytics
+        |settings|quiz|search|ollamaStatus
+        |mentorOverview|mentorBranch|mentorNodeNext|mentorIndexKnowledge
+        |mentorDueErrors|mentorProfile|mentorWeeklyReport
+        |mentorPronunciationHistory|mentorNaturalnessHistory
+
+POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord
+        |deleteWord|deleteDeck|quizSession|claimChallenge|repairStreak
+        |updateSettings|reset
+        |mentor|mentorExplain|mentorProject|mentorBranch|mentorNext
+        |mentorWeeklyReport|mentorPronunciation|mentorNaturalness
+        |mentorAttempt|mentorHint|mentorSelfCorrect|mentorFork
 ```
 
 ### 5.4 SM-2 Algorithm
@@ -213,61 +225,47 @@ POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord|deleteW
 
 ```
 src/
-├── app/
-│   ├── api/
-│   │   ├── lexilearn/route.ts    # Single API handler (GET + POST)
-│   │   └── route.ts              # Health check
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── error.tsx / not-found.tsx
-│   └── page.tsx                  # Client-side SPA entry
+├── app/                      # Next.js App Router — thin entry layer
+│   ├── api/lexilearn/route.ts  # Single API handler (GET + POST, zod-validated)
+│   ├── globals.css / layout.tsx / error.tsx / not-found.tsx
+│   └── page.tsx                # Client-side SPA entry (view container)
 ├── db/
-│   ├── schema.ts                 # Drizzle schema (23 tables)
-│   ├── env.ts                    # DB path resolution
-│   └── id.ts                     # cuid-style ids
-├── components/
-│   ├── views/                    # Page-level views
-│   │   ├── today.tsx             # Dashboard ("Today")
-│   │   ├── learn.tsx             # Recall → Listen → Spell
-│   │   ├── review.tsx
-│   │   ├── quiz.tsx              # Six modes incl. drag-to-match
-│   │   ├── dictation.tsx         # Dictation practice
-│   │   ├── library.tsx           # Decks + deck detail + dictionary
-│   │   ├── progress.tsx          # Overview + Settings
-│   │   ├── coach.tsx             # AI Coach hub
-│   │   ├── coach-lab.tsx         # Mastery map, report, speech, naturalness
-│   │   └── mentor.tsx            # Conversation-style Mentor
-│   ├── word/                     # word-card-v2.tsx, spelling-input.tsx
-│   ├── quiz/                     # match-game.tsx (drag-to-match)
-│   ├── feedback/                 # pressable, empty-state, session-complete-v2, xp-pop
-│   ├── layout/                   # page-header, next-step
-│   ├── pwa.tsx                   # SW registration + offline banner
-│   └── ui/                       # shadcn/ui primitives
-├── lib/
-│   ├── api.ts                    # Client-side API client
-│   ├── db.ts                     # Drizzle + better-sqlite3 singleton
-│   ├── srs.ts                    # SM-2 algorithm + helpers
-│   ├── store.ts                  # Zustand store
-│   ├── router.ts                 # URL hash state sync
-│   ├── feel.ts                   # Sound, haptics, typing sounds
-│   ├── motion.ts                 # Motion-safe framer variants
-│   ├── mentor-agent.ts           # Local agentic tutoring loop
-│   ├── ollama.ts                 # Local Ollama client + embeddings
-│   ├── gamification.ts           # XP, levels, streaks
-│   ├── dictation.ts              # Dictation item ladder
-│   ├── keys.ts                   # Platform key helpers
-│   ├── tts.ts                    # Browser Speech Synthesis
-│   ├── csv-parser.ts             # CSV/TSV word import
-│   └── utils.ts                  # cn() helper
+│   ├── schema.ts               # Drizzle schema (22 tables)
+│   ├── env.ts                  # DB path resolution
+│   └── id.ts                   # createId() id generator
+├── server/
+│   └── stats.ts                # Dashboard/analytics aggregation (server-only)
+├── components/                 # SHARED components (used by 2+ features)
+│   ├── ui/                     # shadcn/ui primitives
+│   ├── layout/                 # page-header, segmented-control, next-step
+│   ├── feedback/               # session-complete-v2, xp-pop, empty-state…
+│   ├── app-shell.tsx           # nav shell (sidebar / mobile tabs / top bar)
+│   ├── search-palette.tsx      # ⌘K search + jump-to palette
+│   ├── word-card-v2.tsx        # shared word card
+│   └── pwa.tsx                 # SW registration + offline banner
+├── features/                   # ONE folder per vertical feature
+│   ├── today/                  # home dashboard (+ lib/gamification)
+│   ├── learn/                  # Recall → Listen → Spell
+│   ├── review/                 # SM-2 review sessions
+│   ├── quiz/                   # six modes + match-game
+│   ├── dictation/              # hear-it-type-it (+ lib ladder & audio)
+│   ├── library/                # decks, dictionary, CSV import, word forms
+│   ├── progress/               # overview, contribution calendar, settings
+│   ├── coach/                  # AI hub, Coach Lab, Mentor
+│   │   ├── components/ · lib/  #   client UI + helpers (keys)
+│   │   └── server/             #   mentor-agent.ts, ollama.ts (server-only)
+│   └── onboarding/             # first-run onboarding
+├── hooks/                      # shared React hooks (use-count-up, use-toast)
+└── lib/                        # api, store, router, srs, date, tts, feel,
+                                # motion, resume, db, utils
 scripts/
-├── seed.ts                       # Vocabulary seed data
-├── backfill-activity.ts
-└── verify-db.ts
+├── seed.ts · reset-db.ts · verify-db.ts · backfill-activity.ts
+└── e2e-isolated.sh             # throwaway-db e2e runner
 public/
-├── sw.js                         # Offline service worker
+├── sw.js                       # Offline service worker
 └── manifest.webmanifest
 db/
-└── custom.db                     # SQLite database (created on first run)
+└── custom.db                   # SQLite database (created on first run)
 ```
 
 ---
@@ -278,9 +276,10 @@ The app ships with curated vocabulary decks:
 
 | Deck | Word Count | CEFR Range | Purpose |
 |------|-----------|------------|---------|
-| Common 500 | 80+ | B1–C2 | High-frequency academic vocabulary |
-| IELTS Academic | 30+ | B2–C1 | IELTS-specific terms |
-| TOEFL Academic | 30+ | C1–C2 | TOEFL-specific terms |
+| Common 500 | 78 | B1–C2 | High-frequency academic vocabulary |
+| IELTS Academic | 27 | B2–C1 | IELTS-specific terms |
+| TOEFL Academic | 29 | C2 | TOEFL-specific terms |
+| GRE Advanced | 31 | C2 | GRE-specific terms |
 
 Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, examples, synonyms, antonyms, etymology, and Amharic translation.
 
@@ -347,7 +346,7 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 0.3.0 | 2026-09-20 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, drag-to-match quiz, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration |
+| 0.3.0 | 2026-09-23 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, drag-to-match quiz, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration, review hardening pass (SRS/XP consistency, WCAG 2.2 AA fixes, local day keys, dep + CI cleanup) |
 | 0.2.1 | 2026-07-29 | CRUD for words, bulk add, UI/UX improvements |
 | 0.2.0 | 2026-07-28 | Core features: Learn, Review, Quiz, Decks, Stats, Settings |
 | 0.1.0 | 2026-07-28 | Initial commit, project scaffold |

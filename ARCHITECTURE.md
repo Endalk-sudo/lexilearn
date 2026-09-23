@@ -27,6 +27,7 @@ src/
 │   ├── coach/            #   AI mentor (also owns server-side agent code)
 │   └── onboarding/       #   first-run onboarding flow
 ├── db/                   # drizzle schema, env, id helpers
+├── server/               # server-only helpers (stats aggregation for the API)
 ├── hooks/                # shared React hooks
 └── lib/                  # SHARED logic (store, router, api client, srs,
                           #   tts, feel, motion, utils, resume, db)
@@ -52,6 +53,7 @@ Each feature folder may contain:
 ```
 feature component → lib/api.ts → /api/lexilearn?action=… → route.ts
                                                             ├─ db (drizzle)
+                                                            ├─ server/stats.ts (dashboard / analytics)
                                                             └─ features/coach/server/* (AI mentor, ollama)
 ```
 
@@ -78,10 +80,10 @@ breaks a run even though the payload skips it.
 ## Testing
 
 ```bash
-npm run e2e:isolated     # all suites, against a throwaway copy of the db
-npm run e2e              # phased suite against a server you started yourself
-npm run e2e:deep         # deep integration suite (A–Z phases)
-npm run e2e:router       # hash-router regression (E668)
+pnpm e2e:isolated     # all suites, against a throwaway copy of the db
+pnpm e2e              # phased suite against a server you started yourself
+pnpm e2e:deep         # deep integration suite (A–Z phases)
+pnpm e2e:router       # hash-router regression (E668)
 ```
 
 `scripts/e2e-isolated.sh` clones `db/custom.db` to a temp file and boots the
