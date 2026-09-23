@@ -10,7 +10,7 @@
 #
 # Usage:
 #   scripts/e2e-isolated.sh           # run against the current build
-#   scripts/e2e-isolated.sh --build   # rebuild first (npm run build)
+#   scripts/e2e-isolated.sh --build   # rebuild first (pnpm build)
 #
 # Requirements: a built bundle (.next/standalone/server.js), python3 +
 # playwright, and chromium (python3 -m playwright install chromium).
@@ -41,11 +41,11 @@ trap cleanup EXIT
 
 if [[ "${1:-}" == "--build" ]]; then
   echo "▶ building production bundle…"
-  npm run build || exit 1
+  pnpm build || exit 1
 fi
 
 if [[ ! -f .next/standalone/server.js ]]; then
-  echo "✗ .next/standalone/server.js is missing — run: npm run build" >&2
+  echo "✗ .next/standalone/server.js is missing — run: pnpm build" >&2
   exit 1
 fi
 
