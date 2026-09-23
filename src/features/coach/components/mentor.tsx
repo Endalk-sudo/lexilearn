@@ -68,11 +68,13 @@ function prettyKbd() {
 function useThinkingStatus(active:boolean) {
   const [index, setIndex] = useState(0)
   useEffect(() => {
-    if (!active) { setIndex(0); return }
+    if (!active) return
     const id = setInterval(() => setIndex(i => (i + 1) % THINKING_STATUS.length), 2600)
     return () => clearInterval(id)
   }, [active])
-  return THINKING_STATUS[index]
+  // Derive the display: while inactive always show the first line, instead of
+  // resetting state from inside the effect.
+  return active ? THINKING_STATUS[index % THINKING_STATUS.length] : THINKING_STATUS[0]
 }
 
 /** Tiny conic-gradient mastery ring used in the context strip. */
@@ -143,8 +145,20 @@ export function MentorView() {
     finally { setSubmitting(false) }
   }, [branchId])
 
-  useEffect(()=>{ load() }, [load])
-  useEffect(()=>{ if(branchId) nextQuestion(branchId) }, [branchId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Guards keep the load/fetch side effects to the first mount and the first
+  // question per branch, so neither effect sets state synchronously on re-renders.
+  const didInitRef = useRef(false)
+  const askedBranchRef = useRef('')
+  useEffect(()=>{
+    if (didInitRef.current) return
+    didInitRef.current = true
+    load()
+  }, [load])
+  useEffect(()=>{
+    if (!branchId || askedBranchRef.current === branchId) return
+    askedBranchRef.current = branchId
+    nextQuestion(branchId)
+  }, [branchId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 'h' for a hint and 'r' for the next challenge are deliberately ignored while
   // the user is typing in any field, and never fire with modifiers held.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowRight, BookOpenText, Brain, Check, ChevronRight, CircleDot, Flame,
@@ -68,7 +68,12 @@ export function CoachLabView() {
     } catch(e:any){ toast.error(e.message||'Could not load Insights'); setLoadError(e.message||'Could not load Insights') }
     finally{setLoading(false)}
   },[])
-  useEffect(()=>{load()},[load])
+  const didInitRef = useRef(false)
+  useEffect(()=>{
+    if (didInitRef.current) return
+    didInitRef.current = true
+    load()
+  },[load])
 
   async function generateReport(){
     setReportLoading(true)
