@@ -107,7 +107,7 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
                         <td className="px-3 py-1.5 text-muted-foreground">{w.pos ?? '—'}</td>
                         <td className="px-3 py-1.5 text-muted-foreground max-w-[200px] truncate">{w.definition ?? '—'}</td>
                         <td className="px-3 py-1.5 font-mono text-muted-foreground">{w.ipa ?? '—'}</td>
-                        <td className="px-3 py-1.5 text-muted-foreground max-w-[150px] truncate">{w.amharic ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-muted-foreground max-w-[150px] truncate" lang="am">{w.amharic ?? '—'}</td>
                       </tr>
                     ))}
                     {parsed.length > 20 && (

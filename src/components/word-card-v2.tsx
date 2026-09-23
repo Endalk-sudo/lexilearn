@@ -176,7 +176,7 @@ export function WordCardV2({
 
                   {tab === 'amharic' ? (
                     word.amharic ? (
-                      <p className="rounded-md bg-muted/50 p-3.5 text-[15px]">{word.amharic}</p>
+                      <p className="rounded-md bg-muted/50 p-3.5 text-[15px]" lang="am">{word.amharic}</p>
                     ) : (
                       <p className="text-sm text-muted-foreground">No Amharic translation yet.</p>
                     )

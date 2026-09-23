@@ -42,8 +42,11 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
   const [amharic, setAmharic] = useState(initialValues?.amharic ?? '')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (open) {
+  // Reset to the incoming values on every open. Doing this in the open event
+  // (rather than an effect) keeps React's lint rules happy and guarantees the
+  // first painted frame already shows this word's values — no stale flash.
+  const handleOpenChange = (v: boolean) => {
+    if (v) {
       setWord(initialValues?.word ?? '')
       setPos(initialValues?.pos ?? '')
       setIpa(initialValues?.ipa ?? '')
@@ -54,7 +57,8 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
       setAntonyms(initialValues?.antonyms ?? '')
       setAmharic(initialValues?.amharic ?? '')
     }
-  }, [open, initialValues])
+    onOpenChange(v)
+  }
 
   const handleSave = async () => {
     if (!isEdit && !word.trim()) {
@@ -82,7 +86,7 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit word' : 'Add word'}</DialogTitle>

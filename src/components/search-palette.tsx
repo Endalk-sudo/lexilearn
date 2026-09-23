@@ -52,20 +52,37 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const setSearchQuery = useAppStore((s) => s.setSearchQuery)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<WordDTO[]>([])
+  // The query that produced `results`. A non-empty query that doesn't match it
+  // is "pending" — derived state, so effects never set it synchronously.
+  const [resultsFor, setResultsFor] = useState('')
   const [selected, setSelected] = useState<WordDTO | null>(null)
-  const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(0)
   const [recents, setRecents] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const restoreRef = useRef<HTMLElement | null>(null)
 
+  const trimmed = query.trim()
   const filtered = useMemo(() => results.slice(0, 12), [results])
+  const pending = !!trimmed && resultsFor !== trimmed
+  const showQuick = !trimmed && !selected
+  const showRecents = showQuick && recents.length > 0
+  const showOptions = !selected && !showQuick && !pending && filtered.length > 0
 
   useEffect(() => {
     if (!open) return
     restoreRef.current = document.activeElement as HTMLElement
-    setRecents(readRecents())
-    const id = window.setTimeout(() => inputRef.current?.focus(), 30)
+    // Recents + state reset happen inside the timeout so the effect body never
+    // sets state synchronously (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      setRecents(readRecents())
+      setQuery('')
+      setResults([])
+      setResultsFor('')
+      setSelected(null)
+      setActive(0)
+      inputRef.current?.focus()
+    }, 30)
     document.body.style.overflow = 'hidden'
     return () => {
       window.clearTimeout(id)
@@ -75,32 +92,23 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   }, [open])
 
   useEffect(() => {
-    if (!open) {
-      setQuery('')
-      setResults([])
-      setSelected(null)
-      setActive(0)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
+    if (!trimmed) return
     const id = window.setTimeout(async () => {
       try {
-        setResults(await api.searchWords(query))
+        const found = await api.searchWords(trimmed)
+        setResults(found)
       } catch {
         setResults([])
       } finally {
-        setLoading(false)
+        setResultsFor(trimmed)
       }
     }, 180)
     return () => window.clearTimeout(id)
-  }, [query])
+  }, [trimmed])
+
+  const hear = useCallback((word: WordDTO) => {
+    if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+  }, [])
 
   const openWord = useCallback(
     (word: WordDTO) => {
@@ -119,7 +127,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
       else navigate(quick.view)
       onClose()
     },
-    [navigate, onClose]
+    [navigate, onClose, setDictationDeckId]
   )
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -128,7 +136,26 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
       onClose()
       return
     }
-    const list: (WordDTO | Quick)[] = selected ? [] : query.trim() ? filtered : QUICK
+    if (e.key === 'Tab') {
+      // Keep keyboard focus inside the dialog while it is open (WCAG 2.4.3).
+      const card = cardRef.current
+      if (!card) return
+      const focusables = card.querySelectorAll<HTMLElement>(
+        'button, input, [href], [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusables.length) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+      return
+    }
+    const list: (WordDTO | Quick)[] = selected ? [] : trimmed ? filtered : QUICK
     if (!list.length) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -151,9 +178,6 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open) return null
 
-  const showQuick = !query.trim() && !selected
-  const showRecents = showQuick && recents.length > 0
-
   return (
     <div
       className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-[8vh] sm:pt-[12vh]"
@@ -163,7 +187,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
       onKeyDown={onKeyDown}
     >
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in-0 duration-150" onClick={onClose} />
-      <div className="relative flex max-h-[72vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150">
+      <div ref={cardRef} className="relative flex max-h-[72vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150">
         <div className="flex items-center gap-2 border-b border-border p-2.5">
           {selected ? (
             <Button size="icon" variant="ghost" onClick={() => setSelected(null)} aria-label="Back to results">
@@ -185,7 +209,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
             role="combobox"
             aria-expanded={!selected}
             aria-controls="palette-results"
-            aria-activedescendant={!selected && !showQuick ? `palette-item-${active}` : undefined}
+            aria-activedescendant={showOptions ? `palette-item-${active}` : undefined}
             autoComplete="off"
             spellCheck={false}
             className="h-10 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
@@ -195,7 +219,9 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
           </kbd>
         </div>
 
-        <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-2" role="listbox" aria-label="Search results">
+        {/* Container keeps its stable id for aria-controls; the listbox role sits
+            on the results list itself so quick/selected branches stay plain UI. */}
+        <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-2">
           {selected ? (
             <div className="p-1">
               <WordCardV2 word={selected} />
@@ -248,7 +274,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                 </ul>
               </div>
             </div>
-          ) : loading ? (
+          ) : pending ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" aria-hidden="true" />
               Searching…
@@ -273,11 +299,13 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
               </Button>
             </div>
           ) : (
-            <ul>
+            <ul role="listbox" aria-label="Search results">
               {filtered.map((word, i) => (
                 <li key={word.id} id={`palette-item-${i}`} role="option" aria-selected={active === i}>
-                  <button
-                    type="button"
+                  {/* Non-focusable row: keyboard users navigate via the input's
+                      aria-activedescendant + Enter, so the row itself must not
+                      be a focusable control inside the listbox. */}
+                  <div
                     onMouseEnter={() => setActive(i)}
                     onClick={() => openWord(word)}
                     className={cn(
@@ -296,19 +324,19 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                         </span>
                       ) : null}
                     </span>
+                    {/* Mouse-only affordance; the footer's Hear button is the
+                        keyboard/AT path for listening to the active word. */}
                     <span
-                      role="button"
-                      tabIndex={-1}
-                      aria-label={`Hear ${word.word}`}
+                      aria-hidden="true"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+                        hear(word)
                       }}
                       className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
-                      <Volume2 className="h-4 w-4" aria-hidden="true" />
+                      <Volume2 className="h-4 w-4" />
                     </span>
-                  </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -318,9 +346,21 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
         <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-xs text-muted-foreground">
           <span className="hidden sm:inline">↑ ↓ to move · Enter to open · Esc to close</span>
           <span className="sm:hidden">Tap a result to open it</span>
-          <span className="flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" /> Works offline
-          </span>
+          {showOptions && filtered[active] ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs"
+              onClick={() => hear(filtered[active])}
+            >
+              <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Hear “{filtered[active].word}”
+            </Button>
+          ) : (
+            <span className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" /> Works offline
+            </span>
+          )}
         </div>
       </div>
     </div>

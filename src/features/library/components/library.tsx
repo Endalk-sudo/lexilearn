@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, BookOpen, Ear, Layers, Library as LibraryIcon, Pencil, Plus,
@@ -89,7 +89,10 @@ function DecksPanel() {
     }
   }, [])
 
+  const didInitRef = useRef(false)
   useEffect(() => {
+    if (didInitRef.current) return
+    didInitRef.current = true
     load()
   }, [load])
 
@@ -98,8 +101,9 @@ function DecksPanel() {
       await api.deleteDeck(id)
       toast.success('Deck deleted')
       await load()
-    } catch {
-      toast.error('Could not delete that deck')
+    } catch (e) {
+      // Surface the server's reason (e.g. bundled decks cannot be deleted).
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not delete that deck')
     }
   }
 
@@ -328,38 +332,33 @@ function CreateDeckDialog({
 
 function DictionaryPanel() {
   const searchQuery = useAppStore((s) => s.searchQuery)
+  const setSearchQuery = useAppStore((s) => s.setSearchQuery)
   const navigate = useAppStore((s) => s.navigate)
-  const [query, setQuery] = useState(searchQuery)
   const [results, setResults] = useState<WordDTO[]>([])
+  // The query lives in the store so the search palette can pre-fill it.
+  // `resultsFor` marks which query produced the results, making "pending"
+  // derived state — no effect ever sets state synchronously.
+  const [resultsFor, setResultsFor] = useState('')
   const [selected, setSelected] = useState<WordDTO | null>(null)
-  const [loading, setLoading] = useState(false)
+
+  const query = searchQuery
+  const trimmed = query.trim()
+  const pending = !!trimmed && resultsFor !== trimmed
 
   useEffect(() => {
-    setQuery(searchQuery)
-  }, [searchQuery])
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-    let live = true
-    setLoading(true)
+    if (!trimmed) return
     const id = window.setTimeout(async () => {
       try {
-        const list = await api.searchWords(query)
-        if (live) setResults(list)
+        const list = await api.searchWords(trimmed)
+        setResults(list)
       } catch {
-        /* offline */
+        /* offline: keep the last results */
       } finally {
-        if (live) setLoading(false)
+        setResultsFor(trimmed)
       }
     }, 180)
-    return () => {
-      live = false
-      window.clearTimeout(id)
-    }
-  }, [query])
+    return () => window.clearTimeout(id)
+  }, [trimmed])
 
   return (
     <div className="space-y-4">
@@ -368,7 +367,7 @@ function DictionaryPanel() {
         <Input
           value={query}
           onChange={(e) => {
-            setQuery(e.target.value)
+            setSearchQuery(e.target.value)
             setSelected(null)
           }}
           placeholder="Search your dictionary…"
@@ -387,7 +386,7 @@ function DictionaryPanel() {
           </Button>
           <WordCardV2 word={selected} />
         </div>
-      ) : loading ? (
+      ) : pending ? (
         <div className="space-y-2" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
@@ -412,14 +411,16 @@ function DictionaryPanel() {
       ) : (
         <ul className="space-y-2">
           {results.map((word) => (
-            <li key={word.id}>
+            <li key={word.id} className="surface flex items-center gap-1 p-2 transition-colors duration-150 hover:border-primary-line">
+              {/* Row button and Hear button are siblings — a button inside a
+                  button is invalid and unreachable for keyboard users (W8). */}
               <button
                 type="button"
                 onClick={() => {
                   playSound('tap')
                   setSelected(word)
                 }}
-                className="surface flex w-full items-center justify-between gap-3 p-3.5 text-left transition-colors duration-150 hover:border-primary-line"
+                className="min-w-0 flex-1 rounded-md px-1.5 py-1.5 text-left"
               >
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
@@ -437,19 +438,17 @@ function DictionaryPanel() {
                     </span>
                   ) : null}
                 </span>
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={`Hear ${word.word}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
-                  }}
-                  className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <Volume2 className="h-4 w-4" aria-hidden="true" />
-                </span>
               </button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Hear ${word.word}`}
+                onClick={() => {
+                  if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+                }}
+              >
+                <Volume2 className="h-4 w-4" />
+              </Button>
             </li>
           ))}
         </ul>
@@ -489,9 +488,14 @@ export function DeckDetailView() {
     }
   }, [deckId])
 
+  // Reload only when the deck id actually changes; the ref guard keeps the
+  // fetch (and its setState) out of the synchronous effect body on re-renders.
+  const loadedDeckRef = useRef<string | null>(null)
   useEffect(() => {
+    if (loadedDeckRef.current === deckId) return
+    loadedDeckRef.current = deckId
     load()
-  }, [load])
+  }, [load, deckId])
 
   const words = useMemo(() => {
     if (!deck) return []
@@ -661,7 +665,7 @@ export function DeckDetailView() {
                         </p>
                       ) : null}
                       {word.amharic ? (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{word.amharic}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground" lang="am">{word.amharic}</p>
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

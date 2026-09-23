@@ -9,7 +9,7 @@ import {
   Activity, BellRing, Flame, Minus, Monitor, Moon, Plus, Save, Sparkles,
   Sun, Target, TrendingUp, Trash2, Trophy, Volume2, Zap,
 } from 'lucide-react'
-import { api, type Analytics, type Settings } from '@/lib/api'
+import { api, type Analytics, type DashboardStats, type Settings } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { PageHeader, SectionHeader } from '@/components/layout/page-header'
 import { SegmentedControl } from '@/components/layout/segmented-control'
@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { useTheme } from 'next-themes'
-import { getEnglishVoices, speak } from '@/lib/tts'
+import { getEnglishVoices, isSpeechSupported, speak } from '@/lib/tts'
 import {
   isHapticsEnabled, isSoundEnabled, playSound, setHapticsEnabled, setSoundEnabled,
 } from '@/lib/feel'
@@ -79,6 +79,7 @@ export function ProgressView() {
 
 function OverviewPanel() {
   const [data, setData] = useState<Analytics | null>(null)
+  const [dash, setDash] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAllLogs, setShowAllLogs] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
@@ -88,8 +89,11 @@ function OverviewPanel() {
     let live = true
     ;(async () => {
       try {
-        const analytics = await api.getAnalytics()
-        if (live) setData(analytics)
+        const [analytics, stats] = await Promise.all([api.getAnalytics(), api.getDashboardStats()])
+        if (live) {
+          setData(analytics)
+          setDash(stats)
+        }
       } catch {
         /* offline */
       } finally {
@@ -141,7 +145,10 @@ function OverviewPanel() {
 
   const masteredPct = data.totalWords ? Math.round((data.masteredCount / data.totalWords) * 100) : 0
   const gradeMax = Math.max(1, ...data.gradeDistribution.map((g) => g.count))
-  const logs = showAllLogs ? data.recentLogs.slice(0, 50) : data.recentLogs.slice(0, 8)
+  // Server returns up to 100 recent logs; show all of them when expanded (W4).
+  const logs = showAllLogs ? data.recentLogs.slice(0, 100) : data.recentLogs.slice(0, 8)
+  const forecast = dash?.nextReviewForecast ?? []
+  const forecastMax = Math.max(1, ...forecast.map((d) => d.count))
 
   return (
     <div className="space-y-5">
@@ -185,15 +192,41 @@ function OverviewPanel() {
         </div>
       </div>
 
+      {forecast.some((d) => d.count > 0) ? (
+        <div className="surface p-5">
+          <SectionHeader title="Next 7 days" description="Cards coming due, day by day." />
+          <ul className="mt-4 grid grid-cols-7 gap-1.5">
+            {forecast.map((d) => (
+              <li key={d.date} className="flex flex-col items-center gap-1.5 rounded-md border border-border p-2">
+                <span className="label text-muted-foreground">
+                  {new Date(d.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' })}
+                </span>
+                <span className="text-sm font-semibold num">{d.count}</span>
+                <span className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{ width: `${Math.round((d.count / forecastMax) * 100)}%` }}
+                  />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="surface p-5">
           <SectionHeader title="Word status" description="Where your vocabulary currently sits." />
           {pieData.length ? (
             <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row">
-              <div className="h-44 w-44 shrink-0">
+              {/* Decorative: the legend list below conveys the same data (W8). */}
+              <div className="h-44 w-44 shrink-0" aria-hidden="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={44} outerRadius={66} paddingAngle={2} strokeWidth={0}>
+                    {/* rootTabIndex={-1}: the chart is decorative (the legend
+                        below conveys the data) and lives inside aria-hidden, so
+                        its series layer must not be keyboard-focusable. */}
+                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={44} outerRadius={66} paddingAngle={2} strokeWidth={0} rootTabIndex={-1}>
                       {pieData.map((_, i) => (
                         <Cell key={i} fill={PIE_TOKENS[i % PIE_TOKENS.length]} />
                       ))}
@@ -262,7 +295,12 @@ function OverviewPanel() {
 
       <div className="surface p-5">
         <SectionHeader title="Per deck" description="How each deck is progressing." />
-        <div className="mt-4 overflow-x-auto">
+        <div
+          className="mt-4 overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Per-deck progress table"
+        >
           <table className="w-full text-sm">
             <caption className="sr-only">Per-deck progress</caption>
             <thead>
@@ -292,11 +330,11 @@ function OverviewPanel() {
       <div className="surface p-5">
         <SectionHeader
           title="Recent activity"
-          description={showAllLogs ? 'Latest 50 reviews' : 'Your last few answers'}
+          description={showAllLogs ? 'Latest 100 reviews' : 'Your last few answers'}
           actions={
             data.recentLogs.length > 8 ? (
               <Button variant="ghost" size="sm" onClick={() => setShowAllLogs((s) => !s)}>
-                {showAllLogs ? 'Show less' : `Show all ${Math.min(50, data.recentLogs.length)}`}
+                {showAllLogs ? 'Show less' : `Show all ${Math.min(100, data.recentLogs.length)}`}
               </Button>
             ) : null
           }
@@ -325,6 +363,32 @@ function OverviewPanel() {
           </ul>
         )}
       </div>
+
+      <div className="surface p-5">
+        <SectionHeader title="Quiz history" description="Your latest quiz sessions on this device." />
+        {data.quizSessions.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No quiz sessions yet — a quick quiz takes two minutes.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-1">
+            {data.quizSessions.slice(0, 10).map((q) => (
+              <li
+                key={q.id}
+                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent/60"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <Badge variant="outline" className="shrink-0 capitalize">{q.mode.replace(/_/g, ' ')}</Badge>
+                  <span className="truncate text-muted-foreground num">{q.correct} / {q.total} correct</span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground num">
+                  +{q.xpEarned} XP{q.completedAt ? ` · ${new Date(q.completedAt).toLocaleDateString()}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
@@ -334,8 +398,8 @@ function SettingsPanel() {
   const [saved, setSaved] = useState<Settings | null>(null)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [saving, setSaving] = useState(false)
-  const [sound, setSound] = useState(true)
-  const [haptics, setHaptics] = useState(true)
+  const [sound, setSound] = useState(() => isSoundEnabled())
+  const [haptics, setHaptics] = useState(() => isHapticsEnabled())
   const [confirmText, setConfirmText] = useState('')
   const { theme, setTheme } = useTheme()
 
@@ -352,8 +416,6 @@ function SettingsPanel() {
         /* offline */
       }
     })()
-    setSound(isSoundEnabled())
-    setHaptics(isHapticsEnabled())
     return () => {
       live = false
     }
@@ -476,6 +538,8 @@ function SettingsPanel() {
             <Volume2 className="h-4 w-4" />
             Test this voice
           </Button>
+
+          <TtsDiagnostics voiceCount={voices.length} voices={voices} />
         </div>
       </div>
 
@@ -649,5 +713,48 @@ function GoToCoach() {
       <Sparkles className="h-4 w-4" />
       Open the AI Coach
     </Button>
+  )
+}
+
+/**
+ * F-505: plain-language TTS diagnostics — what works, what doesn't, and the
+ * concrete fix — so an empty voice list is actionable instead of mysterious.
+ */
+function TtsDiagnostics({ voiceCount, voices }: { voiceCount: number; voices: SpeechSynthesisVoice[] }) {
+  const [engine] = useState(() => isSpeechSupported())
+  const [recognition] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }
+    return !!(w.SpeechRecognition || w.webkitSpeechRecognition)
+  })
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3.5 text-xs" aria-label="Speech diagnostics">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">Speech engine</span>
+        <span className={cn('font-medium', engine ? 'text-success' : 'text-destructive')}>
+          {engine ? 'Available' : 'Unavailable'}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">English voices</span>
+        <span className={cn('font-medium', voiceCount ? 'text-success' : 'text-warning')}>
+          {voiceCount ? `${voiceCount} found` : 'None found'}
+        </span>
+      </div>
+      {voiceCount ? (
+        <p className="line-clamp-2 text-muted-foreground">{voices.map((v) => v.name).join(', ')}</p>
+      ) : (
+        <p className="leading-relaxed text-warning">
+          Fix: install a voice pack in your system settings (Language → Speech), or open LexiLearn in
+          Firefox, which ships with voices. Everything except listening works in the meantime.
+        </p>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">Microphone practice</span>
+        <span className={cn('font-medium', recognition ? 'text-success' : 'text-muted-foreground')}>
+          {recognition ? 'Supported' : 'Not supported — use Chrome or Edge'}
+        </span>
+      </div>
+    </div>
   )
 }

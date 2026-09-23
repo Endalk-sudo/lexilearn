@@ -125,8 +125,9 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
         )}
       </div>
 
-      {/* Calendar grid (scrollable on small screens) */}
-      <div className="overflow-x-auto pb-1">
+      {/* Calendar grid (scrollable on small screens — focusable so keyboard
+          users can scroll it, per WCAG 2.1.1 / axe scrollable-region-focusable) */}
+      <div className="overflow-x-auto pb-1" tabIndex={0} role="region" aria-label="Contribution calendar">
         <div className="inline-flex flex-col gap-1 min-w-max">
           {/* Month labels row */}
           <div className="flex gap-[3px] pl-8 text-xs text-muted-foreground">
