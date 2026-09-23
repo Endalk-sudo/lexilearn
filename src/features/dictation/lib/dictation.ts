@@ -7,6 +7,7 @@
  */
 
 import type { WordDTO } from '@/lib/api'
+import { GRADE_XP } from '@/lib/srs'
 
 export type DictationKind = 'word' | 'phrase' | 'sentence'
 export type DictationGrade = 0 | 3 | 4 | 5
@@ -151,7 +152,11 @@ export function gradeFor(accuracy: number, attempts: number, revealed: boolean):
   return 0
 }
 
-export const DICTATION_XP: Record<DictationGrade, number> = { 0: 1, 3: 3, 4: 4, 5: 6 }
+/**
+ * XP per dictation grade — re-exports the canonical GRADE_XP table so the
+ * numbers shown here always match what the server credits (W1).
+ */
+export const DICTATION_XP: Record<DictationGrade, number> = GRADE_XP
 
 export type Rung = 0 | 1 | 2
 

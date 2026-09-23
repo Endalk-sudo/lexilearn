@@ -25,14 +25,18 @@ import { buzz, playSound } from '@/lib/feel'
 
 export type MatchPair = { id: string; word: string; definition: string }
 
+/** Per-pair outcome reported back when the game completes (id = word id). */
+export type MatchResult = { wordId: string; firstTry: boolean }
+
 export function MatchGame({
   pairs,
   onComplete,
 }: {
   pairs: MatchPair[]
-  onComplete: (correct: number, total: number) => void
+  onComplete: (results: MatchResult[]) => void
 }) {
   const [matchedWords, setMatchedWords] = useState<string[]>([])
+  const [misMatched, setMisMatched] = useState<string[]>([])
   const [wrongWord, setWrongWord] = useState<string | null>(null)
   const [wrongSlot, setWrongSlot] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
@@ -59,11 +63,15 @@ export function MatchGame({
       playSound('correct')
       buzz('success')
       if (next.length === pairs.length) {
-        window.setTimeout(() => onComplete(pairs.length, pairs.length), 420)
+        window.setTimeout(
+          () => onComplete(pairs.map((p) => ({ wordId: p.id, firstTry: !misMatched.includes(p.id) }))),
+          420
+        )
       }
     } else {
       setWrongWord(wordId)
       setWrongSlot(slotId)
+      setMisMatched((m) => (m.includes(wordId) ? m : [...m, wordId]))
       playSound('wrong')
       buzz('error')
       window.setTimeout(() => {

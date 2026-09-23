@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { mentorProfile, mentorProject, mentorSkillMastery, mentorErrorCard, mentorKnowledge, mentorBranch, mentorNode, mentorAttempt, mentorFeedback, mentorTurn, mentorWeeklyReport, pronunciationAttempt, naturalnessAttempt, appStat, reviewLog } from '@/db/schema'
 import { eq, lte, asc, desc, isNull, gte, sql } from 'drizzle-orm'
 import { ollamaChat, ollamaEmbed, MENTOR_SYSTEM } from '@/features/coach/server/ollama'
+import { dayKey } from '@/lib/date'
 
 const QuestionSchema = z.object({
   action: z.literal('question'),
@@ -230,7 +231,7 @@ export async function evaluateAttempt(attemptId: string) {
   const xpGain = mentorGrade === 5 ? 10 : mentorGrade === 4 ? 7 : mentorGrade === 3 ? 4 : 1
   const currentXp = parseInt(await getStatLocal('totalXp', '0'), 10) || 0
   await setStatLocal('totalXp', String(currentXp + xpGain))
-  const today = new Date().toISOString().slice(0, 10)
+  const today = dayKey(new Date())
   const lastSession = await getStatLocal('lastSessionDate', '')
   if (lastSession !== today) {
     let streak = parseInt(await getStatLocal('streak', '0'),10) || 0
@@ -294,7 +295,7 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
   const day = monday.getDay() || 7
   monday.setDate(monday.getDate() - day + 1)
   monday.setHours(0,0,0,0)
-  const weekKey = monday.toISOString().slice(0,10)
+  const weekKey = dayKey(monday)
   const cached = await db.select().from(mentorWeeklyReport).where(eq(mentorWeeklyReport.weekKey, weekKey)).get()
   if (cached) {
     return { cached: true, weekKey, report: {

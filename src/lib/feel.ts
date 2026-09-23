@@ -7,7 +7,8 @@ const HAPTIC_KEY = 'lexilearn-haptics-enabled'
 
 export function isSoundEnabled() {
   if (typeof window === 'undefined') return false
-  return localStorage.getItem(SOUND_KEY) !== 'off'
+  // Opt-in: silent until the learner turns sound on in Settings (F-701).
+  return localStorage.getItem(SOUND_KEY) === 'on'
 }
 
 export function setSoundEnabled(on: boolean) {
@@ -16,8 +17,9 @@ export function setSoundEnabled(on: boolean) {
 }
 
 export function isHapticsEnabled() {
-  if (typeof window === 'undefined') return true
-  return localStorage.getItem(HAPTIC_KEY) !== 'off'
+  if (typeof window === 'undefined') return false
+  // Opt-in: no buzzing until the learner turns haptics on in Settings (F-701).
+  return localStorage.getItem(HAPTIC_KEY) === 'on'
 }
 
 export function setHapticsEnabled(on: boolean) {
@@ -26,20 +28,22 @@ export function setHapticsEnabled(on: boolean) {
 }
 
 function tone(freq: number, dur = 0.08, type: OscillatorType = 'sine', gain = 0.05, when = 0) {
+  // Reuse the shared AudioContext (typeCtx) — opening one per sound event is
+  // expensive and browsers cap the number of contexts a page may create.
+  const ctx = typeCtx()
+  if (!ctx) return
   try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
+    const t0 = ctx.currentTime + when
     const o = ctx.createOscillator()
     const g = ctx.createGain()
     o.type = type
     o.frequency.value = freq
-    g.gain.setValueAtTime(gain, ctx.currentTime + when)
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + when + dur)
+    g.gain.setValueAtTime(gain, t0)
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
     o.connect(g)
     g.connect(ctx.destination)
-    o.start(ctx.currentTime + when)
-    o.stop(ctx.currentTime + when + dur + 0.02)
-    window.setTimeout(() => ctx.close().catch(() => {}), 400)
+    o.start(t0)
+    o.stop(t0 + dur + 0.02)
   } catch { /* audio unavailable */ }
 }
 

@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/feedback/empty-state'
 import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
 import { XpPopLayer, popXpAt, useXpPops } from '@/components/feedback/xp-pop'
 import { MatchGame, type MatchPair } from '@/features/quiz/components/match-game'
+import { GRADE_XP } from '@/lib/srs'
 import { speak } from '@/lib/tts'
 import { buzz, playSound, typeFeelFromKey } from '@/lib/feel'
 import { cn } from '@/lib/utils'
@@ -38,7 +39,8 @@ const MODES: {
   { mode: 'speed_round', title: 'Speed round', description: '60 seconds. Build a combo, answer fast.', icon: Zap, tag: 'Arcade' },
 ]
 
-const XP_PER_CORRECT = 4
+// Canonical XP per correct answer — same GRADE_XP table the server credits (W1).
+const XP_PER_CORRECT = GRADE_XP[4]
 const SPEED_SECONDS = 60
 
 export function QuizView() {
@@ -212,7 +214,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const gradeAnswer = useCallback(
     (isCorrect: boolean, e?: { clientX: number; clientY: number }) => {
       setGraded(isCorrect)
-      const xp = isCorrect ? XP_PER_CORRECT : 0
+      const xp = isCorrect ? XP_PER_CORRECT : GRADE_XP[0]
       if (isCorrect) {
         setCorrectCount((c) => c + 1)
         setCombo((c) => {
@@ -270,7 +272,9 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const matchPairs = useMemo<MatchPair[]>(
     () =>
       questions.map((q) => ({
-        id: q.id,
+        // Key by word id so the game can report per-word results back for
+        // SRS/XP logging (question ids would not map to reviewable words).
+        id: q.wordDTO.id,
         word: q.promptWord?.word ?? q.prompt,
         definition: q.correctAnswer,
       })),
@@ -409,11 +413,23 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
           </div>
           <MatchGame
             pairs={matchPairs}
-            onComplete={(correct, total) => {
+            onComplete={(results) => {
+              // Every pair is eventually matched, so "correct" stays = total;
+              // the grade records HOW it went: clean first try = Good (4),
+              // matched after stumbles = Hard (3). XP comes from the same
+              // GRADE_XP table the server credits, and each pair is logged as
+              // a real review so match participates in SRS/XP/streak like the
+              // other modes (W1).
+              const total = results.length
+              const correct = total
+              const xp = results.reduce((sum, r) => sum + GRADE_XP[r.firstTry ? 4 : 3], 0)
               setCorrectCount(correct)
-              setXpEarned(correct * XP_PER_CORRECT)
+              setXpEarned(xp)
               setAnsweredCount(total)
-              void finish(total, correct, correct * XP_PER_CORRECT)
+              for (const r of results) {
+                void api.submitReview(r.wordId, r.firstTry ? 4 : 3, 'match').catch(() => {})
+              }
+              void finish(total, correct, xp)
             }}
           />
         </div>
@@ -429,7 +445,9 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
             className="surface p-4 sm:p-5"
           >
             <motion.div variants={v(listItem)} transition={t()} className="flex items-center justify-between gap-3">
-              <Badge variant="soft">{modeMeta?.title}</Badge>
+              <h1>
+                <Badge variant="soft">{modeMeta?.title}</Badge>
+              </h1>
               {mode === 'speed_round' ? (
                 <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground num">
                   <Flame className="h-3.5 w-3.5 text-streak" aria-hidden="true" />

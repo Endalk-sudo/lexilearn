@@ -17,6 +17,7 @@ import { useRouteSync } from '@/lib/router'
 import { fadeUp, useMotionSafe } from '@/lib/motion'
 
 function ViewContainer({ view }: { view: string }) {
+  const dictationDeckId = useAppStore((s) => s.dictationDeckId)
   switch (view) {
     case 'learn':
       return <LearnView />
@@ -25,7 +26,7 @@ function ViewContainer({ view }: { view: string }) {
     case 'quiz':
       return <QuizView />
     case 'dictation':
-      return <DictationView deckId={useAppStore.getState().dictationDeckId} />
+      return <DictationView deckId={dictationDeckId} />
     case 'library':
       return <LibraryView />
     case 'library-deck':

@@ -21,14 +21,17 @@ export function TtsNotice() {
     } catch {
       return
     }
-    if (!isSpeechSupported()) {
-      setVisible(true)
-      return
-    }
     if (typeof window === 'undefined') return
+    const unsupported = !isSpeechSupported()
+    // All state updates happen inside the timeout callback so the effect body
+    // never sets state synchronously (react-hooks/set-state-in-effect).
     const id = window.setTimeout(() => {
+      if (unsupported) {
+        setVisible(true)
+        return
+      }
       if (window.speechSynthesis?.getVoices().length === 0) setVisible(true)
-    }, 2000)
+    }, unsupported ? 0 : 2000)
     const onVoices = () => {
       if (window.speechSynthesis.getVoices().length > 0) setVisible(false)
     }

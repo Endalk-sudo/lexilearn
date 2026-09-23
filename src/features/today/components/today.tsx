@@ -7,6 +7,7 @@ import {
   Play, ShieldCheck, Sparkles, Target, Trophy, Zap,
 } from 'lucide-react'
 import { api, type DashboardStats } from '@/lib/api'
+import { dayKey } from '@/lib/date'
 import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
@@ -34,7 +35,7 @@ function greeting() {
 export function TodayView() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [resume, setResume] = useState<ResumeState | null>(null)
+  const [resume, setResume] = useState<ResumeState | null>(() => getResume())
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const { v, t } = useMotionSafe()
@@ -49,7 +50,6 @@ export function TodayView() {
 
   useEffect(() => {
     let live = true
-    setResume(getResume())
     ;(async () => {
       try {
         const s = await api.getDashboardStats()
@@ -72,7 +72,7 @@ export function TodayView() {
   const goalDone = stats.learnedToday >= goal
   const challenge = getDailyChallenge(stats)
   const challengeDone = challenge.progress >= challenge.target
-  const challengeClaimed = stats.challengeClaimedDate === new Date().toISOString().slice(0, 10)
+  const challengeClaimed = stats.challengeClaimedDate === dayKey(new Date())
   const levelPct = stats.nextLevel ? Math.round(stats.levelPct) : 100
 
   const mission =

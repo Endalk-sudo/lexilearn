@@ -481,7 +481,7 @@ function DictationSession({
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <div className="label text-primary">Dictation · {KIND_TITLES[item.kind]}</div>
+          <h1 className="label text-primary">Dictation · {KIND_TITLES[item.kind]}</h1>
           <div className="mt-1 text-sm text-muted-foreground num">
             {idx + 1} / {items.length} · {RUNG_LABELS[rungUsed]}
           </div>

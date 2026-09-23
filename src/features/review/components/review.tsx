@@ -60,11 +60,14 @@ export function ReviewView() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [list, settings, stats] = await Promise.all([
+      const [due, settings, stats] = await Promise.all([
         api.getReviewableCards(null, 30),
         api.getSettings(),
         api.getDashboardStats(),
       ])
+      // Nothing due yet (brand-new account) → practice the newest words so
+      // Review is never a dead end; real due cards always come first (B1).
+      const list = due.length ? due : await api.getNewCards(null, 30)
       setCards(list)
       setTtsVoice(settings.ttsVoice)
       setTtsRate(settings.ttsRate)
@@ -351,7 +354,7 @@ export function ReviewView() {
                 {current.word.amharic ? (
                   <motion.div variants={v(listItem)} transition={t()} className="rounded-md bg-muted/40 p-3.5">
                     <div className="label text-muted-foreground">Amharic</div>
-                    <div className="mt-1 text-[15px]">{current.word.amharic}</div>
+                    <div className="mt-1 text-[15px]" lang="am">{current.word.amharic}</div>
                   </motion.div>
                 ) : null}
 

@@ -18,6 +18,7 @@ import { XpPopLayer, popXpFromElement, useXpPops } from '@/components/feedback/x
 import { speak } from '@/lib/tts'
 import { buzz, playSound } from '@/lib/feel'
 import { resumeIndexFor, saveResume } from '@/lib/resume'
+import { GRADE_XP } from '@/lib/srs'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
@@ -116,7 +117,7 @@ export function LearnView() {
       if (!current) return
       setWasCorrect(correct)
       setStage('result')
-      const gained = correct ? 5 : 1
+      const gained = correct ? GRADE_XP[5] : GRADE_XP[0]
       setXpEarned((x) => x + gained)
       if (correct) setCorrectCount((c) => c + 1)
       if (correct) {
@@ -272,7 +273,7 @@ export function LearnView() {
 
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="label text-primary">Learn</div>
+          <h1 className="label text-primary">Learn</h1>
           <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <span className="num">
               {idx + 1} / {cards.length}
@@ -407,7 +408,7 @@ export function LearnView() {
               <div className="flex flex-col items-center text-center">
                 <Checkmark size={48} tone={wasCorrect ? 'success' : 'error'} />
                 <div className="mt-4 text-base font-semibold">
-                  {wasCorrect ? 'Correct — +5 XP' : 'Saved for another round — +1 XP'}
+                  {wasCorrect ? `Correct — +${GRADE_XP[5]} XP` : `Saved for another round — +${GRADE_XP[0]} XP`}
                 </div>
                 <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                   {wasCorrect
