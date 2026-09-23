@@ -5,7 +5,7 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { resolveDbPath } from '../src/db/env'
 import * as schema from '../src/db/schema'
-import { v4 as uuid } from 'uuid'
+import { createId } from '../src/db/id'
 
 const sqlite = new Database(resolveDbPath())
 sqlite.pragma('foreign_keys = ON')
@@ -903,7 +903,7 @@ async function main() {
 
   let total = 0
   for (const d of DECKS) {
-    const deckId = uuid()
+    const deckId = createId()
     await db.insert(deck).values({
       id: deckId,
       name: d.name,
@@ -913,7 +913,7 @@ async function main() {
 
     for (const w of d.words) {
       await db.insert(word).values({
-        id: uuid(),
+        id: createId(),
         word: w.word,
         pos: w.pos ?? null,
         ipa: w.ipa ?? null,
