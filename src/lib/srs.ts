@@ -49,8 +49,13 @@ export function calculateSm2(card: SrsCard, quality: Grade): SrsCard {
 
     if (updatedCard.repetitions >= 5 && updatedCard.interval >= 21) {
       updatedCard.status = 'mastered'
-    } else if (updatedCard.repetitions >= 1) {
+    } else if (updatedCard.repetitions >= 2) {
+      // Second and later successes leave the learning stage.
       updatedCard.status = 'reviewing'
+    } else {
+      // First success: still learning — one correct recall is not enough to
+      // call the word "reviewing" (F-103).
+      updatedCard.status = 'learning'
     }
   }
 
@@ -71,20 +76,6 @@ export function calculateSm2(card: SrsCard, quality: Grade): SrsCard {
   updatedCard.nextReview = next
 
   return updatedCard
-}
-
-// Helper: counts how many days a streak has been alive
-export function computeStreak(lastSession: string, currentStreak: number): number {
-  if (!lastSession) return 0
-  const last = new Date(lastSession)
-  const today = new Date()
-  // Normalize to midnight
-  last.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-  const diffDays = Math.round((today.getTime() - last.getTime()) / 86_400_000)
-  if (diffDays === 0) return currentStreak
-  if (diffDays === 1) return currentStreak // streak continues when today's session happens
-  return 0 // streak broken
 }
 
 // Levels & XP curve (used by gamification)

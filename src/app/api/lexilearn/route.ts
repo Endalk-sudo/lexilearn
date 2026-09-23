@@ -4,48 +4,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { deck, word, srsCard, reviewLog, quizSession, appStat, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
-import { eq, gt, gte, lt, lte, and, isNull, notExists, asc, desc, like, sql } from 'drizzle-orm'
-import { calculateSm2, type Grade } from '@/lib/srs'
-import { dayKey, startOfDay, addDays } from '@/lib/date'
-import { v4 as uuid } from 'uuid'
+import { eq, gte, lte, and, isNull, asc, desc, like } from 'drizzle-orm'
+import { calculateSm2, GRADE_XP, type Grade } from '@/lib/srs'
+import { dayKey } from '@/lib/date'
+import { createId } from '@/db/id'
+import { z } from 'zod'
+import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion } from '@/lib/api'
+import { getStat, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
-// ---------- Types ----------
-export type WordDTO = {
-  id: string
-  word: string
-  pos: string | null
-  ipa: string | null
-  syllables: string[]
-  cefr: string | null
-  definitions: { pos: string; text: string }[]
-  examples: string[]
-  synonyms: string[]
-  antonyms: string[]
-  etymology: string | null
-  amharic: string | null
-  deckId: string
-}
-
-export type SrsCardDTO = {
-  wordId: string
-  easeFactor: number
-  interval: number
-  repetitions: number
-  nextReview: Date
-  lastReviewed: Date | null
-  status: string
-  totalReviews: number
-  correctReviews: number
-}
-
-export type CardWithWord = {
-  word: WordDTO
-  srs: SrsCardDTO | null
-}
-
 // ---------- Helpers ----------
-function parseWord(w: any): WordDTO {
+function parseWord(w: typeof word.$inferSelect): WordDTO {
   return {
     id: w.id,
     word: w.word,
@@ -67,21 +36,7 @@ function safeParse<T>(s: string, fallback: T): T {
   try { return JSON.parse(s) as T } catch { return fallback }
 }
 
-/** Drizzle equivalent of Prisma's `where: { srsCard: null }` (words without an SRS card). */
-function wordHasNoSrsCard() {
-  return notExists(db.select({ d: sql`1` }).from(srsCard).where(eq(srsCard.wordId, word.id)))
-}
-
-async function getStat(key: string, fallback = ''): Promise<string> {
-  const row = await db.select().from(appStat).where(eq(appStat.key, key)).get()
-  return row?.value ?? fallback
-}
-
-async function setStat(key: string, value: string): Promise<void> {
-  await db.insert(appStat).values({ key, value }).onConflictDoUpdate({ target: appStat.key, set: { value } })
-}
-
-function toSrsDto(c: any): SrsCardDTO {
+function toSrsDto(c: typeof srsCard.$inferSelect): SrsCardDTO {
   return {
     wordId: c.wordId,
     easeFactor: c.easeFactor,
@@ -119,7 +74,8 @@ async function updateStreakAndXp(grade: Grade) {
     }
   }
 
-  const xpDelta = grade >= 3 ? (grade === 5 ? 8 : grade === 4 ? 5 : 3) : 1
+  // Single source of truth for XP: the same GRADE_XP table every view displays (W1).
+  const xpDelta = GRADE_XP[grade]
   const totalXp = (parseInt(await getStat('totalXp', '0'), 10) || 0) + xpDelta
   await setStat('totalXp', String(totalXp))
 
@@ -156,7 +112,7 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
         nextReview: new Date(),
       }
 
-  const updated = calculateSm2(baseCard as any, grade)
+  const updated = calculateSm2(baseCard, grade)
 
   await db.insert(srsCard).values({
     wordId,
@@ -195,13 +151,13 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
 }
 
 async function createCustomDeck(name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; amharic?: string }[]) {
-  const deckId = uuid()
+  const deckId = createId()
   await db.insert(deck).values({ id: deckId, name, description, isCustom: true })
 
   for (const w of words) {
     if (!w.word || !w.word.trim()) continue
     await db.insert(word).values({
-      id: uuid(),
+      id: createId(),
       word: w.word.trim().toLowerCase(),
       pos: w.pos ?? null,
       ipa: w.ipa ?? null,
@@ -229,13 +185,13 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return out
 }
 
-async function generateQuiz(deckId: string | null, mode: string, count: number) {
+async function generateQuiz(deckId: string | null, mode: QuizMode, count: number) {
   const wordRows = await db.select({ w: word, srs: srsCard }).from(word).leftJoin(srsCard, eq(srsCard.wordId, word.id)).where(deckId ? eq(word.deckId, deckId) : undefined)
   const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
   if (words.length < 4) return []
 
   const sample = pickRandom(words, Math.min(count, words.length))
-  const questions: any[] = []
+  const questions: QuizQuestion[] = []
 
   for (const w of sample) {
     const wordDto = parseWord(w)
@@ -249,24 +205,24 @@ async function generateQuiz(deckId: string | null, mode: string, count: number) 
       )
       const options = pickRandom([firstDef, ...distractors], 4)
       questions.push({
-        id: uuid(), mode, prompt: `What does "${w.word}" mean?`,
+        id: createId(), mode, prompt: `What does "${w.word}" mean?`,
         promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
       })
     } else if (mode === 'reverse_mc') {
       const distractors = pickRandom(allWords.filter((x) => x !== w.word), 3)
       const options = pickRandom([w.word, ...distractors], 4)
       questions.push({
-        id: uuid(), mode, prompt: `Which word means: "${firstDef}"?`,
+        id: createId(), mode, prompt: `Which word means: "${firstDef}"?`,
         definition: firstDef, options, correctAnswer: w.word, wordDTO: wordDto,
       })
     } else if (mode === 'typing') {
       questions.push({
-        id: uuid(), mode, prompt: `Type the word that means: "${firstDef}"`,
+        id: createId(), mode, prompt: `Type the word that means: "${firstDef}"`,
         definition: firstDef, correctAnswer: w.word.toLowerCase(), wordDTO: wordDto,
       })
     } else if (mode === 'spelling_bee') {
       questions.push({
-        id: uuid(), mode, prompt: 'Listen and type the word you hear.',
+        id: createId(), mode, prompt: 'Listen and type the word you hear.',
         audioWord: w.word, promptWord: wordDto, correctAnswer: w.word.toLowerCase(), wordDTO: wordDto,
       })
     } else if (mode === 'speed_round') {
@@ -276,249 +232,13 @@ async function generateQuiz(deckId: string | null, mode: string, count: number) 
       )
       const options = pickRandom([firstDef, ...distractors], 4)
       questions.push({
-        id: uuid(), mode, prompt: `What does "${w.word}" mean?`,
+        id: createId(), mode, prompt: `What does "${w.word}" mean?`,
         promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
       })
     }
   }
 
   return questions
-}
-
-/**
- * The 53-week contribution window, Sunday-aligned, ending on the current
- * week's Saturday — the same shape GitHub uses.
- */
-function heatmapWindow() {
-  const today = startOfDay(new Date())
-  const endOfGrid = addDays(today, 6 - today.getDay())
-  const startOfGrid = addDays(endOfGrid, -(53 * 7 - 1))
-  return { startOfGrid, endOfGrid }
-}
-
-/**
- * Sparse contribution calendar: only the days that actually have activity,
- * inside the 53-week window, oldest first.
- *
- * The full grid is 371 rows of which almost all are zero for a new learner, so
- * shipping it on every dashboard load was pure waste. The client rebuilds the
- * grid from the dates, which also removes any reliance on array position.
- */
-function buildHeatmap(logs: { reviewedAt: Date; isCorrect: boolean }[]) {
-  const { startOfGrid, endOfGrid } = heatmapWindow()
-  const windowStart = dayKey(startOfGrid)
-  const windowEnd = dayKey(endOfGrid)
-  const byDay = new Map<string, { date: string; count: number; correct: number }>()
-  for (const log of logs) {
-    const key = dayKey(log.reviewedAt)
-    if (key < windowStart || key > windowEnd) continue
-    const entry = byDay.get(key) ?? { date: key, count: 0, correct: 0 }
-    entry.count += 1
-    if (log.isCorrect) entry.correct += 1
-    byDay.set(key, entry)
-  }
-  return [...byDay.values()].sort((a, b) => (a.date < b.date ? -1 : 1))
-}
-
-async function getDashboardStats() {
-  const now = new Date()
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  const endOfToday = new Date()
-  endOfToday.setHours(23, 59, 59, 999)
-
-  const [dueCount, newCardsCount, todayLogs, mastered, learning, reviewing, totalWords, allLogs] = await Promise.all([
-    db.$count(srsCard, lte(srsCard.nextReview, now)),
-    db.$count(word, wordHasNoSrsCard()),
-    db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, startOfToday), lte(reviewLog.reviewedAt, endOfToday))),
-    db.$count(srsCard, eq(srsCard.status, 'mastered')),
-    db.$count(srsCard, eq(srsCard.status, 'learning')),
-    db.$count(srsCard, eq(srsCard.status, 'reviewing')),
-    db.$count(word),
-    db.select().from(reviewLog).orderBy(asc(reviewLog.reviewedAt)),
-  ])
-
-  const streak = parseInt(await getStat('streak', '0'), 10) || 0
-  const longestStreak = parseInt(await getStat('longestStreak', '0'), 10) || 0
-  const totalXp = parseInt(await getStat('totalXp', '0'), 10) || 0
-  const totalReviews = parseInt(await getStat('totalReviews', '0'), 10) || 0
-  const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
-  const lastSessionDate = await getStat('lastSessionDate', '')
-  const streakShieldUsedDate = await getStat('streakShieldUsedDate', '')
-  const challengeClaimedDate = await getStat('challengeClaimedDate', '')
-  const todayQuizSessions = await db.select().from(quizSession).where(and(gte(quizSession.completedAt, startOfToday), lte(quizSession.completedAt, endOfToday)))
-  const todayCorrect = todayLogs.filter((l) => l.isCorrect).length + todayQuizSessions.reduce((sum, q) => sum + q.correct, 0)
-  const xpTodayFromReviews = todayLogs.reduce((sum, l) => sum + (l.grade === 5 ? 8 : l.grade === 4 ? 5 : l.grade >= 3 ? 3 : 1), 0)
-  const xpToday = xpTodayFromReviews + todayQuizSessions.reduce((sum, q) => sum + q.xpEarned, 0)
-  const dailyGoal = parseInt(await getStat('dailyGoal', '20'), 10) || 20
-  const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0
-
-  const LEVELS = [
-    { name: 'Beginner', minXp: 0 },
-    { name: 'Novice', minXp: 100 },
-    { name: 'Intermediate', minXp: 300 },
-    { name: 'Advanced', minXp: 700 },
-    { name: 'Expert', minXp: 1500 },
-    { name: 'Master', minXp: 3000 },
-  ]
-  let level = LEVELS[0]
-  let nextLevel: { name: string; minXp: number } | null = null
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (totalXp >= LEVELS[i].minXp) {
-      level = LEVELS[i]
-      nextLevel = LEVELS[i + 1] ?? null
-    }
-  }
-  const progressIntoLevel = totalXp - level.minXp
-  const span = nextLevel ? nextLevel.minXp - level.minXp : 0
-  const levelPct = nextLevel ? Math.min(100, Math.round((progressIntoLevel / span) * 100)) : 100
-
-  const forecast: { date: string; count: number }[] = []
-  for (let i = 0; i < 7; i++) {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() + i)
-    const next = new Date(d)
-    next.setDate(d.getDate() + 1)
-    const count = await db.$count(srsCard, and(gte(srsCard.nextReview, d), lt(srsCard.nextReview, next)))
-    forecast.push({ date: dayKey(d), count })
-  }
-
-  const heatmap = buildHeatmap(allLogs)
-
-  let streakGap = 0
-  let streakShieldCooldownDays = 0
-  if (lastSessionDate) {
-    const last = new Date(lastSessionDate + 'T00:00:00')
-    const nowDay = new Date()
-    nowDay.setHours(0, 0, 0, 0)
-    streakGap = Math.max(0, Math.round((nowDay.getTime() - last.getTime()) / 86_400_000))
-  }
-  if (streakShieldUsedDate) {
-    const used = new Date(streakShieldUsedDate + 'T00:00:00')
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    streakShieldCooldownDays = Math.max(0, 7 - Math.round((today.getTime() - used.getTime()) / 86_400_000))
-  }
-
-  return {
-    dueCount,
-    newCount: newCardsCount,
-    learnedToday: todayLogs.length,
-    streak,
-    longestStreak,
-    lastSessionDate,
-    streakShieldAvailable: !!lastSessionDate && streak > 0 && streakGap > 1 && streakShieldCooldownDays === 0,
-    streakGap,
-    streakShieldCooldownDays,
-    todayCorrect,
-    xpToday,
-    challengeClaimedDate,
-    totalXp,
-    totalReviews,
-    totalCorrect,
-    accuracy,
-    dailyGoal,
-    masteredCount: mastered,
-    learningCount: learning,
-    reviewingCount: reviewing,
-    totalWords,
-    level,
-    nextLevel,
-    levelPct,
-    nextReviewForecast: forecast,
-    heatmap,
-  }
-}
-
-async function getAnalytics() {
-  const [deckRows, allLogsAsc, quizSessions, cards, totalWords, newWords] = await Promise.all([
-    db.select().from(deck),
-    db.select().from(reviewLog).orderBy(asc(reviewLog.reviewedAt)),
-    db.select().from(quizSession).orderBy(desc(quizSession.completedAt)).limit(20),
-    db.select().from(srsCard),
-    db.$count(word),
-    db.$count(word, wordHasNoSrsCard()),
-  ])
-  // Attach words (+ their SRS cards) per deck so perDeck keeps its Prisma shape
-  const wordsWithSrs = await db.select({ w: word, srs: srsCard }).from(word).leftJoin(srsCard, eq(srsCard.wordId, word.id))
-  const wordsByDeck = new Map<string, any[]>()
-  for (const r of wordsWithSrs) {
-    const list = wordsByDeck.get(r.w.deckId) ?? []
-    list.push({ ...r.w, srsCard: r.srs })
-    wordsByDeck.set(r.w.deckId, list)
-  }
-  const decks = deckRows.map((d) => ({ ...d, words: (wordsByDeck.get(d.id) ?? []) }))
-  // Recent 100 for the activity feed (desc order)
-  const allLogs = [...allLogsAsc].reverse().slice(0, 100)
-
-  const totalReviews = parseInt(await getStat('totalReviews', '0'), 10) || 0
-  const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
-  const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0
-  const totalXp = parseInt(await getStat('totalXp', '0'), 10) || 0
-  const streak = parseInt(await getStat('streak', '0'), 10) || 0
-  const longestStreak = parseInt(await getStat('longestStreak', '0'), 10) || 0
-
-  const mastered = cards.filter((c) => c.status === 'mastered').length
-  const learning = cards.filter((c) => c.status === 'learning').length
-  const reviewing = cards.filter((c) => c.status === 'reviewing').length
-
-  const perDeck = decks.map((d) => {
-    const deckCards = d.words.map((w) => w.srsCard).filter(Boolean) as any[]
-    const dMastered = deckCards.filter((c) => c.status === 'mastered').length
-    const dLearning = deckCards.filter((c) => c.status === 'learning').length
-    const dReviewing = deckCards.filter((c) => c.status === 'reviewing').length
-    const dNew = d.words.length - deckCards.length
-    const deckLogs = allLogs.filter((l) => l.deckId === d.id)
-    const deckCorrect = deckLogs.filter((l) => l.isCorrect).length
-    const deckAccuracy = deckLogs.length > 0 ? Math.round((deckCorrect / deckLogs.length) * 100) : 0
-    return {
-      id: d.id, name: d.name, total: d.words.length,
-      mastered: dMastered, learning: dLearning, reviewing: dReviewing,
-      new: dNew, accuracy: deckAccuracy,
-    }
-  })
-
-  const weeklyActivity: { date: string; count: number; correct: number }[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - i)
-    const next = new Date(d)
-    next.setDate(d.getDate() + 1)
-    const dayLogs = allLogsAsc.filter((l) => l.reviewedAt >= d && l.reviewedAt < next)
-    weeklyActivity.push({
-      date: dayKey(d),
-      count: dayLogs.length,
-      correct: dayLogs.filter((l) => l.isCorrect).length,
-    })
-  }
-
-  // Sparse contribution calendar — the client rebuilds the 53-week grid.
-  const heatmap = buildHeatmap(allLogsAsc)
-
-  const gradeDistribution = [
-    { grade: 0, count: allLogs.filter((l) => l.grade === 0).length },
-    { grade: 3, count: allLogs.filter((l) => l.grade === 3).length },
-    { grade: 4, count: allLogs.filter((l) => l.grade === 4).length },
-    { grade: 5, count: allLogs.filter((l) => l.grade === 5).length },
-  ]
-
-  return {
-    totalReviews, totalCorrect, accuracy,
-    masteredCount: mastered, learningCount: learning,
-    reviewingCount: reviewing, newCount: newWords,
-    totalWords, totalXp, streak, longestStreak,
-    recentLogs: allLogs.map((l) => ({
-      id: l.id, word: l.word, grade: l.grade, mode: l.mode,
-      isCorrect: l.isCorrect, reviewedAt: l.reviewedAt,
-    })),
-    perDeck, weeklyActivity, gradeDistribution, heatmap,
-    quizSessions: quizSessions.map((q) => ({
-      id: q.id, mode: q.mode, total: q.total, correct: q.correct,
-      xpEarned: q.xpEarned, completedAt: q.completedAt,
-    })),
-  }
 }
 
 // ============================================================
@@ -529,7 +249,7 @@ export async function GET(req: NextRequest) {
   const action = url.searchParams.get('action') || ''
   const deckId = url.searchParams.get('deckId')
   const limit = parseInt(url.searchParams.get('limit') || '20', 10)
-  const mode = (url.searchParams.get('mode') as any) || 'mc'
+  const mode = (url.searchParams.get('mode') as QuizMode | null) || 'mc'
   const count = parseInt(url.searchParams.get('count') || '10', 10)
   const query = url.searchParams.get('query') || ''
 
@@ -546,33 +266,27 @@ export async function GET(req: NextRequest) {
       }
 
       case 'new': {
-        const rows = await db.select({ w: word, srs: srsCard }).from(word)
-          .leftJoin(srsCard, eq(srsCard.wordId, word.id))
-          .where(deckId ? eq(word.deckId, deckId) : undefined)
+        // Truly new words only (no SRS card yet), filtered and limited in SQL.
+        // The old JS filter fetched `limit * 3` rows first, so it silently
+        // stopped returning anything once a deck outgrew the window (B1).
+        const rows = await db.select({ w: word }).from(word)
+          .where(and(wordHasNoSrsCard(), deckId ? eq(word.deckId, deckId) : undefined))
           .orderBy(asc(word.createdAt))
-          .limit(limit * 3)
-        const fresh = rows.filter((r) => !r.srs).slice(0, limit)
-        return NextResponse.json(fresh.map((r) => ({ word: parseWord(r.w), srs: null })))
+          .limit(limit)
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: null })))
       }
 
       case 'reviewable': {
-        const rows = await db.select({ w: word, srs: srsCard }).from(word)
-          .leftJoin(srsCard, eq(srsCard.wordId, word.id))
-          .where(deckId ? eq(word.deckId, deckId) : undefined)
-          .orderBy(asc(word.createdAt))
-          .limit(limit * 2)
-        const result: CardWithWord[] = []
-        for (const r of rows) {
-          if (r.srs) {
-            if (r.srs.nextReview <= new Date()) {
-              result.push({ word: parseWord(r.w), srs: toSrsDto(r.srs) })
-            }
-          } else {
-            result.push({ word: parseWord(r.w), srs: null })
-          }
-          if (result.length >= limit) break
-        }
-        return NextResponse.json(result)
+        // Due cards only — fresh words come from ?action=new. The old filter
+        // under-fetched (a `limit * 2` scan) AND let fresh cards leak in,
+        // duplicating the same word across both queues (B1).
+        const now = new Date()
+        const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
+          .innerJoin(word, eq(srsCard.wordId, word.id))
+          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined))
+          .orderBy(asc(srsCard.nextReview))
+          .limit(limit)
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: toSrsDto(r.c) })))
       }
 
       case 'decks': {
@@ -703,11 +417,32 @@ export async function GET(req: NextRequest) {
       default:
         return NextResponse.json({ error: 'unknown action' }, { status: 400 })
     }
-  } catch (e: any) {
+  } catch (e) {
     console.error('API GET error:', e)
-    return NextResponse.json({ error: e?.message || 'unknown error' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'unknown error' }, { status: 500 })
   }
 }
+
+// ---------- Validation (POST bodies) ----------
+const ReviewBody = z.object({
+  wordId: z.string().min(1),
+  grade: z.union([z.literal(0), z.literal(3), z.literal(4), z.literal(5)]),
+  mode: z.string().max(32).optional(),
+})
+
+const QuizSessionBody = z.object({
+  mode: z.enum(['mc', 'reverse_mc', 'typing', 'spelling_bee', 'speed_round', 'match']),
+  total: z.number().int().min(0).max(1000),
+  correct: z.number().int().min(0).max(1000),
+  xpEarned: z.number().int().min(0).max(100_000),
+})
+
+const SettingsPatch = z.object({
+  ttsVoice: z.string().max(300).optional(),
+  ttsRate: z.number().min(0.5).max(2).optional(),
+  dailyGoal: z.number().int().min(1).max(50).optional(),
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+})
 
 // ============================================================
 //  POST /api/lexilearn?action=...   body = JSON
@@ -721,8 +456,9 @@ export async function POST(req: NextRequest) {
   try {
     switch (action) {
       case 'review': {
-        const { wordId, grade, mode: reviewMode = 'review' } = body as { wordId: string; grade: Grade; mode?: string }
-        if (!wordId || grade === undefined) return NextResponse.json({ error: 'wordId and grade required' }, { status: 400 })
+        const parsed = ReviewBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'wordId and a valid grade (0, 3, 4 or 5) required' }, { status: 400 })
+        const { wordId, grade, mode: reviewMode = 'review' } = parsed.data
         await submitReview(wordId, grade, reviewMode)
         return NextResponse.json({ ok: true })
       }
@@ -745,7 +481,7 @@ export async function POST(req: NextRequest) {
         for (const w of words) {
           if (!w.word || !w.word.trim()) continue
           await db.insert(word).values({
-            id: uuid(),
+            id: createId(),
             word: w.word.trim().toLowerCase(),
             pos: w.pos ?? null,
             ipa: w.ipa ?? null,
@@ -767,37 +503,23 @@ export async function POST(req: NextRequest) {
       case 'deleteDeck': {
         const { deckId: id } = body as { deckId: string }
         if (!id) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
+        // Bundled decks (Common 500 / IELTS / TOEFL / GRE) ship with the
+        // offline seed and must not be deletable — only custom decks (W5).
+        const deckRow = await db.select().from(deck).where(eq(deck.id, id)).get()
+        if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
+        if (!deckRow.isCustom) return NextResponse.json({ error: 'This deck ships with the app and cannot be deleted.' }, { status: 403 })
         await db.delete(deck).where(eq(deck.id, id))
         return NextResponse.json({ ok: true })
       }
 
       case 'quizSession': {
-        const { mode: qMode, total, correct, xpEarned } = body as any
+        const parsed = QuizSessionBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'invalid quiz session payload' }, { status: 400 })
+        // Log only: XP, review counts, streak and per-word SRS cards are all
+        // written per answer by `review`. The old session-level totals were
+        // double-counting every quiz answer in xpToday/todayCorrect/totalXp (W1).
+        const { mode: qMode, total, correct, xpEarned } = parsed.data
         await db.insert(quizSession).values({ mode: qMode, total, correct, xpEarned, completedAt: new Date() })
-        const cur = parseInt(await getStat('totalXp', '0'), 10) || 0
-        await setStat('totalXp', String(cur + (xpEarned || 0)))
-        const rev = parseInt(await getStat('totalReviews', '0'), 10) || 0
-        await setStat('totalReviews', String(rev + (total || 0)))
-        const cor = parseInt(await getStat('totalCorrect', '0'), 10) || 0
-        await setStat('totalCorrect', String(cor + (correct || 0)))
-        const today = dayKey(new Date())
-        const lastSession = await getStat('lastSessionDate', '')
-        if (lastSession !== today) {
-          let streak = parseInt(await getStat('streak', '0'), 10) || 0
-          if (lastSession) {
-            const last = new Date(lastSession + 'T00:00:00')
-            const now = new Date(today + 'T00:00:00')
-            const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000)
-            if (diff === 1) streak += 1
-            else if (diff > 1) streak = 1
-          } else {
-            streak = 1
-          }
-          await setStat('lastSessionDate', today)
-          await setStat('streak', String(streak))
-          const longest = parseInt(await getStat('longestStreak', '0'), 10) || 0
-          if (streak > longest) await setStat('longestStreak', String(streak))
-        }
         return NextResponse.json({ ok: true })
       }
 
@@ -809,8 +531,9 @@ export async function POST(req: NextRequest) {
         const start = new Date(); start.setHours(0, 0, 0, 0)
         const end = new Date(); end.setHours(23, 59, 59, 999)
         const logs = await db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, start), lte(reviewLog.reviewedAt, end)))
-        const sessions = await db.select().from(quizSession).where(and(gte(quizSession.completedAt, start), lte(quizSession.completedAt, end)))
-        const todayCorrect = logs.filter((l) => l.isCorrect).length + sessions.reduce((sum, q) => sum + q.correct, 0)
+        // Review log only — every quiz answer is logged per question, so the
+        // quizSession totals would double-count them (W1).
+        const todayCorrect = logs.filter((l) => l.isCorrect).length
         const streak = parseInt(await getStat('streak', '0'), 10) || 0
         const targets: Record<string, { progress: number; target: number; reward: number }> = {
           sprint: { progress: logs.length, target: 10, reward: 35 },
@@ -851,7 +574,9 @@ export async function POST(req: NextRequest) {
       }
 
       case 'updateSettings': {
-        const patch = body as any
+        const parsed = SettingsPatch.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'invalid settings payload' }, { status: 400 })
+        const patch = parsed.data
         if (patch.ttsVoice !== undefined) await setStat('ttsVoice', patch.ttsVoice)
         if (patch.ttsRate !== undefined) await setStat('ttsRate', String(patch.ttsRate))
         if (patch.dailyGoal !== undefined) await setStat('dailyGoal', String(patch.dailyGoal))
@@ -865,7 +590,7 @@ export async function POST(req: NextRequest) {
         const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
         const inserted = await db.insert(word).values({
-          id: uuid(),
+          id: createId(),
           word: wordText.trim().toLowerCase(),
           pos: pos ?? null,
           ipa: ipa ?? null,
@@ -1036,8 +761,8 @@ export async function POST(req: NextRequest) {
       default:
         return NextResponse.json({ error: 'unknown action' }, { status: 400 })
     }
-  } catch (e: any) {
+  } catch (e) {
     console.error('API POST error:', e)
-    return NextResponse.json({ error: e?.message || 'unknown error' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'unknown error' }, { status: 500 })
   }
 }
