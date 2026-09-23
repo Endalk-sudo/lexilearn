@@ -44,8 +44,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone()
-          caches.open(SHELL_CACHE).then((c) => c.put('/', copy)).catch(() => {})
+          // Only successful responses become the offline shell — a transient
+          // 500 must never be cached as the fallback people see offline (N9).
+          if (res.ok) {
+            const copy = res.clone()
+            caches.open(SHELL_CACHE).then((c) => c.put('/', copy)).catch(() => {})
+          }
           return res
         })
         .catch(async () => (await caches.match(req)) || (await caches.match('/')) || Response.error())
@@ -60,8 +64,12 @@ self.addEventListener('fetch', (event) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            const copy = res.clone()
-            caches.open(STATIC_CACHE).then((c) => c.put(req, copy)).catch(() => {})
+            // Cache-first means a cached entry sticks until VERSION changes, so
+            // never store an error response (N9).
+            if (res.ok) {
+              const copy = res.clone()
+              caches.open(STATIC_CACHE).then((c) => c.put(req, copy)).catch(() => {})
+            }
             return res
           })
       )
