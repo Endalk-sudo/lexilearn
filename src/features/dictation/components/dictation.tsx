@@ -232,87 +232,90 @@ function DictationStart({
         ) : null}
       </motion.div>
 
-      <motion.div variants={v(listItem)} transition={t()} className="surface p-5">
-        <div className="label text-muted-foreground">Playback speed</div>
-        <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Playback speed">
-          {(['normal', 'slow'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={preset === option}
-              onClick={() => {
-                onPreset(option)
-                playSound('tap')
-              }}
-              className={cn(
-                'flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors duration-150',
-                preset === option
-                  ? 'border-primary-line bg-primary-soft text-primary'
-                  : 'border-border bg-card hover:border-primary-line'
-              )}
-            >
-              {option === 'slow' ? <Snail className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-              {option === 'slow' ? `Slow (${PRESET_RATES.slow.toFixed(1)}×)` : 'Normal'}
-            </button>
-          ))}
-        </div>
-
-        <div className="label mt-5 text-muted-foreground">Start at your level</div>
-        <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Starting difficulty">
-          {(['auto', 0, 1, 2] as const).map((option) => {
-            const isAuto = option === 'auto'
-            const value = isAuto ? null : (option as Rung)
-            const selected = rungOverride === value
-            return (
+      <motion.div variants={v(listItem)} transition={t()} className="surface p-5 sm:p-6 space-y-5">
+        <div>
+          <div className="label text-muted-foreground">Playback speed</div>
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Playback speed">
+            {(['normal', 'slow'] as const).map((option) => (
               <button
                 key={option}
                 type="button"
                 role="radio"
-                aria-checked={selected}
+                aria-checked={preset === option}
                 onClick={() => {
-                  onRungOverride(value)
+                  onPreset(option)
                   playSound('tap')
                 }}
                 className={cn(
-                  'min-h-16 rounded-md border px-2 py-2.5 text-center transition-colors duration-150',
-                  selected
-                    ? 'border-primary-line bg-primary-soft'
-                    : 'border-border bg-card hover:border-primary-line'
+                  'flex min-h-12 items-center justify-center gap-2.5 rounded-xl border px-3 text-sm font-semibold transition-all duration-150 cursor-pointer active:scale-[.98]',
+                  preset === option
+                    ? 'border-primary-line bg-primary-soft text-primary shadow-xs'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary-line/50 hover:text-foreground'
                 )}
               >
-                <span className={cn('block text-sm font-semibold', selected && 'text-primary')}>
-                  {isAuto ? 'Auto' : RUNG_LABELS[option as Rung]}
-                </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {isAuto ? `Starts at ${RUNG_LABELS[rung]}` : ['5·2·1', '3·3·2', '2·2·4'][option as Rung]}
-                </span>
+                {option === 'slow' ? <Snail className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+                {option === 'slow' ? `Slow (${PRESET_RATES.slow.toFixed(1)}×)` : 'Normal (1.0×)'}
               </button>
-            )
-          })}
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="label text-muted-foreground">Target training rung</div>
+          <div className="mt-2.5 grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Starting difficulty">
+            {(['auto', 0, 1, 2] as const).map((option) => {
+              const isAuto = option === 'auto'
+              const value = isAuto ? null : (option as Rung)
+              const selected = rungOverride === value
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    onRungOverride(value)
+                    playSound('tap')
+                  }}
+                  className={cn(
+                    'min-h-18 rounded-xl border p-3 text-center transition-all duration-150 cursor-pointer active:scale-[.98] flex flex-col justify-center items-center',
+                    selected
+                      ? 'border-primary-line bg-primary-soft shadow-xs text-primary'
+                      : 'border-border bg-card hover:border-primary-line/50'
+                  )}
+                >
+                  <span className={cn('block text-sm font-bold', selected ? 'text-primary' : 'text-foreground')}>
+                    {isAuto ? 'Adaptive' : RUNG_LABELS[option as Rung]}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-muted-foreground font-medium">
+                    {isAuto ? `Starts at ${RUNG_LABELS[rung]}` : ['Words first', 'Phrases', 'Full sentences'][option as Rung]}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {available ? (
-          <Button size="lg" onClick={onStart} data-testid="dictation-start" className="mt-5 w-full">
-            <Ear className="h-4 w-4" />
+          <Button size="lg" onClick={onStart} data-testid="dictation-start" className="mt-2 w-full shadow-sm cursor-pointer active:scale-[.98] font-medium">
+            <Ear className="h-4 w-4 mr-1" />
             Start dictation
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
           <>
-            {/* No voice: say so plainly and offer the one action that fixes it,
-                instead of leaving a greyed-out button with no way forward. */}
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row" data-testid="dictation-unavailable">
+            {/* No voice: say so plainly and offer the one action that fixes it */}
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row" data-testid="dictation-unavailable">
               <Button size="lg" disabled className="flex-1">
                 <AlertTriangle className="h-4 w-4" />
                 Dictation needs a voice
               </Button>
-              <Button size="lg" variant="outline" onClick={onOpenVoiceSettings} className="sm:w-auto">
+              <Button size="lg" variant="outline" onClick={onOpenVoiceSettings} className="sm:w-auto cursor-pointer">
                 <Settings2 className="h-4 w-4" />
                 Open voice settings
               </Button>
             </div>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
+            <p className="mt-2 text-center text-xs text-muted-foreground">
               Everything else keeps working — your words, streak and progress are untouched.
             </p>
           </>

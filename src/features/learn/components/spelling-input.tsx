@@ -35,21 +35,23 @@ export function SpellingInput({
   return (
     <div className="space-y-3">
       {/* Visual character grid */}
-      <div className="flex gap-1 sm:gap-1.5 flex-wrap justify-center">
+      <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center py-1">
         {targetLower.split('').map((ch, i) => {
           const typed = valueLower[i] ?? ''
           const isSpace = ch === ' '
+          const isCurrent = !isSpace && valueLower.length === i
           const isCorrect = !isSpace && typed !== '' && typed === ch
           const isWrong = !isSpace && typed !== '' && typed !== ch
           return (
             <div
               key={i}
               className={cn(
-                'h-11 w-8 sm:h-12 sm:w-10 flex items-center justify-center rounded-md border-2 font-mono text-lg font-medium transition-colors',
-                isSpace && 'border-transparent bg-transparent w-2',
-                !isSpace && !typed && 'bg-muted/40 border-input',
-                isCorrect && 'border-success bg-success-soft text-success',
-                isWrong && 'border-destructive bg-destructive-soft text-destructive',
+                'h-12 w-9 sm:h-14 sm:w-11 flex items-center justify-center rounded-lg border-2 font-mono text-xl font-bold transition-all duration-150 select-none shadow-xs',
+                isSpace && 'border-transparent bg-transparent w-3',
+                !isSpace && !typed && !isCurrent && 'bg-card border-border text-muted-foreground/40',
+                isCurrent && 'bg-primary-soft/50 border-primary ring-2 ring-primary/20 scale-105',
+                isCorrect && 'border-success bg-success-soft text-success shadow-xs',
+                isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
               )}
             >
               {typed || (isSpace ? '\u00A0' : '')}

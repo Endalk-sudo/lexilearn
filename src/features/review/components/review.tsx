@@ -19,11 +19,43 @@ import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/m
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-const GRADES: { grade: Grade; key: string; label: string; hint: string; cls: string }[] = [
-  { grade: 0, key: '1', label: 'Again', hint: 'Forgot it', cls: 'text-destructive hover:border-destructive/40 hover:bg-destructive-soft' },
-  { grade: 3, key: '2', label: 'Hard', hint: 'Tough recall', cls: 'text-warning hover:border-warning/40 hover:bg-warning-soft' },
-  { grade: 4, key: '3', label: 'Good', hint: 'Knew it', cls: 'text-success hover:border-success/40 hover:bg-success-soft' },
-  { grade: 5, key: '4', label: 'Easy', hint: 'Instant', cls: 'text-primary hover:border-primary-line hover:bg-primary-soft' },
+const GRADES: { grade: Grade; key: string; label: string; hint: string; borderCls: string; badgeCls: string; activeCls: string }[] = [
+  {
+    grade: 0,
+    key: '1',
+    label: 'Again',
+    hint: 'Forgot completely',
+    borderCls: 'border-destructive/30 hover:border-destructive/80 hover:bg-destructive-soft/50 text-destructive',
+    badgeCls: 'bg-destructive/10 text-destructive',
+    activeCls: 'active:bg-destructive-soft',
+  },
+  {
+    grade: 3,
+    key: '2',
+    label: 'Hard',
+    hint: 'Tough recall',
+    borderCls: 'border-warning/30 hover:border-warning/80 hover:bg-warning-soft/50 text-warning',
+    badgeCls: 'bg-warning/10 text-warning',
+    activeCls: 'active:bg-warning-soft',
+  },
+  {
+    grade: 4,
+    key: '3',
+    label: 'Good',
+    hint: 'Clean recall',
+    borderCls: 'border-success/30 hover:border-success/80 hover:bg-success-soft/50 text-success',
+    badgeCls: 'bg-success/10 text-success',
+    activeCls: 'active:bg-success-soft',
+  },
+  {
+    grade: 5,
+    key: '4',
+    label: 'Easy',
+    hint: 'Instant & clear',
+    borderCls: 'border-primary/30 hover:border-primary/80 hover:bg-primary-soft/50 text-primary',
+    badgeCls: 'bg-primary/10 text-primary',
+    activeCls: 'active:bg-primary-soft',
+  },
 ]
 
 /** Show where each grade will send the card, so the choice is informed. */
@@ -369,30 +401,49 @@ export function ReviewView() {
                 ) : null}
 
                 <motion.div variants={v(listItem)} transition={t()}>
-                  <div className="label text-muted-foreground">How well did you recall it?</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {GRADES.map((g, i) => (
-                      <button
-                        key={g.grade}
-                        ref={(el) => {
-                          gradeRefs.current[i] = el
-                        }}
-                        type="button"
-                        data-testid={`grade-${g.label.toLowerCase()}`}
-                        onClick={(e) => void grade(g.grade, e, i)}
-                        className={cn(
-                          'flex min-h-16 flex-col items-start gap-0.5 rounded-lg border border-border bg-card px-3 py-3 text-left shadow-xs transition-colors duration-150 active:scale-[.98]',
-                          g.cls
-                        )}
-                      >
-                        <span className="text-sm font-semibold">{g.label}</span>
-                        <span className="text-xs text-muted-foreground">{g.hint}</span>
-                        <span className="mt-1 text-xs text-muted-foreground">
-                          +{GRADE_XP[g.grade]} XP · {g.key}
-                          {previewInterval(current.srs, g.grade) ? ` · ${previewInterval(current.srs, g.grade)}` : ''}
-                        </span>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="label text-muted-foreground">How well did you recall it?</div>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">Press 1–4</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    {GRADES.map((g, i) => {
+                      const interval = previewInterval(current.srs, g.grade)
+                      return (
+                        <button
+                          key={g.grade}
+                          ref={(el) => {
+                            gradeRefs.current[i] = el
+                          }}
+                          type="button"
+                          data-testid={`grade-${g.label.toLowerCase()}`}
+                          onClick={(e) => void grade(g.grade, e, i)}
+                          className={cn(
+                            'group relative flex min-h-[76px] flex-col justify-between rounded-xl border bg-card p-3 text-left shadow-xs transition-all duration-150 cursor-pointer active:scale-[.97]',
+                            g.borderCls,
+                            g.activeCls
+                          )}
+                        >
+                          <div className="flex items-start justify-between w-full">
+                            <span className="text-sm font-bold tracking-tight">{g.label}</span>
+                            <kbd className="flex h-5 w-5 items-center justify-center rounded-md border border-border/60 bg-muted/70 font-mono text-[11px] font-semibold text-muted-foreground">
+                              {g.key}
+                            </kbd>
+                          </div>
+                          
+                          <div className="mt-1">
+                            <span className="block text-[11px] text-muted-foreground/90 font-medium">{g.hint}</span>
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] font-semibold text-primary/90">+{GRADE_XP[g.grade]} XP</span>
+                              {interval ? (
+                                <span className={cn('text-[10px] font-medium px-1.5 py-0.2 rounded', g.badgeCls)}>
+                                  {interval}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </motion.div>
 

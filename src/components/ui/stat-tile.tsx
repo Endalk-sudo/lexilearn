@@ -60,8 +60,8 @@ export function StatTile({
         type="button"
         onClick={onClick}
         className={cn(
-          'surface lift min-h-11 w-full p-3.5 text-left',
-          'active:scale-[.99] transition-transform duration-150',
+          'surface lift min-h-11 w-full p-3.5 text-left group cursor-pointer',
+          'active:scale-[.98] transition-all duration-150',
           className
         )}
       >

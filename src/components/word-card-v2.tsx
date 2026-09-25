@@ -71,11 +71,19 @@ export function WordCardV2({
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {word.cefr ? (
-                <Badge variant="outline" className="font-mono">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'font-mono text-xs font-semibold px-2 py-0.5 rounded-md',
+                    word.cefr.startsWith('A') && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                    word.cefr.startsWith('B') && 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                    word.cefr.startsWith('C') && 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                  )}
+                >
                   {word.cefr}
                 </Badge>
               ) : null}
-              <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setHint((value) => !value)} aria-expanded={hint}>
+              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => setHint((value) => !value)} aria-expanded={hint}>
                 <Lightbulb className="h-3.5 w-3.5 text-warning" />
                 {hint ? 'Hide hint' : 'Need a hint?'}
               </Button>

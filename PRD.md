@@ -78,10 +78,21 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-202 | Typing Test: see a definition, type the word | P0 |
 | F-203 | Spelling Bee: listen to TTS audio, type the word | P0 |
 | F-204 | Speed Round: 60-second timed quiz, answer as many as possible | P1 |
-| F-205 | Quiz sessions log mode, total, correct, and XP earned | P0 |
-| F-206 | Quiz generates random distractors from the word database | P0 |
+| F-205 | Match Game: drag-and-drop / tap-to-pair words to definitions | P1 |
+| F-206 | Quiz sessions log mode, total, correct, and XP earned | P0 |
+| F-207 | Quiz generates random distractors from the word database | P0 |
 
-### 3.4 Gamification & Progress
+### 3.4 Dictation Practice ("Hear it. Type it.")
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| F-250 | Dictation drills by progressive rungs: Word (Rung 0) → Phrase (Rung 1) → Sentence (Rung 2) | P1 |
+| F-251 | Browser speech synthesis with configurable playback speeds (Normal 1.0× vs. Slow 0.7×) | P1 |
+| F-252 | Free unlimited replays during drill with keyboard shortcut support (`Space` / `Shift+Space`) | P1 |
+| F-253 | Real-time text comparison with color-coded token diffs (matched, missed, typo correction) | P1 |
+| F-254 | Accuracy calculation, adaptive rung progression, and XP / review log integration | P1 |
+
+### 3.5 Gamification & Progress
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
@@ -92,7 +103,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-304 | Daily goal target (configurable, default 20 reviews) | P0 |
 | F-305 | Dashboard with: due count, new count, daily goal progress, streak, level, XP | P0 |
 
-### 3.5 Statistics & Analytics
+### 3.6 Statistics & Analytics
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
@@ -105,7 +116,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-406 | 7-day review forecast | P1 |
 | F-407 | Quiz session history | P2 |
 
-### 3.6 Settings
+### 3.7 Settings
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
@@ -116,7 +127,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-504 | Reset all progress (SRS cards, logs, XP, streaks, settings; preserves word decks) | P1 |
 | F-505 | TTS diagnostics panel | P2 |
 
-### 3.7 AI Mentor (local, optional)
+### 3.8 AI Mentor (local, optional)
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
@@ -129,7 +140,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-606 | Coach Lab: mastery map, weekly coach report, browser speech practice, naturalness coaching (all local) | P2 |
 | F-607 | All inference through local Ollama; structured JSON contracts with schema validation and one repair attempt | P1 |
 
-### 3.8 Feel & Offline
+### 3.9 Feel & Offline
 
 | ID | Requirement | Priority |
 |----|-------------|----------|

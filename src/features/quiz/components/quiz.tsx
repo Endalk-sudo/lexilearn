@@ -99,16 +99,16 @@ function ModeCard({
         playSound('tap')
         onClick()
       }}
-      className="surface p-4 text-left transition-colors duration-150 hover:border-primary-line"
+      className="surface lift group p-4 text-left transition-all duration-150 hover:border-primary-line cursor-pointer active:scale-[.98]"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary-soft text-primary" aria-hidden="true">
-          <Icon className="h-4 w-4" />
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary group-hover:scale-105 transition-transform" aria-hidden="true">
+          <Icon className="h-5 w-5" />
         </span>
-        <Badge variant="outline">{tag}</Badge>
+        <Badge variant="outline" className="text-xs group-hover:border-primary/40 transition-colors">{tag}</Badge>
       </div>
-      <div className="mt-3.5 text-sm font-semibold tracking-tight">{title}</div>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      <div className="mt-3.5 text-base font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">{title}</div>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
     </motion.button>
   )
 }
@@ -528,18 +528,23 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                       }}
                       data-testid={`quiz-option-${i}`}
                       className={cn(
-                        'flex min-h-12 w-full items-center gap-3 rounded-md border border-border bg-card px-3.5 py-3 text-left text-sm shadow-xs transition-colors duration-150',
-                        graded === null && 'hover:border-primary-line hover:bg-primary-soft',
-                        graded !== null && isRight && 'border-success/40 bg-success-soft',
-                        graded !== null && isPicked && !isRight && 'border-destructive/40 bg-destructive-soft'
+                        'flex min-h-13 w-full items-center gap-3.5 rounded-xl border bg-card px-4 py-3 text-left text-sm shadow-xs transition-all duration-150 cursor-pointer active:scale-[.98]',
+                        graded === null && 'border-border hover:border-primary-line hover:bg-primary-soft/40',
+                        graded !== null && isRight && 'border-success/60 bg-success-soft text-foreground ring-1 ring-success',
+                        graded !== null && isPicked && !isRight && 'border-destructive/60 bg-destructive-soft text-foreground ring-1 ring-destructive'
                       )}
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-muted font-mono text-xs font-semibold" aria-hidden="true">
+                      <span className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-bold transition-colors',
+                        graded !== null && isRight ? 'bg-success text-success-foreground border-success' :
+                        graded !== null && isPicked && !isRight ? 'bg-destructive text-destructive-foreground border-destructive' :
+                        'border-border bg-muted text-foreground'
+                      )} aria-hidden="true">
                         {String.fromCharCode(65 + i)}
                       </span>
-                      <span className="min-w-0 flex-1 whitespace-normal">{option}</span>
-                      {graded !== null && isRight ? <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" /> : null}
-                      {graded !== null && isPicked && !isRight ? <X className="h-4 w-4 shrink-0 text-destructive" aria-hidden="true" /> : null}
+                      <span className="min-w-0 flex-1 whitespace-normal font-medium leading-relaxed">{option}</span>
+                      {graded !== null && isRight ? <Check className="h-5 w-5 shrink-0 text-success" aria-hidden="true" /> : null}
+                      {graded !== null && isPicked && !isRight ? <X className="h-5 w-5 shrink-0 text-destructive" aria-hidden="true" /> : null}
                     </button>
                   )
                 })}

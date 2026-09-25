@@ -256,6 +256,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm), inset 0 1px 0 0 color-mix(in oklab, white 60%, transparent);
+    transition: transform 0.16s var(--ease-out-quint), box-shadow 0.16s var(--ease-out-quint), border-color 0.16s var(--ease-out-quint);
   }
   .dark .surface {
     box-shadow: var(--shadow-sm), inset 0 1px 0 0 color-mix(in oklab, white 5%, transparent);
@@ -271,6 +272,9 @@
       box-shadow: var(--shadow-md);
       border-color: var(--primary-line);
     }
+  }
+  .lift:active {
+    transform: scale(0.985);
   }
 
   .pressable-wrap {

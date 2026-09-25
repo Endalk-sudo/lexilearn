@@ -136,54 +136,78 @@ function DecksPanel() {
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <motion.ul variants={v(stagger(0.03))} initial="hidden" animate="show" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.ul variants={v(stagger(0.03))} initial="hidden" animate="show" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {decks.map((deck) => (
             <motion.li key={deck.id} variants={v(listItem)} transition={t()}>
-              <div className="surface flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary-line">
-                <div className="flex items-start justify-between gap-2">
-                  <button
-                    type="button"
-                    data-testid={`deck-card-${deck.id}`}
-                    onClick={() => navigate('library-deck', { deckId: deck.id })}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <span className="block truncate text-sm font-semibold tracking-tight">{deck.name}</span>
-                    <span className="mt-1 block truncate text-xs text-muted-foreground">
-                      {deck.description || (deck.isCustom ? 'Custom deck' : 'Curated deck')}
-                    </span>
-                  </button>
-                  {deck.isCustom ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label={`Delete ${deck.name}`}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete “{deck.name}”?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This removes the deck and its {deck.wordCount} words. Progress on those words is
-                            removed too, and this cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Keep deck</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => void removeDeck(deck.id)}
-                          >
-                            Delete deck
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : null}
+              <div className="surface lift group flex h-full flex-col justify-between p-4.5 rounded-xl border border-border/80 bg-card hover:border-primary-line hover:shadow-md transition-all duration-200">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      data-testid={`deck-card-${deck.id}`}
+                      onClick={() => navigate('library-deck', { deckId: deck.id })}
+                      className="min-w-0 flex-1 text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="block truncate text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                          {deck.name}
+                        </span>
+                        {deck.isCustom ? (
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 shrink-0 text-muted-foreground border-border/60">
+                            Custom
+                          </Badge>
+                        ) : (
+                          <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary-soft text-primary font-semibold">
+                            Curated
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="mt-1.5 block text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {deck.description || (deck.isCustom ? 'Personal study collection.' : 'Standard vocabulary deck.')}
+                      </span>
+                    </button>
+                    {deck.isCustom ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive-soft transition-colors cursor-pointer" aria-label={`Delete ${deck.name}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete “{deck.name}”?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This removes the deck and its {deck.wordCount} words. Progress on those words is
+                              removed too, and this cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep deck</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => void removeDeck(deck.id)}
+                            >
+                              Delete deck
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground num">{deck.wordCount} words</span>
-                  <Button size="sm" variant="ghost" onClick={() => navigate('library-deck', { deckId: deck.id })}>
-                    Open
+
+                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground num flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-primary/70" />
+                    {deck.wordCount} words
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="soft"
+                    onClick={() => navigate('library-deck', { deckId: deck.id })}
+                    className="h-8 px-3 text-xs font-medium cursor-pointer"
+                  >
+                    Open deck
                   </Button>
                 </div>
               </div>
