@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { typeFeelFromKey } from '@/lib/feel'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type SpellingInputProps = {
   value: string
@@ -33,6 +33,8 @@ export function SpellingInput({
   guided = false, masked = false, className, size = 'lg', testId,
 }: SpellingInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [cursorPos, setCursorPos] = useState<number>(() => value.length)
+  const [isFocused, setIsFocused] = useState<boolean>(() => !!autoFocus && !disabled)
   const targetLower = target.toLowerCase()
   const valueLower = value.toLowerCase()
   const chars = targetLower.split('')
@@ -40,65 +42,151 @@ export function SpellingInput({
 
   useEffect(() => {
     if (autoFocus && !disabled) {
-      const id = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80)
+      const id = window.setTimeout(() => {
+        inputRef.current?.focus({ preventScroll: true })
+        setIsFocused(true)
+      }, 80)
       return () => window.clearTimeout(id)
     }
   }, [autoFocus, disabled, target])
 
+  useEffect(() => {
+    if (cursorPos > value.length) {
+      setCursorPos(value.length)
+    }
+  }, [value, cursorPos])
+
   const focusInput = useCallback(() => {
-    if (!disabled) inputRef.current?.focus({ preventScroll: true })
+    if (!disabled) {
+      inputRef.current?.focus({ preventScroll: true })
+      setIsFocused(true)
+    }
   }, [disabled])
+
+  const handleBoxClick = (i: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (disabled) return
+    const safe = Math.min(value.length, i)
+    setCursorPos(safe)
+    setIsFocused(true)
+    inputRef.current?.focus({ preventScroll: true })
+    try {
+      inputRef.current?.setSelectionRange(safe, safe)
+    } catch {}
+  }
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div role="group" aria-label="Spelling boxes" onClick={focusInput}
-        className={cn('flex flex-wrap justify-center py-2 select-none cursor-text', s.gap)}>
+      <div
+        role="group"
+        aria-label="Spelling boxes"
+        onClick={focusInput}
+        className={cn('flex flex-wrap justify-center py-2 select-none cursor-text', s.gap)}
+      >
         {chars.map((ch, i) => {
           const isSpace = ch === ' '
           const typed = valueLower[i] ?? ''
-          const isCurrent = !isSpace && valueLower.length === i && !disabled
           const isFilled = !isSpace && typed !== ''
+          const isAtInsertion = !isSpace && isFocused && !disabled && cursorPos === i
           const isCorrect = isFilled && typed === ch
           const isWrong = isFilled && typed !== ch
-          const showGuide = guided && !isFilled && !isCurrent && !isSpace
+          const showGuide = guided && !isFilled && !isAtInsertion && !isSpace
+
           return (
-            <div key={i} className={cn(
-              'relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs',
-              s.box,
-              isSpace && 'border-transparent bg-transparent w-4 sm:w-5 shadow-none',
-              !isSpace && !isFilled && !isCurrent && 'bg-card border-border/80 text-muted-foreground/30',
-              isCurrent && 'bg-primary-soft border-primary ring-[3px] ring-primary/25 scale-110 shadow-md z-10',
-              isCorrect && 'border-success bg-success-soft text-success shadow-sm',
-              isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
-            )}>
-              {isSpace ? '\u00A0' : masked && isFilled ? (
+            <div
+              key={i}
+              onClick={(e) => handleBoxClick(i, e)}
+              className={cn(
+                'relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs cursor-pointer select-none',
+                s.box,
+                isSpace && 'border-transparent bg-transparent w-4 sm:w-5 shadow-none cursor-default',
+                !isSpace && !isFilled && !isAtInsertion && 'bg-card border-border/80 text-muted-foreground/30 hover:border-border',
+                isAtInsertion && !isFilled && 'bg-primary-soft border-primary ring-[3px] ring-primary/25 scale-105 shadow-md z-10',
+                isAtInsertion && isFilled && 'border-primary ring-[3px] ring-primary/30 scale-105 shadow-md z-10',
+                !isAtInsertion && isCorrect && 'border-success bg-success-soft text-success shadow-sm',
+                !isAtInsertion && isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
+                !isAtInsertion && isFilled && !isCorrect && !isWrong && 'border-border/90 bg-card text-foreground'
+              )}
+            >
+              {isSpace ? (
+                '\u00A0'
+              ) : masked && isFilled ? (
                 <span className="opacity-70">•</span>
-              ) : isFilled ? typed : showGuide && i === 0 ? (
+              ) : isAtInsertion && isFilled ? (
+                <div className="relative flex items-center justify-center">
+                  <span className="absolute -left-1 sm:-left-1.5 h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
+                  <span className="text-foreground">{typed}</span>
+                  <span className="absolute -bottom-2 inset-x-0 h-1 rounded-full bg-primary shadow-xs" />
+                </div>
+              ) : isAtInsertion && !isFilled ? (
+                <span className="inline-block h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
+              ) : isFilled ? (
+                typed
+              ) : showGuide && i === 0 ? (
                 <span className="text-muted-foreground/50 font-semibold">{ch}</span>
               ) : showGuide ? (
                 <span className="text-muted-foreground/35 text-base">·</span>
-              ) : isCurrent ? (
-                <span className="absolute inset-x-1 bottom-1.5 h-0.5 rounded-full bg-primary/60 animate-pulse" />
               ) : null}
             </div>
           )
         })}
       </div>
-      <input ref={inputRef} type="text" value={value}
-        onChange={(e) => onChange(e.target.value.slice(0, target.length))}
-        disabled={disabled} placeholder={placeholder ?? 'Type the word…'} className="sr-only"
-        autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value.slice(0, target.length)
+          onChange(next)
+          setCursorPos(e.target.selectionStart ?? next.length)
+        }}
+        onSelect={(e) => {
+          if (typeof e.currentTarget.selectionStart === 'number') {
+            setCursorPos(e.currentTarget.selectionStart)
+          }
+        }}
+        onKeyUp={(e) => {
+          if (typeof e.currentTarget.selectionStart === 'number') {
+            setCursorPos(e.currentTarget.selectionStart)
+          }
+        }}
+        onFocus={() => {
+          setIsFocused(true)
+          if (typeof inputRef.current?.selectionStart === 'number') {
+            setCursorPos(inputRef.current.selectionStart)
+          }
+        }}
+        onBlur={() => setIsFocused(false)}
+        disabled={disabled}
+        placeholder={placeholder ?? 'Type the word…'}
+        className="sr-only"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         data-testid={testId}
         aria-label="Type the spelling"
         onKeyDown={(e) => {
           typeFeelFromKey(e)
-          if (e.key === 'Enter' && onSubmit && value.trim()) { e.preventDefault(); onSubmit() }
+          requestAnimationFrame(() => {
+            if (inputRef.current && typeof inputRef.current.selectionStart === 'number') {
+              setCursorPos(inputRef.current.selectionStart)
+            }
+          })
+          if (e.key === 'Enter' && onSubmit && value.trim()) {
+            e.preventDefault()
+            onSubmit()
+          }
         }}
       />
       <div className="flex justify-center">
-        <button type="button" onClick={focusInput} disabled={disabled}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline">
-          {value ? `${value.length} / ${target.replace(/\s/g, '').length} letters` : 'Click boxes or start typing'}
+        <button
+          type="button"
+          onClick={focusInput}
+          disabled={disabled}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline cursor-pointer"
+        >
+          {value ? `${value.length} / ${target.replace(/\s/g, '').length} letters (click letter to jump)` : 'Click boxes or start typing'}
         </button>
       </div>
     </div>
