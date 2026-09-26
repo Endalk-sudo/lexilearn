@@ -17,6 +17,7 @@
     "e2e": "python3 tests/e2e/test_phased.py",
     "e2e:deep": "python3 tests/e2e/test_deep_integration.py",
     "e2e:router": "python3 tests/e2e/test_router_e668.py",
+    "e2e:interactions": "python3 tests/e2e/test_ui_ux_interactions.py",
     "e2e:isolated": "bash scripts/e2e-isolated.sh",
     "e2e:shots": "ls -lh /tmp/e2e-shots/final-*.png"
   },

@@ -64,15 +64,18 @@ export function SpellingInput({
   }, [disabled])
 
   const handleBoxClick = (i: number, e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     if (disabled) return
     const safe = Math.min(value.length, i)
     setCursorPos(safe)
     setIsFocused(true)
-    inputRef.current?.focus({ preventScroll: true })
-    try {
-      inputRef.current?.setSelectionRange(safe, safe)
-    } catch {}
+    if (inputRef.current) {
+      try {
+        inputRef.current.setSelectionRange(safe, safe)
+      } catch {}
+      inputRef.current.focus({ preventScroll: true })
+    }
   }
 
   return (
@@ -95,6 +98,7 @@ export function SpellingInput({
           return (
             <div
               key={i}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => handleBoxClick(i, e)}
               className={cn(
                 'relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs cursor-pointer select-none',

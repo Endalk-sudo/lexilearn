@@ -82,7 +82,7 @@ if ! curl -sf -o /dev/null "$BASE/"; then
 fi
 
 FAILED=0
-for suite in tests/e2e/test_phased.py tests/e2e/test_router_e668.py tests/e2e/test_deep_integration.py; do
+for suite in tests/e2e/test_phased.py tests/e2e/test_router_e668.py tests/e2e/test_deep_integration.py tests/e2e/test_ui_ux_interactions.py; do
   echo
   echo "═══ ${suite} ═══"
   : > "$SUITE_LOG"

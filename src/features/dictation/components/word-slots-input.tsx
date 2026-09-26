@@ -74,13 +74,13 @@ export function WordSlotsInput({
       const targetWord = typedWords[idx] ?? ''
       const targetPos = typeof pos === 'number' ? Math.min(pos, targetWord.length) : targetWord.length
       setCursorPos(targetPos)
-      setFocused(true)
-      inputRef.current?.focus({ preventScroll: true })
-      setTimeout(() => {
+      if (inputRef.current) {
         try {
-          inputRef.current?.setSelectionRange(targetPos, targetPos)
+          inputRef.current.setSelectionRange(targetPos, targetPos)
         } catch {}
-      }, 0)
+        inputRef.current.focus({ preventScroll: true })
+      }
+      setFocused(true)
     },
     [disabled, typedWords]
   )
@@ -179,6 +179,7 @@ export function WordSlotsInput({
               key={i}
               role="button"
               tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => focusSlot(Math.min(i, maxClickable))}
               aria-label={`Word slot ${i + 1}${typed ? `: ${typed}` : ''}`}
               className={cn(
