@@ -194,4 +194,5 @@ export const api = {
   repairStreak: () => postJSON<{ ok: boolean; streak: number }>('repairStreak', {}),
   claimChallenge: (key: string) => postJSON<{ ok: boolean; xpAwarded: number; alreadyClaimed?: boolean }>('claimChallenge', { key }),
   indexMentorKnowledge: () => postJSON<{ ok: boolean; indexed: number; total: number }>('mentorIndexKnowledge', {}),
+  getOllamaStatus: () => getJSON<{ available: boolean; models: string[]; error?: string }>('ollamaStatus'),
 }

@@ -80,6 +80,7 @@ type AppState = RouteState & {
   paletteOpen: boolean
   accentHue: number
   autoSpeak: boolean
+  sidebarCollapsed: boolean
   navigate: (view: ViewName, opts?: NavigateOptions) => void
   applyRoute: (route: RouteState) => void
   setLibraryTab: (tab: LibraryTab) => void
@@ -91,6 +92,8 @@ type AppState = RouteState & {
   setPaletteOpen: (open: boolean) => void
   setAccentHue: (hue: number) => void
   setAutoSpeak: (autoSpeak: boolean) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
+  toggleSidebar: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -105,6 +108,7 @@ export const useAppStore = create<AppState>((set) => ({
   paletteOpen: false,
   accentHue: 259,
   autoSpeak: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-auto-speak') === 'true' : false,
+  sidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-sidebar-collapsed') === 'true' : false,
 
   navigate: (view, opts = {}) =>
     set((s) => ({
@@ -137,6 +141,21 @@ export const useAppStore = create<AppState>((set) => ({
       window.dispatchEvent(new CustomEvent('lexilearn-settings-changed', { detail: { autoSpeak } }))
     }
     set({ autoSpeak })
+  },
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lexilearn-sidebar-collapsed', String(sidebarCollapsed))
+    }
+    set({ sidebarCollapsed })
+  },
+  toggleSidebar: () => {
+    set((s) => {
+      const next = !s.sidebarCollapsed
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lexilearn-sidebar-collapsed', String(next))
+      }
+      return { sidebarCollapsed: next }
+    })
   },
 }))
 

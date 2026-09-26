@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowRight, Check, ChevronRight, GitBranch, History, Lightbulb,
-  Loader2, Map, MessageCircle, RotateCcw, Send, Sparkles,
+  ArrowRight, Check, ChevronRight, Cpu, GitBranch, History, Lightbulb,
+  Loader2, Map, MessageCircle, RotateCcw, Send, Sparkles, Star,
   Target, Trophy, Volume2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ import { fadeUp, revealBlock, springSoft, useMotionSafe } from '@/lib/motion'
 import { buzz, playSend, playSound, typeFeelFromKey } from '@/lib/feel'
 import { isMac } from '@/features/coach/lib/keys'
 import { speak } from '@/lib/tts'
+import { api } from '@/lib/api'
 
 type Branch = { id:string; title:string; focusTag:string; mode:string; difficultyCeiling:number; locked:boolean; createdAt:string }
 type Node = { id:string; branchId:string; kind:string; prompt:string; expectedPatterns:string; hints:string; targetTags:string; difficulty:number }
@@ -48,6 +49,14 @@ export const FOCUS_OPTIONS = [
   { id:'pronunciation', label:'Pronunciation' },
   { id:'conditionals', label:'Conditionals' },
   { id:'modals', label:'Modals' },
+]
+
+export const CONFIDENCE_OPTIONS = [
+  { level: 1, label: 'Guess', emoji: '🎲' },
+  { level: 2, label: 'Shaky', emoji: '💭' },
+  { level: 3, label: 'Fairly sure', emoji: '🤔' },
+  { level: 4, label: 'Confident', emoji: '✨' },
+  { level: 5, label: 'Certain', emoji: '🎯' },
 ]
 
 const CONFIDENCE_LABELS = ['A guess', 'Shaky', 'Fairly sure', 'Confident', 'Certain']
@@ -89,12 +98,14 @@ function MasteryRing({ value }: { value:number }) {
 
 export function MentorView() {
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [ollamaStatus, setOllamaStatus] = useState<{ available: boolean; models: string[]; error?: string } | null>(null)
   const [branchId, setBranchId] = useState('')
   const [node, setNode] = useState<Node | null>(null)
   const [answer, setAnswer] = useState('')
   const [confidence, setConfidence] = useState(3)
   const [hintLevel, setHintLevel] = useState(0)
   const [hint, setHint] = useState('')
+  const [hintsList, setHintsList] = useState<{ level: number; text: string }[]>([])
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [selfCorrecting, setSelfCorrecting] = useState(false)
   const [selfCorrection, setSelfCorrection] = useState('')
@@ -121,6 +132,9 @@ export function MentorView() {
   const branch = useMemo(() => overview?.branches.find(b=>b.id===branchId) ?? overview?.branches[0], [overview, branchId])
   const thinkingLine = useThinkingStatus(submitting && !node)
 
+  const answerWords = answer.trim() ? answer.trim().split(/\s+/).length : 0
+  const answerChars = answer.length
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -129,13 +143,14 @@ export function MentorView() {
       const data = await r.json() as Overview
       setOverview(data)
       setBranchId(prev => prev || data.branches[0]?.id || '')
+      api.getOllamaStatus().then(setOllamaStatus).catch(() => setOllamaStatus({ available: false, models: [] }))
     } catch (e:any) { toast.error(e.message || 'Could not load Mentor') }
     finally { setLoading(false) }
   }, [])
 
   const nextQuestion = useCallback(async (id = branchId) => {
     if (!id) return
-    setSubmitting(true); setFeedback(null); setDiagnosis(null); setHint(''); setHintLevel(0); setAnswer(''); setSelfCorrecting(false); setSelfCorrection(''); setFollowUpAnswer(''); setFollowUpSent(false)
+    setSubmitting(true); setFeedback(null); setDiagnosis(null); setHint(''); setHintLevel(0); setHintsList([]); setAnswer(''); setSelfCorrecting(false); setSelfCorrection(''); setFollowUpAnswer(''); setFollowUpSent(false)
     try {
       const r = await fetch('/api/lexilearn?action=mentorNext', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({branchId:id}) })
       const data = await r.json()
@@ -184,9 +199,9 @@ export function MentorView() {
       const r = await fetch('/api/lexilearn?action=mentorHint', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nodeId:node.id, level}) })
       const d = await r.json(); if(!r.ok) throw new Error(d.error || 'Hint failed')
       setHintLevel(d.level); setHint(d.text)
+      setHintsList(prev => [...prev.filter(h => h.level !== d.level), { level: d.level, text: d.text }])
       playSound('xp')
     } catch(e:any){ toast.error(e.message || 'Hint failed') }
-
   }
 
   async function submit() {
@@ -309,10 +324,23 @@ export function MentorView() {
         title="Mentor"
         description="One question. One mistake. One lesson."
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            {ollamaStatus ? (
+              ollamaStatus.available ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Local AI ({ollamaStatus.models[0] || 'qwen3:8b'})
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground" title="Smart pedagogic heuristics (100% offline).">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Smart Heuristics (Offline)
+                </span>
+              )
+            ) : null}
             <Popover open={memoryOpen} onOpenChange={setMemoryOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="What the Mentor remembers" className="relative">
+                <Button variant="ghost" size="icon" aria-label="What the Mentor remembers" className="relative cursor-pointer">
                   <History className="h-4 w-4"/>
                   {overview.dueErrors.length>0 && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true"/>}
                 </Button>
@@ -323,7 +351,7 @@ export function MentorView() {
             </Popover>
             <Popover open={mapOpen} onOpenChange={setMapOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Learning map">
+                <Button variant="ghost" size="icon" aria-label="Learning map" className="cursor-pointer">
                   <Map className="h-4 w-4"/>
                 </Button>
               </PopoverTrigger>
@@ -335,22 +363,57 @@ export function MentorView() {
         }
       />
 
-      {/* Context strip: branch, focus, mastery ring. Nothing else. */}
-      <div className="surface flex items-center gap-3 rounded-lg p-3">
-        <MasteryRing value={mastery}/>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{branch.title}</div>
-          <div className="truncate text-xs text-muted-foreground">{branch.mode} · {fmtTag(branch.focusTag)} · up to level {branch.difficultyCeiling}</div>
+      {/* Redesigned Context & Branch Hub Card */}
+      <div className="surface rounded-xl border border-border/80 p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <MasteryRing value={mastery}/>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-base font-semibold">{branch.title}</span>
+                <span className="inline-flex items-center rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">
+                  {fmtTag(branch.focusTag)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                <span className="capitalize">{branch.mode} Mode</span>
+                <span>•</span>
+                <span className="font-mono text-amber-500">
+                  {'★'.repeat(branch.difficultyCeiling)}{'☆'.repeat(Math.max(0, 5 - branch.difficultyCeiling))}
+                </span>
+                <span>(Lv {branch.difficultyCeiling}/5)</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMapOpen(true)}
+              className="gap-1.5 text-xs cursor-pointer"
+            >
+              <Map className="h-3.5 w-3.5" />
+              <span>Switch</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowBranchMaker((v) => !v)}
+              className="gap-1.5 text-xs cursor-pointer"
+            >
+              <GitBranch className="h-3.5 w-3.5" />
+              <span>New</span>
+            </Button>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={()=>setShowBranchMaker(v=>!v)} className="shrink-0 gap-1.5"><GitBranch className="h-3.5 w-3.5"/>New</Button>
       </div>
 
-      {/* Welcome-back hook: one line, only when there is something to repair. */}
+      {/* Welcome-back hook: only when there is something to repair. */}
       {!feedback && !node && dueWarmup && (
         <motion.button
           onClick={()=>{ playSound('tap'); buzz('light'); setBranchId(prev=>prev) }}
           variants={v(fadeUp)} initial="hidden" animate="show"
-          className="flex w-full items-center gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3 text-left text-sm transition-colors hover:border-warning/50"
+          className="flex w-full items-center gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3 text-left text-sm transition-colors hover:border-warning/50 cursor-pointer"
         >
           <RotateCcw className="h-4 w-4 shrink-0 text-warning"/>
           <span className="min-w-0 flex-1">Last time: <span className="font-medium line-through decoration-destructive/60">{dueWarmup.wrong}</span> → <span className="font-semibold text-success">{dueWarmup.right}</span>. Warm up with that?</span>
@@ -360,7 +423,7 @@ export function MentorView() {
 
       <BranchMaker show={showBranchMaker} overview={overview} state={{ branchTitle, focusTag, branchMode, difficulty }} setters={{ setBranchTitle, setFocusTag, setBranchMode, setDifficulty }} creating={creating} onCreate={createBranch}/>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border border-border shadow-xs rounded-xl">
         <CardContent className="p-5 sm:p-7">
           {!node ? (
             <div className="space-y-4" aria-live="polite">
@@ -384,15 +447,30 @@ export function MentorView() {
               transition={t(springSoft)}
               className="space-y-5"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="label">Challenge</span>
-                  <span className="tabular-nums">· difficulty {node.difficulty}/5</span>
+              {/* Challenge Studio Header */}
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 font-semibold text-primary">
+                    <Target className="h-3.5 w-3.5" />
+                    Challenge
+                  </span>
+                  <span className="text-muted-foreground tabular-nums font-medium">Difficulty {node.difficulty}/5</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={()=>speak(node.prompt)} aria-label="Read the challenge aloud"><Volume2 className="h-4 w-4"/></Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => speak(node.prompt)}
+                  className="gap-1.5 h-8 text-xs font-medium cursor-pointer"
+                  title="Listen to challenge"
+                >
+                  <Volume2 className="h-3.5 w-3.5 text-primary" />
+                  <span>Listen</span>
+                </Button>
               </div>
 
-              <p className="text-xl font-semibold leading-relaxed text-balance">{node.prompt}</p>
+              <p className="text-xl sm:text-2xl font-semibold leading-relaxed tracking-tight text-balance text-foreground">
+                {node.prompt}
+              </p>
 
               {!feedback && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground" aria-label="Progress through this challenge">
@@ -402,7 +480,7 @@ export function MentorView() {
                       <div key={label} className="flex items-center gap-2">
                         {i > 0 && <span className="h-px w-5 bg-border" aria-hidden="true"/>}
                         <span className={cn('flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium transition-colors',
-                          i === step ? 'bg-primary-soft text-primary' : i < step ? 'text-success' : 'text-muted-foreground')}>
+                          i === step ? 'bg-primary-soft text-primary font-semibold' : i < step ? 'text-success font-semibold' : 'text-muted-foreground')}>
                           {i < step ? <Check className="h-3 w-3"/> : <span className="tabular-nums">{i+1}</span>}
                           {label}
                         </span>
@@ -412,38 +490,60 @@ export function MentorView() {
                 </div>
               )}
 
-              <AnimatePresence>{hint && !feedback && (
-                <motion.div
-                  variants={v(revealBlock)}
-                  initial="hidden"
-                  animate="show"
-                  exit="exit"
-                  className="overflow-hidden"
-                >
-                  <div className="flex gap-3 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm">
-                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning"/>
-                    <div>
-                      <div className="font-semibold">Hint {hintLevel}</div>
-                      <p className="mt-1 leading-relaxed text-muted-foreground">{hint}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}</AnimatePresence>
+              {/* Progressive hints list */}
+              <AnimatePresence>
+                {hintsList.length > 0 && !feedback && (
+                  <motion.div
+                    variants={v(revealBlock)}
+                    initial="hidden"
+                    animate="show"
+                    exit="exit"
+                    className="space-y-2 overflow-hidden"
+                  >
+                    {hintsList.map((h) => (
+                      <div key={h.level} className="flex gap-3 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5 text-sm">
+                        <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-warning-foreground text-xs uppercase tracking-wider">
+                            {h.level === 1 ? 'Hint 1 · Direction' : h.level === 2 ? 'Hint 2 · Structure' : `Hint ${h.level} · Clue`}
+                          </div>
+                          <p className="mt-1 leading-relaxed text-foreground">{h.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {!feedback ? (
                 <div className="space-y-4">
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <div className="label text-muted-foreground">{selfCorrecting ? 'Your first attempt (read only)' : 'Your answer'}</div>
+                  {/* Elevated response canvas */}
+                  <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs focus-within:border-primary-line focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b border-border/40">
+                      <span className="font-medium text-foreground">
+                        {selfCorrecting ? 'Your first attempt (read only)' : 'Your response'}
+                      </span>
+                      <span className="font-mono text-[11px]">
+                        {answerWords} {answerWords === 1 ? 'word' : 'words'} · {answerChars} chars
+                      </span>
+                    </div>
+
                     {selfCorrecting ? (
-                      <div className="mt-2 text-sm leading-relaxed">{answer}</div>
+                      <div className="mt-2.5 text-sm leading-relaxed text-foreground/90">{answer}</div>
                     ) : (
                       <Textarea
                         ref={answerRef}
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
-                        onKeyDown={typeFeelFromKey}
-                        placeholder="Write your sentence…"
-                        className="mt-2 min-h-[88px] border-0 bg-transparent p-0 text-base focus-visible:ring-0"
+                        onKeyDown={(e) => {
+                          typeFeelFromKey(e)
+                          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault()
+                            submit()
+                          }
+                        }}
+                        placeholder="Write your sentence here…"
+                        className="mt-2 min-h-[96px] border-0 bg-transparent p-0 text-base focus-visible:ring-0 resize-none"
                         aria-label="Your answer"
                       />
                     )}
@@ -451,52 +551,79 @@ export function MentorView() {
 
                   {selfCorrecting && (
                     <motion.div variants={v(revealBlock)} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-                      <div className="rounded-lg border border-primary-line bg-primary-soft p-3">
-                        <div className="label text-primary">Your turn — fix or confirm your sentence</div>
+                      <div className="rounded-xl border border-primary-line bg-primary-soft/90 p-3.5">
+                        <div className="text-xs font-semibold text-primary uppercase tracking-wider">
+                          Self-Correction — Polish or confirm before evaluation
+                        </div>
                         <Textarea
                           ref={correctionRef}
                           value={selfCorrection}
                           onChange={(e) => setSelfCorrection(e.target.value)}
-                          onKeyDown={typeFeelFromKey}
-                          placeholder="Correct yourself before the Mentor looks…"
-                          className="mt-2 min-h-[72px] border-0 bg-transparent p-0 text-base focus-visible:ring-0"
+                          onKeyDown={(e) => {
+                            typeFeelFromKey(e)
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                              e.preventDefault()
+                              submit()
+                            }
+                          }}
+                          placeholder="Correct yourself before the Mentor evaluates…"
+                          className="mt-2 min-h-[72px] border-0 bg-transparent p-0 text-base focus-visible:ring-0 resize-none"
                           aria-label="Your corrected answer"
                         />
                       </div>
                     </motion.div>
                   )}
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  {/* Confidence selector & Actions */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
                     <div className="flex items-center gap-2">
-                      <span className="label text-muted-foreground">How sure?</span>
-                      <div role="radiogroup" aria-label="Confidence" className="flex gap-1">
-                        {[1,2,3,4,5].map(n => (
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">Confidence:</span>
+                      <div role="radiogroup" aria-label="Confidence" className="flex items-center gap-1">
+                        {CONFIDENCE_OPTIONS.map((opt) => (
                           <button
-                            key={n}
+                            key={opt.level}
                             type="button"
                             role="radio"
-                            aria-checked={confidence === n}
-                            onClick={() => { setConfidence(n); playSound('tap') }}
-                            title={CONFIDENCE_LABELS[n-1]}
+                            aria-checked={confidence === opt.level}
+                            onClick={() => { setConfidence(opt.level); playSound('tap'); buzz('light') }}
+                            title={opt.label}
                             className={cn(
-                              'h-7 w-7 rounded-md text-xs font-semibold tabular-nums transition-colors',
-                              confidence === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary-soft hover:text-primary'
+                              'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all cursor-pointer',
+                              confidence === opt.level
+                                ? 'bg-primary text-primary-foreground shadow-xs ring-1 ring-primary/40'
+                                : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
                             )}
                           >
-                            {n}
+                            <span>{opt.emoji}</span>
+                            <span className="hidden sm:inline text-[11px]">{opt.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex items-center gap-2 justify-end">
                       {!selfCorrecting && (
-                        <Button variant="ghost" onClick={requestHint} disabled={hintLevel >= 4} className="gap-2">
-                          <Lightbulb className="h-4 w-4"/>Hint <kbd className="text-xs opacity-60">H</kbd>
+                        <Button
+                          variant="ghost"
+                          onClick={requestHint}
+                          disabled={hintLevel >= 4}
+                          className="gap-1.5 text-xs cursor-pointer"
+                        >
+                          <Lightbulb className="h-3.5 w-3.5 text-warning" />
+                          <span>Hint</span>
+                          <kbd className="rounded border border-border/80 bg-muted/60 px-1 py-0.2 font-mono text-[10px]">H</kbd>
                         </Button>
                       )}
-                      <Button onClick={submit} disabled={submitting || !answer.trim() || (selfCorrecting && !selfCorrection.trim())} className="gap-2">
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
-                        {selfCorrecting ? 'Send for diagnosis' : 'Submit'} <kbd className="text-xs opacity-70">{prettyKbd()}</kbd>
+                      <Button
+                        onClick={submit}
+                        disabled={submitting || !answer.trim() || (selfCorrecting && !selfCorrection.trim())}
+                        className="gap-2 text-xs font-semibold cursor-pointer"
+                      >
+                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        <span>{selfCorrecting ? 'Evaluate' : 'Submit'}</span>
+                        <kbd className="rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1 py-0.2 font-mono text-[10px] text-primary-foreground">
+                          {prettyKbd()}
+                        </kbd>
                       </Button>
                     </div>
                   </div>
@@ -617,101 +744,167 @@ function FeedbackView({
 }) {
   const scores = Object.values(feedback.scores)
   const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*100) : 0
-  return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="label text-muted-foreground">Learning score</div>
-          <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{avg}%</div>
-        </div>
-        <Button onClick={onNext} className="gap-2">Next challenge<ArrowRight className="h-4 w-4"/></Button>
-      </div>
+  const scoreTone = avg >= 85 ? 'text-success bg-success-soft border-success/30' : avg >= 65 ? 'text-primary bg-primary-soft border-primary-line' : 'text-warning bg-warning-soft border-warning/30'
+  const ratingLabel = avg >= 90 ? 'Mastery Level · Fluent' : avg >= 75 ? 'Strong Command' : avg >= 50 ? 'Good Effort · Polish Needed' : 'Review & Practice'
 
-      <div className="space-y-3">
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">You</div>
-          <div className="min-w-0 flex-1 rounded-lg rounded-tl-sm border bg-muted/20 p-3 text-sm leading-relaxed">{answer}</div>
-        </div>
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Sparkles className="h-3 w-3"/></div>
-          <div className="min-w-0 flex-1 space-y-3 rounded-lg rounded-tl-sm border border-primary-line bg-primary-soft p-3.5 text-sm">
-            {feedback.native_version && (
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1 leading-relaxed">{feedback.native_version}</div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={()=>onSpeak(feedback.native_version)} aria-label="Read the native version aloud"><Volume2 className="h-3.5 w-3.5"/></Button>
-              </div>
-            )}
-            <p className="leading-relaxed text-muted-foreground">{feedback.explanation}</p>
-            {feedback.corrections.length>0 && (
-              <div className="space-y-1.5">
-                {feedback.corrections.map((c,i)=>(
-                  <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-md bg-destructive-soft px-1.5 py-0.5 line-through">{c.wrong}</span>
-                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground"/>
-                    <span className="rounded-md bg-success-soft px-1.5 py-0.5 font-semibold text-success">{c.right}</span>
-                    <span className="text-muted-foreground">{c.type.replaceAll('_',' ')}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+  return (
+    <div className="space-y-5">
+      {/* Hero Score Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border text-xl font-bold tabular-nums shadow-xs', scoreTone)}>
+            {avg}%
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Evaluation Result</div>
+            <div className="text-base font-semibold text-foreground">{ratingLabel}</div>
           </div>
         </div>
+        <Button onClick={onNext} className="gap-2 cursor-pointer shrink-0">
+          <span>Next challenge</span>
+          <kbd className="rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1 py-0.2 font-mono text-[10px] text-primary-foreground">R</kbd>
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Side-by-side or stacked attempts */}
+      <div className="space-y-3">
+        {/* Your Attempt */}
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Your attempt</div>
+          <div className="text-sm leading-relaxed text-foreground font-medium">{answer}</div>
+        </div>
+
+        {/* Native Polish */}
+        {feedback.native_version && (
+          <div className="rounded-xl border border-primary-line bg-primary-soft/80 p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Native Polish</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onSpeak(feedback.native_version)}
+                className="h-7 gap-1 px-2 text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer"
+                title="Read aloud"
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+                <span>Listen</span>
+              </Button>
+            </div>
+            <p className="text-base font-semibold leading-relaxed text-foreground">{feedback.native_version}</p>
+            {feedback.explanation && (
+              <p className="text-xs leading-relaxed text-muted-foreground pt-1.5 border-t border-primary/10">{feedback.explanation}</p>
+            )}
+          </div>
+        )}
+
+        {/* Granular correction diffs */}
+        {feedback.corrections.length > 0 && (
+          <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Corrections</div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {feedback.corrections.map((c, i) => (
+                <div key={i} className="inline-flex items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-xs">
+                  <span className="line-through text-destructive decoration-destructive/60 font-medium">{c.wrong}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="font-semibold text-success">{c.right}</span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">{c.type.replaceAll('_', ' ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Diagnosis / Root cause */}
         {diagnosis?.root_cause && (
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">?</div>
-            <div className="min-w-0 flex-1 rounded-lg rounded-tl-sm border border-dashed bg-background/60 p-3 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-semibold text-foreground">Why this keeps happening: </span>{diagnosis.root_cause}
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-relaxed">
+            <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div>
+              <span className="font-semibold text-amber-900 dark:text-amber-200">Why this keeps happening: </span>
+              <span className="text-amber-800 dark:text-amber-300">{diagnosis.root_cause}</span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <Metric label="Grammar" value={feedback.scores.grammar}/>
-        <Metric label="Natural" value={feedback.scores.naturalness}/>
-        <Metric label="Task" value={feedback.scores.task_completion}/>
+      {/* Multi-metric skill radar */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <Metric label="Grammar" value={feedback.scores.grammar ?? 0.8} />
+        <Metric label="Naturalness" value={feedback.scores.naturalness ?? 0.8} />
+        <Metric label="Task Completion" value={feedback.scores.task_completion ?? 0.8} />
       </div>
 
+      {/* Follow-up retrieval reinforcement */}
       {feedback.follow_up && (
-        <div className="rounded-lg border border-dashed p-3.5">
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            <MessageCircle className="h-3.5 w-3.5 text-primary"/>
-            Your turn
-            {!followUpSent && <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60"/><span className="relative inline-flex h-2 w-2 rounded-full bg-primary"/></span>}
+        <div className="rounded-xl border border-dashed border-primary/40 bg-card p-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <MessageCircle className="h-3.5 w-3.5 text-primary" />
+            <span>Reinforcement Drill</span>
+            {!followUpSent && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+            )}
           </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">{feedback.follow_up}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{feedback.follow_up}</p>
           {!followUpSent ? (
             <div className="mt-2.5 flex gap-2">
               <Input
                 value={followUpAnswer}
-                onChange={e=>setFollowUpAnswer(e.target.value)}
-                onKeyDown={(e)=>{ typeFeelFromKey(e); if(e.key==='Enter'){ e.preventDefault(); onSendFollowUp() } }}
+                onChange={(e) => setFollowUpAnswer(e.target.value)}
+                onKeyDown={(e) => {
+                  typeFeelFromKey(e)
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    onSendFollowUp()
+                  }
+                }}
                 placeholder="Answer in one sentence…"
                 className="h-9 text-sm"
                 aria-label="Your answer to the follow-up question"
               />
-              <Button size="sm" onClick={onSendFollowUp} disabled={!followUpAnswer.trim()} className="shrink-0 gap-1.5"><Send className="h-3.5 w-3.5"/>Send</Button>
+              <Button size="sm" onClick={onSendFollowUp} disabled={!followUpAnswer.trim()} className="shrink-0 gap-1.5 cursor-pointer">
+                <Send className="h-3.5 w-3.5" />
+                <span>Send</span>
+              </Button>
             </div>
           ) : (
-            <div className="mt-2.5 flex items-center gap-2 rounded-md bg-success-soft p-2.5 text-sm text-success"><Check className="h-4 w-4 shrink-0"/>Done — that retrieval is what makes it stick.</div>
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-success-soft p-2.5 text-sm text-success font-medium">
+              <Check className="h-4 w-4 shrink-0" />
+              <span>Reinforcement registered! Active recall cements long-term mastery.</span>
+            </div>
           )}
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          value={explainMore}
-          onChange={e=>setExplainMore(e.target.value)}
-          onKeyDown={(e)=>{ typeFeelFromKey(e); if(e.key==='Enter'){ e.preventDefault(); onExplain() } }}
-          placeholder="Ask the Mentor to go deeper…"
-          className="h-9 text-sm"
-          aria-label="Ask a follow-up question"
-        />
-        <Button variant="outline" size="sm" onClick={onExplain} disabled={explainLoading || !explainMore.trim()} className="shrink-0 gap-1.5">
-          {explainLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <MessageCircle className="h-3.5 w-3.5"/>}Ask
-        </Button>
+      {/* Deep Q&A with Mentor */}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <Input
+            value={explainMore}
+            onChange={(e) => setExplainMore(e.target.value)}
+            onKeyDown={(e) => {
+              typeFeelFromKey(e)
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onExplain()
+              }
+            }}
+            placeholder="Ask the Mentor to explain further…"
+            className="h-9 text-sm"
+            aria-label="Ask a follow-up question"
+          />
+          <Button variant="outline" size="sm" onClick={onExplain} disabled={explainLoading || !explainMore.trim()} className="shrink-0 gap-1.5 cursor-pointer">
+            {explainLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+            <span>Ask</span>
+          </Button>
+        </div>
+        {explainLoading && <p className="text-xs text-muted-foreground">The Mentor is analyzing your question…</p>}
       </div>
-      {explainLoading && <p className="text-xs text-muted-foreground">The Mentor is thinking about your question…</p>}
     </div>
   )
 }

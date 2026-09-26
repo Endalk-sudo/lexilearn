@@ -295,14 +295,100 @@ with sync_playwright() as p:
             rec("7b-autospeak", "auto-speak restored OFF", s_final.get("autoSpeak") is False, f"autoSpeak={s_final.get('autoSpeak')}")
 
     # =========================================================================
-    # 8. Mobile Viewport Overflow Check
+    # 9. Collapsible Sidebar & Keyboard Shortcuts
+    # =========================================================================
+    nav(pg, "#/today", 1500)
+    sb = pg.locator("[data-testid='app-sidebar']")
+    rec("9-sidebar", "sidebar rendered", sb.count() > 0, f"count={sb.count()}")
+    if sb.count() > 0:
+        is_collapsed = sb.get_attribute("data-collapsed") == "true"
+        rec("9-sidebar", "sidebar initially expanded", not is_collapsed, f"collapsed={is_collapsed}")
+
+        # Click collapse button
+        collapse_btn = sb.locator("button[aria-label='Collapse sidebar']")
+        rec("9-sidebar", "collapse button present", collapse_btn.count() > 0, f"count={collapse_btn.count()}")
+        if collapse_btn.count() > 0:
+            collapse_btn.first.click()
+            pg.wait_for_timeout(600)
+            rec("9-sidebar", "sidebar collapsed to rail", sb.get_attribute("data-collapsed") == "true", "rail mode active")
+
+            # Check search icon in rail
+            rail_search = sb.locator("button[aria-label='Search words']")
+            rec("9-sidebar", "search button in rail mode", rail_search.count() > 0, f"rail_search count={rail_search.count()}")
+
+            # Press '[' hotkey to expand
+            pg.keyboard.press("[")
+            pg.wait_for_timeout(600)
+            rec("9-sidebar", "sidebar expanded via '[' key", sb.get_attribute("data-collapsed") == "false", "expanded via hotkey")
+
+            # Press '[' hotkey to collapse again
+            pg.keyboard.press("[")
+            pg.wait_for_timeout(600)
+            rec("9-sidebar", "sidebar collapsed via '[' key", sb.get_attribute("data-collapsed") == "true", "collapsed via hotkey")
+
+            # Expand from LaptopTopNav
+            top_expand_btn = pg.locator("header button[aria-label='Expand sidebar']")
+            rec("9-sidebar", "top nav expand button visible", top_expand_btn.count() > 0, f"count={top_expand_btn.count()}")
+            if top_expand_btn.count() > 0:
+                top_expand_btn.first.click()
+                pg.wait_for_timeout(600)
+                rec("9-sidebar", "sidebar expanded via top nav", sb.get_attribute("data-collapsed") == "false", "expanded via top nav")
+
+    # =========================================================================
+    # 10. AI Mentor UI/UX & Challenge Studio
+    # =========================================================================
+    nav(pg, "#/coach", 2000)
+    coach_text = pg.locator("main").inner_text()
+    rec("10-mentor", "coach view loaded", "Mentor" in coach_text or "Coach" in coach_text, coach_text[:80])
+
+    # Check AI Model / Heuristic presence pill
+    ai_status = pg.locator("text=Local AI").or_(pg.locator("text=Smart Heuristics"))
+    rec("10-mentor", "AI engine status pill rendered", ai_status.count() > 0, f"status count={ai_status.count()}")
+
+    # Check Branch Hub card
+    branch_hub = pg.locator("text=Mode").or_(pg.locator("text=★"))
+    rec("10-mentor", "branch hub with difficulty stars", branch_hub.count() > 0, f"branch count={branch_hub.count()}")
+
+    # Check Challenge Studio prompt and Listen button
+    listen_btn = pg.locator("main button").filter(has_text=re.compile("listen", re.I))
+    rec("10-mentor", "challenge listen button present", listen_btn.count() > 0, f"listen_btn count={listen_btn.count()}")
+
+    # Check Confidence selector pills
+    conf_radios = pg.locator("[role='radiogroup'][aria-label='Confidence'] button")
+    rec("10-mentor", "5-point tactile confidence meter", conf_radios.count() == 5, f"buttons={conf_radios.count()}")
+    if conf_radios.count() == 5:
+        # Click confidence option 4
+        conf_radios.nth(3).click()
+        pg.wait_for_timeout(300)
+        rec("10-mentor", "confidence option 4 selected", conf_radios.nth(3).get_attribute("aria-checked") == "true", "confidence 4 checked")
+
+    # Check hint request
+    hint_btn = pg.locator("main button").filter(has_text=re.compile("hint", re.I))
+    if hint_btn.count() > 0:
+        hint_btn.first.click()
+        pg.wait_for_timeout(1000)
+        hints_rendered = pg.locator("text=Hint 1")
+        rec("10-mentor", "progressive hint opened", hints_rendered.count() > 0, f"hints count={hints_rendered.count()}")
+
+    # Check response textarea
+    textarea = pg.locator("main textarea[aria-label='Your answer']")
+    rec("10-mentor", "response textarea rendered", textarea.count() > 0, f"textarea count={textarea.count()}")
+    if textarea.count() > 0:
+        textarea.fill("I went to the store.")
+        pg.wait_for_timeout(400)
+        # Check word counter
+        counter = pg.locator("text=5 words")
+        rec("10-mentor", "word counter updates", counter.count() > 0, f"counter count={counter.count()}")
+
+    # =========================================================================
+    # 11. Mobile Viewport Overflow Check
     # =========================================================================
     mob = ctx.new_page()
     mob.set_viewport_size({"width": 390, "height": 844})
     mob.goto(f"{BASE}/#/today", wait_until="domcontentloaded", timeout=15000)
     mob.wait_for_timeout(1200)
     over = mob.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-    rec("8-mobile", "today no horizontal overflow", over <= 1, f"overflow={over}px")
+    rec("11-mobile", "today no horizontal overflow", over <= 1, f"overflow={over}px")
     mob.close()
 
     # Hygiene

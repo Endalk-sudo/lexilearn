@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, BrainCircuit, ChevronRight, Compass,
-  Ear, Flame, GraduationCap, HelpCircle, Search,
+  Ear, Flame, GraduationCap, HelpCircle, PanelLeftClose, PanelLeftOpen, Search,
   Sparkles, Volume2, VolumeX,
 } from 'lucide-react'
 import { useAppStore, VIEW_TITLES, type ViewName } from '@/lib/store'
@@ -15,6 +15,8 @@ export function LaptopTopNav() {
   const view = useAppStore((s) => s.view)
   const navigate = useAppStore((s) => s.navigate)
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [soundOn, setSoundOn] = useState(true)
 
@@ -68,16 +70,27 @@ export function LaptopTopNav() {
 
   return (
     <header className="sticky top-0 z-20 hidden md:flex h-14 w-full items-center justify-between border-b border-border/70 bg-background/85 px-6 backdrop-blur-xl transition-[border-color,background-color] duration-200">
-      {/* Breadcrumb Hierarchy */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
+      {/* Sidebar toggle & Breadcrumb Hierarchy */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => navigate('today')}
-          className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground cursor-pointer font-medium"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Expand sidebar ([)' : 'Collapse sidebar ([)'}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
         >
-          <Compass className="h-3.5 w-3.5 text-primary" />
-          <span>Home</span>
+          {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
+        <div className="h-4 w-px bg-border/60" />
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            onClick={() => navigate('today')}
+            className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground cursor-pointer font-medium"
+          >
+            <Compass className="h-3.5 w-3.5 text-primary" />
+            <span>Home</span>
+          </button>
 
         {view !== 'today' ? (
           <>
@@ -107,6 +120,7 @@ export function LaptopTopNav() {
           </>
         ) : null}
       </nav>
+      </div>
 
       {/* Quick Mode Switcher & Tools */}
       <div className="flex items-center gap-2">
