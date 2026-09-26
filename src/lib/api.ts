@@ -144,6 +144,7 @@ export type Settings = {
   ttsRate: number
   dailyGoal: number
   theme: string
+  autoSpeak: boolean
 }
 
 export type DeckSummary = {

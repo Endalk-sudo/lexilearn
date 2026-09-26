@@ -445,6 +445,7 @@ function SettingsPanel() {
     try {
       await api.updateSettings(settings)
       setSaved(settings)
+      useAppStore.getState().setAutoSpeak(settings.autoSpeak)
       playSound('correct')
       toast.success('Preferences saved')
     } catch {
@@ -524,6 +525,41 @@ function SettingsPanel() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Auto-pronounce words toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
+            <div className="space-y-0.5 pr-4">
+              <div className="flex items-center gap-2">
+                <Volume2 className="h-4 w-4 text-primary" />
+                <Label htmlFor="auto-speak" className="text-sm font-semibold cursor-pointer">
+                  Auto-pronounce words
+                </Label>
+                <Badge
+                  variant={settings.autoSpeak ? 'default' : 'secondary'}
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.2 font-semibold',
+                    settings.autoSpeak ? 'bg-primary/20 text-primary border-primary/30' : 'text-muted-foreground'
+                  )}
+                >
+                  {settings.autoSpeak ? 'ON' : 'OFF'}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Automatically read words aloud whenever they appear in Learn, Review, or Dictionary.
+              </p>
+            </div>
+            <Switch
+              id="auto-speak"
+              data-testid="setting-auto-speak"
+              checked={!!settings.autoSpeak}
+              onCheckedChange={(checked) => {
+                setSettings({ ...settings, autoSpeak: checked })
+                setSaved((prev) => (prev ? { ...prev, autoSpeak: checked } : prev))
+                useAppStore.getState().setAutoSpeak(checked)
+                void api.updateSettings({ autoSpeak: checked }).catch(() => {})
+              }}
+            />
           </div>
 
           <Button

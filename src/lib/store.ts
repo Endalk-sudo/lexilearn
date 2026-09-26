@@ -79,6 +79,7 @@ type AppState = RouteState & {
   searchQuery: string
   paletteOpen: boolean
   accentHue: number
+  autoSpeak: boolean
   navigate: (view: ViewName, opts?: NavigateOptions) => void
   applyRoute: (route: RouteState) => void
   setLibraryTab: (tab: LibraryTab) => void
@@ -89,6 +90,7 @@ type AppState = RouteState & {
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
   setAccentHue: (hue: number) => void
+  setAutoSpeak: (autoSpeak: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -102,6 +104,7 @@ export const useAppStore = create<AppState>((set) => ({
   searchQuery: '',
   paletteOpen: false,
   accentHue: 259,
+  autoSpeak: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-auto-speak') === 'true' : false,
 
   navigate: (view, opts = {}) =>
     set((s) => ({
@@ -127,6 +130,13 @@ export const useAppStore = create<AppState>((set) => ({
       document.documentElement.style.setProperty('--accent-hue', String(accentHue))
     }
     set({ accentHue })
+  },
+  setAutoSpeak: (autoSpeak) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lexilearn-auto-speak', String(autoSpeak))
+      window.dispatchEvent(new CustomEvent('lexilearn-settings-changed', { detail: { autoSpeak } }))
+    }
+    set({ autoSpeak })
   },
 }))
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Languages, Lightbulb, Star, Volume2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -10,6 +10,7 @@ import { speak } from '@/lib/tts'
 import { toast } from 'sonner'
 import { playSound } from '@/lib/feel'
 import type { WordDTO } from '@/lib/api'
+import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { revealBlock, transition, useMotionSafe } from '@/lib/motion'
 
@@ -54,13 +55,17 @@ export function WordCardV2({
   ttsRate,
   showDefinition = true,
   hideWord = false,
+  autoSpeak: propAutoSpeak,
 }: {
   word: WordDTO
   ttsVoice?: string
   ttsRate?: number
   showDefinition?: boolean
   hideWord?: boolean
+  autoSpeak?: boolean
 }) {
+  const storeAutoSpeak = useAppStore((s) => s.autoSpeak)
+  const autoSpeak = propAutoSpeak ?? storeAutoSpeak
   const [tab, setTab] = useState<Tab>('meaning')
   const [details, setDetails] = useState(false)
   const [hint, setHint] = useState(false)
@@ -68,10 +73,24 @@ export function WordCardV2({
   const [speaking, setSpeaking] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
   const { v, t } = useMotionSafe()
+  const lastSpokenIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     setBookmarked(isWordBookmarked(word.word))
   }, [word.word])
+
+  // Auto-pronounce word when WordCardV2 opens/updates if autoSpeak is active
+  useEffect(() => {
+    if (!autoSpeak || hideWord) return
+    if (lastSpokenIdRef.current === word.id) return
+    lastSpokenIdRef.current = word.id
+    const id = window.setTimeout(() => {
+      setSpeaking(true)
+      setTimeout(() => setSpeaking(false), 1400)
+      speak(word.word, { voice: ttsVoice, rate: ttsRate })
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [autoSpeak, hideWord, word.id, word.word, ttsVoice, ttsRate])
 
   const hear = () => {
     playSound('tap')

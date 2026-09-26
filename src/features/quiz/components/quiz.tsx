@@ -136,9 +136,11 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const [streakAfter, setStreakAfter] = useState(0)
   const [newAfter, setNewAfter] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
+  const autoSpeak = useAppStore((s) => s.autoSpeak)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const finishedRef = useRef(false)
+  const lastSpokenQuestionIdRef = useRef<string | null>(null)
   /**
    * Session totals live in a ref as well as state: the speed-round timer and the
    * deferred auto-advance fire outside the render that produced them, so reading
@@ -170,6 +172,19 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   }, [count, requestMode])
 
   const current = questions[idx]
+
+  // Auto-pronounce target word for word-focused quiz modes if autoSpeak is enabled
+  useEffect(() => {
+    if (!autoSpeak || !current || finished || loading) return
+    if (mode !== 'mc' && mode !== 'speed_round') return
+    if (!current.promptWord) return
+    if (lastSpokenQuestionIdRef.current === current.id) return
+    lastSpokenQuestionIdRef.current = current.id
+    const id = window.setTimeout(() => {
+      speak(current.promptWord!.word, { voice: ttsVoice, rate: ttsRate })
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [autoSpeak, current, finished, loading, mode, ttsVoice, ttsRate])
 
   const finish = useCallback(
     async (total: number, correct: number, xp: number) => {

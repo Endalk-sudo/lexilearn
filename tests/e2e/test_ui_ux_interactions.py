@@ -256,6 +256,45 @@ with sync_playwright() as p:
     rec("7-sound", "m hotkey toggles sound without error", True, "toggled twice cleanly")
 
     # =========================================================================
+    # 7b. Auto-Pronounce / Auto-Speak Setting Toggle
+    # =========================================================================
+    nav(pg, "#/progress/settings", 1500)
+    sw = pg.locator("main [data-testid='setting-auto-speak'], main #auto-speak")
+    rec("7b-autospeak", "auto-speak switch rendered", sw.count() > 0, f"switch count={sw.count()}")
+    if sw.count() > 0:
+        # Toggle ON
+        sw.first.click()
+        pg.wait_for_timeout(800)
+        save_btn = pg.locator("main button").filter(has_text=re.compile("save", re.I))
+        if save_btn.count() > 0 and save_btn.first.is_visible():
+            save_btn.first.click()
+            pg.wait_for_timeout(1000)
+
+        # Verify persistence via API
+        s_after = pg.evaluate("fetch('/api/lexilearn?action=settings').then(r=>r.json())")
+        rec("7b-autospeak", "auto-speak persisted ON", s_after.get("autoSpeak") is True, f"autoSpeak={s_after.get('autoSpeak')}")
+
+        # Navigate to Review and Learn with autoSpeak active to verify smooth execution
+        nav(pg, "#/review", 1200)
+        rec("7b-autospeak", "review loads with auto-speak active", "REVIEW" in pg.locator("main").inner_text().upper(), "review rendered")
+
+        nav(pg, "#/learn", 1200)
+        rec("7b-autospeak", "learn loads with auto-speak active", "LEARN" in pg.locator("main").inner_text().upper() or "Recall" in pg.locator("main").inner_text(), "learn rendered")
+
+        # Toggle back OFF to leave clean environment
+        nav(pg, "#/progress/settings", 1500)
+        sw2 = pg.locator("main [data-testid='setting-auto-speak'], main #auto-speak")
+        if sw2.count() > 0:
+            sw2.first.click()
+            pg.wait_for_timeout(800)
+            save_btn2 = pg.locator("main button").filter(has_text=re.compile("save", re.I))
+            if save_btn2.count() > 0 and save_btn2.first.is_visible():
+                save_btn2.first.click()
+                pg.wait_for_timeout(1000)
+            s_final = pg.evaluate("fetch('/api/lexilearn?action=settings').then(r=>r.json())")
+            rec("7b-autospeak", "auto-speak restored OFF", s_final.get("autoSpeak") is False, f"autoSpeak={s_final.get('autoSpeak')}")
+
+    # =========================================================================
     # 8. Mobile Viewport Overflow Check
     # =========================================================================
     mob = ctx.new_page()

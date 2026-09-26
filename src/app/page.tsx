@@ -16,6 +16,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { useAppStore, VIEW_TITLES } from '@/lib/store'
 import { useRouteSync } from '@/lib/router'
 import { fadeUp, useMotionSafe } from '@/lib/motion'
+import { api } from '@/lib/api'
 
 function ViewContainer({ view }: { view: string }) {
   const dictationDeckId = useAppStore((s) => s.dictationDeckId)
@@ -56,6 +57,14 @@ export default function Home() {
   useEffect(() => {
     document.title = `${VIEW_TITLES[view]} · LexiLearn`
   }, [view])
+
+  useEffect(() => {
+    api.getSettings().then((s) => {
+      if (s && typeof s.autoSpeak === 'boolean') {
+        useAppStore.getState().setAutoSpeak(s.autoSpeak)
+      }
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="relative flex min-h-dvh">

@@ -50,9 +50,11 @@ export function LearnView() {
   const [streak, setStreak] = useState(0)
   const [dueAfter, setDueAfter] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
+  const autoSpeak = useAppStore((s) => s.autoSpeak)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const primaryRef = useRef<HTMLButtonElement>(null)
+  const lastSpokenWordIdRef = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -99,6 +101,17 @@ export function LearnView() {
   }, [load])
 
   const current = cards[idx]
+
+  // Auto-pronounce word when card opens if autoSpeak is enabled
+  useEffect(() => {
+    if (!autoSpeak || !current || stage !== 'recall' || loading) return
+    if (lastSpokenWordIdRef.current === current.word.id) return
+    lastSpokenWordIdRef.current = current.word.id
+    const id = window.setTimeout(() => {
+      speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [autoSpeak, current, stage, loading, ttsVoice, ttsRate])
 
   const reveal = useCallback(() => {
     if (!current) return

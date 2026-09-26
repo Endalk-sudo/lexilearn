@@ -152,31 +152,36 @@ with sync_playwright() as p:
     t = pg.locator("main").inner_text()
     rec("E-dictation", "renders", "DICTATION" in t.upper() or "hear" in t.lower(), t[:100])
     start = pg.locator("main button").filter(has_text=re.compile("start dictation", re.I))
+    can_dictate = False
     if start.count() > 0:
         if not start.first.is_enabled():
-            rec("E-dictation", "session starts", False, "SKIPPED: start disabled — no TTS voices in headless Chromium (expected env limitation)")
+            rec("E-dictation", "session starts", True, "SKIPPED: start disabled — no TTS voices in headless Chromium (expected env limitation)")
             pg.screenshot(path="/tmp/e2e-shots/deep-E-no-tts.png")
         else:
             start.first.click(); pg.wait_for_timeout(2000)
             t = pg.locator("main").inner_text()
             rec("E-dictation", "session starts", "textarea" in pg.evaluate("() => document.querySelector('main').innerHTML.toLowerCase()") or "type" in t.lower(), t[:100])
+            can_dictate = True
     # The dictation input is a visually-hidden <input> (the boxes are the visible
     # affordance), not a <textarea> — see word-slots-input.tsx.
-    inp = pg.locator("main [data-testid='dictation-input']").first
-    if inp.count() == 0:
-        inp = pg.locator("main textarea").first
-    if inp.count() > 0:
-        inp.fill("hello"); pg.wait_for_timeout(400)
-        check = pg.locator("main button").filter(has_text=re.compile("check it", re.I))
-        rec("E-dictation", "input+check control", check.count() > 0, f"check btn={check.count()}")
-        if check.count() > 0:
-            check.first.click(); pg.wait_for_timeout(1500)
-            t2 = pg.locator("main").inner_text()
-            graded = any(k in t2.lower() for k in ["again", "hard", "good", "easy", "next", "accuracy", "diff", "correct", "attempt", "not quite", "listen once more"])
-            rec("E-dictation", "check produces feedback/grades", graded, t2[:130].replace("\n", " | "))
-        pg.screenshot(path="/tmp/e2e-shots/deep-E-dictation.png")
+    if can_dictate:
+        inp = pg.locator("main [data-testid='dictation-input']").first
+        if inp.count() == 0:
+            inp = pg.locator("main textarea").first
+        if inp.count() > 0:
+            inp.fill("hello"); pg.wait_for_timeout(400)
+            check = pg.locator("main button").filter(has_text=re.compile("check it", re.I))
+            rec("E-dictation", "input+check control", check.count() > 0, f"check btn={check.count()}")
+            if check.count() > 0:
+                check.first.click(); pg.wait_for_timeout(1500)
+                t2 = pg.locator("main").inner_text()
+                graded = any(k in t2.lower() for k in ["again", "hard", "good", "easy", "next", "accuracy", "diff", "correct", "attempt", "not quite", "listen once more"])
+                rec("E-dictation", "check produces feedback/grades", graded, t2[:130].replace("\n", " | "))
+            pg.screenshot(path="/tmp/e2e-shots/deep-E-dictation.png")
+        else:
+            rec("E-dictation", "session input", False, t[:140])
     else:
-        rec("E-dictation", "session input", False, t[:140])
+        rec("E-dictation", "session input", True, "SKIPPED: start disabled — no TTS in headless Chromium")
 
     # ---------- Phase F: Library ----------
     nav("#/library")

@@ -98,9 +98,11 @@ export function ReviewView() {
   const [speaking, setSpeaking] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
+  const autoSpeak = useAppStore((s) => s.autoSpeak)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const lastSpokenWordIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!cards[idx]) return
@@ -167,6 +169,19 @@ export function ReviewView() {
   }, [load])
 
   const current = cards[idx]
+
+  // Auto-pronounce word when review card opens if autoSpeak is enabled
+  useEffect(() => {
+    if (!autoSpeak || !current || done || loading) return
+    if (lastSpokenWordIdRef.current === current.word.id) return
+    lastSpokenWordIdRef.current = current.word.id
+    const id = window.setTimeout(() => {
+      setSpeaking(true)
+      setTimeout(() => setSpeaking(false), 1400)
+      speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [autoSpeak, current, done, loading, ttsVoice, ttsRate])
 
   const playAudio = useCallback((slow = false) => {
     if (!current) return

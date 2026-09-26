@@ -405,6 +405,7 @@ export async function GET(req: NextRequest) {
           ttsRate: parseFloat(await getStat('ttsRate', '1')) || 1,
           dailyGoal: parseInt(await getStat('dailyGoal', '20'), 10) || 20,
           theme: await getStat('theme', 'system'),
+          autoSpeak: (await getStat('autoSpeak', 'false')) === 'true',
         })
       }
 
@@ -508,6 +509,7 @@ const SettingsPatch = z.object({
   ttsRate: z.number().min(0.5).max(2).optional(),
   dailyGoal: z.number().int().min(1).max(50).optional(),
   theme: z.enum(['light', 'dark', 'system']).optional(),
+  autoSpeak: z.boolean().optional(),
 })
 
 // Bulk-import shapes. `words` is capped so one request cannot pin the local
@@ -788,6 +790,7 @@ export async function POST(req: NextRequest) {
         if (patch.ttsRate !== undefined) await setStat('ttsRate', String(patch.ttsRate))
         if (patch.dailyGoal !== undefined) await setStat('dailyGoal', String(patch.dailyGoal))
         if (patch.theme !== undefined) await setStat('theme', patch.theme)
+        if (patch.autoSpeak !== undefined) await setStat('autoSpeak', String(patch.autoSpeak))
         return NextResponse.json({ ok: true })
       }
 
