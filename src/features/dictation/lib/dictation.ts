@@ -21,6 +21,12 @@ export interface DictationItem {
   ipa: string | null
   /** Shown after checking — the word's first definition. */
   meaning: string
+  /** Amharic translation for meaning bridge. */
+  amharic: string | null
+  /** POS tag from the word entry when available. */
+  pos: string | null
+  /** Optional example sentence for stage-2 after word drill. */
+  exampleSentence: string | null
 }
 
 /**
@@ -234,6 +240,19 @@ export function buildItems(
   const items: DictationItem[] = []
 
   const firstMeaning = (word: WordDTO) => word.definitions[0]?.text.trim() || word.word
+  const exampleFor = (word: WordDTO) => pickSentence(word.examples)
+
+  const toItem = (word: WordDTO, kind: DictationKind, text: string): DictationItem => ({
+    kind,
+    text,
+    wordId: word.id,
+    word: word.word,
+    ipa: word.ipa ?? null,
+    meaning: firstMeaning(word),
+    amharic: word.amharic?.trim() || null,
+    pos: word.pos ?? word.definitions[0]?.pos ?? null,
+    exampleSentence: exampleFor(word),
+  })
 
   const pull = (count: number, textFor: (word: WordDTO) => string | null, kind: DictationKind): void => {
     for (let k = 0; k < count; k++) {
@@ -241,14 +260,7 @@ export function buildItems(
       if (index === -1) return
       const [word] = remaining.splice(index, 1)
       const text = textFor(word) as string
-      items.push({
-        kind,
-        text,
-        wordId: word.id,
-        word: word.word,
-        ipa: word.ipa ?? null,
-        meaning: firstMeaning(word),
-      })
+      items.push(toItem(word, kind, text))
     }
   }
 
@@ -264,14 +276,7 @@ export function buildItems(
     const index = remaining.findIndex((word) => wordText(word) !== null)
     if (index === -1) break
     const [word] = remaining.splice(index, 1)
-    items.push({
-      kind: 'word',
-      text: word.word.trim(),
-      wordId: word.id,
-      word: word.word,
-      ipa: word.ipa ?? null,
-      meaning: firstMeaning(word),
-    })
+    items.push(toItem(word, 'word', word.word.trim()))
   }
 
   return { items, requestedTotal }

@@ -449,8 +449,13 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                 <Badge variant="soft">{modeMeta?.title}</Badge>
               </h1>
               {mode === 'speed_round' ? (
-                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground num">
-                  <Flame className="h-3.5 w-3.5 text-streak" aria-hidden="true" />
+                <span className={cn(
+                  'flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold num border transition-all',
+                  combo >= 3
+                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 combo-fire shadow-xs'
+                    : 'border-border bg-card text-muted-foreground'
+                )}>
+                  <Flame className={cn('h-3.5 w-3.5', combo >= 3 ? 'fill-amber-500 text-amber-500 animate-pulse' : 'text-streak')} aria-hidden="true" />
                   {combo}× combo
                 </span>
               ) : (
@@ -468,7 +473,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="mt-3"
+                    className="mt-3 cursor-pointer shadow-xs"
                     onClick={() => {
                       if (!speak(current.audioWord ?? '', { voice: ttsVoice, rate: ttsRate })) {
                         toast.error('Pronunciation is unavailable in this browser.')
@@ -535,12 +540,12 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                       )}
                     >
                       <span className={cn(
-                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-bold transition-colors',
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-bold transition-colors shadow-2xs',
                         graded !== null && isRight ? 'bg-success text-success-foreground border-success' :
                         graded !== null && isPicked && !isRight ? 'bg-destructive text-destructive-foreground border-destructive' :
                         'border-border bg-muted text-foreground'
                       )} aria-hidden="true">
-                        {String.fromCharCode(65 + i)}
+                        {i + 1}
                       </span>
                       <span className="min-w-0 flex-1 whitespace-normal font-medium leading-relaxed">{option}</span>
                       {graded !== null && isRight ? <Check className="h-5 w-5 shrink-0 text-success" aria-hidden="true" /> : null}
@@ -599,6 +604,37 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
           <MiniStat icon={Trophy} value={xpEarned} label="XP" />
         </div>
       ) : null}
+
+      {/* Laptop Keyboard HUD Bar */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
+        <div className="flex items-center gap-3.5 flex-wrap">
+          {mode === 'typing' || mode === 'spelling_bee' ? (
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                Enter
+              </kbd>
+              <span>Submit answer</span>
+            </span>
+          ) : mode === 'match' ? (
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                Click / Drag
+              </kbd>
+              <span>Pair word with definition</span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                1–4 / A–D
+              </kbd>
+              <span>Pick answer</span>
+            </span>
+          )}
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {modeMeta?.title}
+        </span>
+      </div>
     </div>
   )
 }

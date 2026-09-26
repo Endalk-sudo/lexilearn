@@ -165,7 +165,6 @@ export type DeckDetail = {
 
 // ---------- API surface ----------
 export const api = {
-  getDueCards: (limit = 20) => getJSON<CardWithWord[]>('due', { limit }),
   getNewCards: (deckId: string | null, limit = 10) => getJSON<CardWithWord[]>('new', { deckId, limit }),
   getReviewableCards: (deckId: string | null, limit = 50) => getJSON<CardWithWord[]>('reviewable', { deckId, limit }),
   submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' = 'review') =>
@@ -193,4 +192,5 @@ export const api = {
   searchWords: (query: string) => getJSON<WordDTO[]>('search', { query }),
   repairStreak: () => postJSON<{ ok: boolean; streak: number }>('repairStreak', {}),
   claimChallenge: (key: string) => postJSON<{ ok: boolean; xpAwarded: number; alreadyClaimed?: boolean }>('claimChallenge', { key }),
+  indexMentorKnowledge: () => postJSON<{ ok: boolean; indexed: number; total: number }>('mentorIndexKnowledge', {}),
 }

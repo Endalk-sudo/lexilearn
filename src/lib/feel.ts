@@ -6,9 +6,9 @@ const SOUND_KEY = 'lexilearn-sound-enabled'
 const HAPTIC_KEY = 'lexilearn-haptics-enabled'
 
 export function isSoundEnabled() {
-  if (typeof window === 'undefined') return false
-  // Opt-in: silent until the learner turns sound on in Settings (F-701).
-  return localStorage.getItem(SOUND_KEY) === 'on'
+  if (typeof window === 'undefined') return true
+  // Default on for rich tactile feedback; can be muted anytime (F-701).
+  return localStorage.getItem(SOUND_KEY) !== 'off'
 }
 
 export function setSoundEnabled(on: boolean) {
@@ -16,9 +16,16 @@ export function setSoundEnabled(on: boolean) {
   window.dispatchEvent(new CustomEvent('lexilearn-feel'))
 }
 
+export function toggleSound(): boolean {
+  const current = isSoundEnabled()
+  const next = !current
+  setSoundEnabled(next)
+  if (next) playSound('tap')
+  return next
+}
+
 export function isHapticsEnabled() {
   if (typeof window === 'undefined') return false
-  // Opt-in: no buzzing until the learner turns haptics on in Settings (F-701).
   return localStorage.getItem(HAPTIC_KEY) === 'on'
 }
 
@@ -47,7 +54,7 @@ function tone(freq: number, dur = 0.08, type: OscillatorType = 'sine', gain = 0.
   } catch { /* audio unavailable */ }
 }
 
-export function playSound(kind: 'tap' | 'correct' | 'wrong' | 'levelup' | 'xp' = 'tap') {
+export function playSound(kind: 'tap' | 'correct' | 'wrong' | 'levelup' | 'xp' | 'flip' | 'combo' = 'tap') {
   if (!isSoundEnabled()) return
   if (typeof window === 'undefined') return
   switch (kind) {
@@ -55,6 +62,8 @@ export function playSound(kind: 'tap' | 'correct' | 'wrong' | 'levelup' | 'xp' =
     case 'wrong': tone(220, 0.14, 'sawtooth', 0.03); break
     case 'levelup': tone(523, 0.1, 'triangle', 0.07); tone(659, 0.1, 'triangle', 0.07, 0.1); tone(784, 0.16, 'triangle', 0.07, 0.2); break
     case 'xp': tone(980, 0.07, 'sine', 0.045); break
+    case 'flip': tone(440, 0.05, 'sine', 0.03); tone(587, 0.06, 'sine', 0.02, 0.03); break
+    case 'combo': tone(587, 0.08, 'triangle', 0.05); tone(740, 0.08, 'triangle', 0.05, 0.06); tone(880, 0.12, 'triangle', 0.06, 0.12); break
     default: tone(520, 0.05, 'sine', 0.03); break
   }
 }

@@ -384,6 +384,24 @@ function DictionaryPanel() {
     return () => window.clearTimeout(id)
   }, [trimmed])
 
+  const activeWord = selected ?? results[0] ?? null
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (results.length === 0) return
+    const currentIdx = activeWord ? results.findIndex((w) => w.id === activeWord.id) : 0
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIdx = Math.min(results.length - 1, currentIdx + 1)
+      setSelected(results[nextIdx])
+      playSound('tap')
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIdx = Math.max(0, currentIdx - 1)
+      setSelected(results[prevIdx])
+      playSound('tap')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -394,23 +412,16 @@ function DictionaryPanel() {
             setSearchQuery(e.target.value)
             setSelected(null)
           }}
-          placeholder="Search your dictionary…"
+          onKeyDown={handleKeyDown}
+          placeholder="Search your dictionary… (↑/↓ to navigate)"
           aria-label="Search your dictionary"
           autoComplete="off"
           spellCheck={false}
-          className="h-11 pl-9"
+          className="h-11 pl-9 shadow-2xs"
         />
       </div>
 
-      {selected ? (
-        <div className="space-y-3">
-          <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to results
-          </Button>
-          <WordCardV2 word={selected} />
-        </div>
-      ) : pending ? (
+      {pending ? (
         <div className="space-y-2" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
@@ -433,49 +444,116 @@ function DictionaryPanel() {
           onAction={() => navigate('library', { libraryTab: 'decks' })}
         />
       ) : (
-        <ul className="space-y-2">
-          {results.map((word) => (
-            <li key={word.id} className="surface flex items-center gap-1 p-2 transition-colors duration-150 hover:border-primary-line">
-              {/* Row button and Hear button are siblings — a button inside a
-                  button is invalid and unreachable for keyboard users (W8). */}
-              <button
-                type="button"
-                onClick={() => {
-                  playSound('tap')
-                  setSelected(word)
-                }}
-                className="min-w-0 flex-1 rounded-md px-1.5 py-1.5 text-left"
-              >
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold">{word.word}</span>
-                    {word.pos ? <span className="text-xs italic text-muted-foreground">{word.pos}</span> : null}
-                    {word.cefr ? (
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {word.cefr}
-                      </Badge>
-                    ) : null}
-                  </span>
-                  {word.definitions[0] ? (
-                    <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-                      {word.definitions[0].text}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={`Hear ${word.word}`}
-                onClick={() => {
-                  if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
-                }}
-              >
-                <Volume2 className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Laptop Widescreen Split-Pane Layout */}
+          <div className="hidden lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+            <div className="lg:col-span-5 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+              {results.map((word) => {
+                const isSelected = activeWord?.id === word.id
+                return (
+                  <div
+                    key={word.id}
+                    className={cn(
+                      'surface flex items-center gap-1 p-2 transition-all duration-150 cursor-pointer',
+                      isSelected ? 'border-primary ring-1 ring-primary/40 bg-primary-soft/40 shadow-xs' : 'hover:border-primary-line'
+                    )}
+                    onClick={() => {
+                      playSound('tap')
+                      setSelected(word)
+                    }}
+                  >
+                    <div className="min-w-0 flex-1 px-1.5 py-1 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold">{word.word}</span>
+                        {word.pos ? <span className="text-xs italic text-muted-foreground">{word.pos}</span> : null}
+                        {word.cefr ? (
+                          <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                            {word.cefr}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {word.definitions[0] ? (
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {word.definitions[0].text}
+                        </span>
+                      ) : null}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Hear ${word.word}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+                      }}
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="lg:col-span-7 sticky top-6">
+              {activeWord ? <WordCardV2 word={activeWord} /> : null}
+            </div>
+          </div>
+
+          {/* Mobile / Narrow Screen Drill-down View */}
+          <div className="lg:hidden space-y-3">
+            {selected ? (
+              <div className="space-y-3">
+                <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to results
+                </Button>
+                <WordCardV2 word={selected} />
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {results.map((word) => (
+                  <li key={word.id} className="surface flex items-center gap-1 p-2 transition-colors duration-150 hover:border-primary-line">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSound('tap')
+                        setSelected(word)
+                      }}
+                      className="min-w-0 flex-1 rounded-md px-1.5 py-1.5 text-left"
+                    >
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-sm font-semibold">{word.word}</span>
+                          {word.pos ? <span className="text-xs italic text-muted-foreground">{word.pos}</span> : null}
+                          {word.cefr ? (
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {word.cefr}
+                            </Badge>
+                          ) : null}
+                        </span>
+                        {word.definitions[0] ? (
+                          <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                            {word.definitions[0].text}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Hear ${word.word}`}
+                      onClick={() => {
+                        if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+                      }}
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

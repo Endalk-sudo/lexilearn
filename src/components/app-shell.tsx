@@ -3,13 +3,14 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
   BookOpen, BrainCircuit, ChevronRight, Compass, Flame,
-  GraduationCap, Search, Sparkles, TrendingUp, WifiOff,
+  GraduationCap, Search, Sparkles, TrendingUp, Volume2, VolumeX, WifiOff,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SearchPalette } from '@/components/search-palette'
-import { useAppStore, type ViewName } from '@/lib/store'
+import { ACCENT_THEMES, syncAccentHue, useAppStore, type ViewName } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
+import { isSoundEnabled, playSound, toggleSound } from '@/lib/feel'
 import { useMotionSafe } from '@/lib/motion'
 import { useCountUp } from '@/hooks/use-count-up'
 
@@ -97,15 +98,55 @@ export function AppSidebar() {
   const { reduce } = useMotionSafe()
 
   useEffect(() => {
+    let gPressed = false
+    let gTimer: number | null = null
+
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+        return
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPaletteOpen(true)
+        return
+      }
+
+      if (e.key === 'm' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        toggleSound()
+        return
+      }
+
+      if (e.key === 'g' && !e.metaKey && !e.ctrlKey) {
+        gPressed = true
+        if (gTimer) window.clearTimeout(gTimer)
+        gTimer = window.setTimeout(() => { gPressed = false }, 1000)
+        return
+      }
+
+      if (gPressed) {
+        gPressed = false
+        if (gTimer) window.clearTimeout(gTimer)
+        switch (e.key.toLowerCase()) {
+          case 't': navigate('today'); break
+          case 'r': navigate('review'); break
+          case 'l': navigate('learn'); break
+          case 'q': navigate('quiz'); break
+          case 'b': navigate('library'); break
+          case 'p': navigate('progress'); break
+          case 'c': navigate('coach'); break
+        }
       }
     }
+
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [setPaletteOpen])
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      if (gTimer) window.clearTimeout(gTimer)
+    }
+  }, [navigate, setPaletteOpen])
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-sidebar/70 backdrop-blur-xl md:flex">
@@ -197,16 +238,93 @@ export function AppSidebar() {
         <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
           <span className="flex items-center gap-1.5 text-xs font-medium">
             <Flame className="h-3.5 w-3.5 text-streak" aria-hidden="true" />
-            <span className="num">{streakValue}-day</span> streak
+            <span className="num">{streakValue}-day</span> streak
           </span>
           <OnlineDot />
         </div>
+
+        {/* Quick Sound & Accent Theme bar */}
+        <div className="flex items-center justify-between gap-1.5 rounded-lg border border-border bg-card/60 p-1.5">
+          <SoundButton />
+          <div className="h-4 w-px bg-border mx-0.5" />
+          <AccentThemePicker />
+        </div>
       </div>
 
-      <div className="border-t border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-        Everything stays on this device.
+      <div className="border-t border-border px-4 py-2.5 flex items-center justify-between text-[11px] leading-relaxed text-muted-foreground">
+        <span>Local · Private</span>
+        <kbd className="rounded border border-border bg-muted/60 px-1 py-0.5 font-mono text-[10px]">
+          ⌘K
+        </kbd>
       </div>
     </aside>
+  )
+}
+
+function SoundButton() {
+  const [soundOn, setSoundOn] = useState(true)
+
+  useEffect(() => {
+    setSoundOn(isSoundEnabled())
+    const sync = () => setSoundOn(isSoundEnabled())
+    window.addEventListener('lexilearn-feel', sync)
+    return () => window.removeEventListener('lexilearn-feel', sync)
+  }, [])
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const next = toggleSound()
+        setSoundOn(next)
+      }}
+      title={soundOn ? 'Sound effects on (click to mute)' : 'Sound effects muted (click to unmute)'}
+      aria-label={soundOn ? 'Mute sound' : 'Enable sound'}
+      className={cn(
+        'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors cursor-pointer',
+        soundOn
+          ? 'text-primary bg-primary-soft hover:bg-primary-soft/80'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      )}
+    >
+      {soundOn ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+      <span className="text-[11px]">{soundOn ? 'Sound on' : 'Muted'}</span>
+    </button>
+  )
+}
+
+function AccentThemePicker() {
+  const accentHue = useAppStore((s) => s.accentHue)
+  const setAccentHue = useAppStore((s) => s.setAccentHue)
+
+  useEffect(() => {
+    syncAccentHue()
+  }, [])
+
+  return (
+    <div className="flex items-center gap-1 px-1" role="radiogroup" aria-label="Theme accent color">
+      {ACCENT_THEMES.map((theme) => {
+        const active = accentHue === theme.hue
+        return (
+          <button
+            key={theme.name}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={`${theme.name} theme`}
+            onClick={() => {
+              playSound('tap')
+              setAccentHue(theme.hue)
+            }}
+            className={cn(
+              'h-4 w-4 rounded-full transition-transform cursor-pointer',
+              active ? 'scale-125 ring-2 ring-foreground/20 ring-offset-1 ring-offset-card' : 'hover:scale-110 opacity-70 hover:opacity-100'
+            )}
+            style={{ backgroundColor: theme.color }}
+          />
+        )
+      })}
+    </div>
   )
 }
 

@@ -378,6 +378,7 @@ export function LearnView() {
                   autoFocus
                   onSubmit={submitSpelling}
                   placeholder="Type the word you hear…"
+                  size="xl"
                 />
               </div>
               {attempts > 0 ? (
@@ -416,15 +417,38 @@ export function LearnView() {
                     : `The correct spelling is “${current.word.word}”. It will come back sooner so you get another go.`}
                 </p>
               </div>
-              <Button ref={primaryRef} onClick={() => void next()} data-testid="learn-next" className="mt-5 w-full">
+              <Button ref={primaryRef} onClick={() => void next()} data-testid="learn-next" className="mt-5 w-full cursor-pointer shadow-sm">
                 {idx + 1 >= cards.length ? 'Finish session' : 'Next word'}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-              <p className="mt-3 text-center text-xs text-muted-foreground">Enter to continue</p>
+              <p className="mt-3 text-center text-xs text-muted-foreground">Press Enter or Space to continue</p>
             </motion.div>
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {/* Laptop Keyboard HUD Bar */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
+        <div className="flex items-center gap-3.5 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              Space / Enter
+            </kbd>
+            <span>{stage === 'recall' ? 'Reveal & Hear' : stage === 'spell' ? 'Check' : 'Next Word'}</span>
+          </span>
+          {stage === 'spell' ? (
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                Type
+              </kbd>
+              <span>Letters into slots</span>
+            </span>
+          ) : null}
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Step {stage === 'recall' ? '1: Recall' : stage === 'spell' ? '2: Spell' : '3: Result'}
+        </span>
+      </div>
     </div>
   )
 }

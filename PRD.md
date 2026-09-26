@@ -124,7 +124,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-501 | TTS rate adjustment (0.5× – 2.0×) | P0 |
 | F-502 | Daily goal adjustment | P0 |
 | F-503 | Theme selection (Light / Dark / System) | P0 |
-| F-504 | Reset all progress (SRS cards, logs, XP, streaks, settings; preserves word decks) | P1 |
+| F-504 | Reset all progress (SRS cards, logs, XP, streaks, settings, AI Mentor history; preserves word decks and the mentor knowledge index) | P1 |
 | F-505 | TTS diagnostics panel | P2 |
 
 ### 3.8 AI Mentor (local, optional)
@@ -209,9 +209,9 @@ bodies are validated with zod before touching the database; failures come back
 flat as `{ "error": string }` with a 4xx/5xx status.
 
 ```
-GET  /api/lexilearn?action=due|new|reviewable|decks|deck|dashboard|analytics
+GET  /api/lexilearn?action=new|reviewable|decks|deck|dashboard|analytics
         |settings|quiz|search|ollamaStatus
-        |mentorOverview|mentorBranch|mentorNodeNext|mentorIndexKnowledge
+        |mentorOverview|mentorBranch|mentorNodeNext
         |mentorDueErrors|mentorProfile|mentorWeeklyReport
         |mentorPronunciationHistory|mentorNaturalnessHistory
 
@@ -221,7 +221,17 @@ POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord
         |mentor|mentorExplain|mentorProject|mentorBranch|mentorNext
         |mentorWeeklyReport|mentorPronunciation|mentorNaturalness
         |mentorAttempt|mentorHint|mentorSelfCorrect|mentorFork
+        |mentorIndexKnowledge
 ```
+
+Every POST body is validated with zod before it reaches the database, and
+every mutation is rejected unless it is same-origin (`src/server/csrf.ts`).
+Without that check any page in the browser could POST to the local API — a
+`text/plain` body is a CORS simple request, so `action=reset` was reachable
+from an arbitrary site. Non-browser clients (curl, scripts) send no
+`Origin`/`Sec-Fetch-Site` and are allowed through, so local tooling and the
+e2e suites keep working. Bulk imports are capped at 1000 words and written in
+a single transaction.
 
 ### 5.4 SM-2 Algorithm
 

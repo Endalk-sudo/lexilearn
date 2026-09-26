@@ -3,14 +3,15 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { deck, word, srsCard, reviewLog, quizSession, appStat, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
-import { eq, gte, lte, and, isNull, asc, desc, like } from 'drizzle-orm'
+import { deck, word, srsCard, reviewLog, quizSession, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
+import { eq, gte, lte, and, isNull, asc, desc, sql } from 'drizzle-orm'
 import { calculateSm2, GRADE_XP, type Grade } from '@/lib/srs'
 import { dayKey } from '@/lib/date'
 import { createId } from '@/db/id'
 import { z } from 'zod'
 import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion } from '@/lib/api'
 import { getStat, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
+import { assertSameOrigin } from '@/server/csrf'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
 // ---------- Helpers ----------
@@ -50,39 +51,48 @@ function toSrsDto(c: typeof srsCard.$inferSelect): SrsCardDTO {
   }
 }
 
-async function updateStreakAndXp(grade: Grade) {
+function updateStreakAndXp(grade: Grade) {
   const today = dayKey(new Date())
-  const lastSession = await getStat('lastSessionDate', '')
-  let streak = parseInt(await getStat('streak', '0'), 10) || 0
-  let longest = parseInt(await getStat('longestStreak', '0'), 10) || 0
-
-  if (lastSession !== today) {
-    if (lastSession) {
-      const last = new Date(lastSession + 'T00:00:00')
-      const now = new Date(today + 'T00:00:00')
-      const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000)
-      if (diff === 1) streak += 1
-      else if (diff > 1) streak = 1
-    } else {
-      streak = 1
+  // Read-modify-write on AppStat, done synchronously inside one transaction.
+  // better-sqlite3 is synchronous, so an `await` between the read and the write
+  // yielded to the microtask queue and let two concurrent reviews read the same
+  // totalXp — one increment then vanished. No awaits inside the callback, so
+  // the whole read-modify-write commits atomically.
+  db.transaction((tx) => {
+    const get = (key: string, fallback = '') =>
+      tx.select().from(appStat).where(eq(appStat.key, key)).get()?.value ?? fallback
+    const set = (key: string, value: string) => {
+      tx.insert(appStat).values({ key, value })
+        .onConflictDoUpdate({ target: appStat.key, set: { value } }).run()
     }
-    await setStat('lastSessionDate', today)
-    await setStat('streak', String(streak))
-    if (streak > longest) {
-      longest = streak
-      await setStat('longestStreak', String(longest))
+
+    const lastSession = get('lastSessionDate', '')
+    let streak = parseInt(get('streak', '0'), 10) || 0
+    let longest = parseInt(get('longestStreak', '0'), 10) || 0
+
+    if (lastSession !== today) {
+      if (lastSession) {
+        const last = new Date(lastSession + 'T00:00:00')
+        const now = new Date(today + 'T00:00:00')
+        const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000)
+        if (diff === 1) streak += 1
+        else if (diff > 1) streak = 1
+      } else {
+        streak = 1
+      }
+      set('lastSessionDate', today)
+      set('streak', String(streak))
+      if (streak > longest) {
+        longest = streak
+        set('longestStreak', String(longest))
+      }
     }
-  }
 
-  // Single source of truth for XP: the same GRADE_XP table every view displays (W1).
-  const xpDelta = GRADE_XP[grade]
-  const totalXp = (parseInt(await getStat('totalXp', '0'), 10) || 0) + xpDelta
-  await setStat('totalXp', String(totalXp))
-
-  const totalRev = (parseInt(await getStat('totalReviews', '0'), 10) || 0) + 1
-  const totalCorrect = (parseInt(await getStat('totalCorrect', '0'), 10) || 0) + (grade >= 3 ? 1 : 0)
-  await setStat('totalReviews', String(totalRev))
-  await setStat('totalCorrect', String(totalCorrect))
+    // Single source of truth for XP: the same GRADE_XP table every view displays (W1).
+    set('totalXp', String((parseInt(get('totalXp', '0'), 10) || 0) + GRADE_XP[grade]))
+    set('totalReviews', String((parseInt(get('totalReviews', '0'), 10) || 0) + 1))
+    set('totalCorrect', String((parseInt(get('totalCorrect', '0'), 10) || 0) + (grade >= 3 ? 1 : 0)))
+  })
 }
 
 async function submitReview(wordId: string, grade: Grade, mode: string = 'review') {
@@ -147,42 +157,99 @@ async function submitReview(wordId: string, grade: Grade, mode: string = 'review
     isCorrect: grade >= 3,
   })
 
-  await updateStreakAndXp(grade)
+  updateStreakAndXp(grade)
 }
 
-async function createCustomDeck(name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; amharic?: string }[]) {
-  const deckId = createId()
-  await db.insert(deck).values({ id: deckId, name, description, isCustom: true })
+/** Cap on a single bulk import. Without it, `addWords` accepts an arbitrarily
+ *  large array and each row was its own implicit transaction, so a single
+ *  request could pin the local server for seconds and bloat the WAL. */
+const MAX_BULK_WORDS = 1000
 
-  for (const w of words) {
-    if (!w.word || !w.word.trim()) continue
-    await db.insert(word).values({
-      id: createId(),
-      word: w.word.trim().toLowerCase(),
-      pos: w.pos ?? null,
-      ipa: w.ipa ?? null,
-      definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
-      examples: w.example ? JSON.stringify([w.example]) : null,
-      syllables: null,
-      cefr: null,
-      synonyms: null,
-      antonyms: null,
-      etymology: null,
-      amharic: w.amharic ?? null,
-      deckId: deckId,
-    })
+type BulkWord = {
+  word: string; pos?: string; ipa?: string; definition?: string
+  example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string
+}
+
+/** Map one loose word payload to an insert row. `synonyms`/`ant antonyms` are
+ *  pipe- or comma-separated in the UI, so they are split and cleaned here. */
+function toWordRow(w: BulkWord, deckId: string, separator: '|' | ',') {
+  const splitList = (s?: string) =>
+    s ? JSON.stringify(s.split(separator).map((x) => x.trim()).filter(Boolean)) : null
+  return {
+    id: createId(),
+    word: w.word.trim().toLowerCase(),
+    pos: w.pos ?? null,
+    ipa: w.ipa ?? null,
+    definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
+    examples: w.example ? JSON.stringify([w.example]) : null,
+    syllables: null,
+    cefr: w.cefr ?? null,
+    synonyms: splitList(w.synonyms),
+    antonyms: splitList(w.antonyms),
+    etymology: null,
+    amharic: w.amharic ?? null,
+    deckId,
   }
-  return { id: deckId, count: words.length }
+}
+
+async function createCustomDeck(name: string, description: string, words: BulkWord[]) {
+  const deckId = createId()
+  const rows = words
+    .filter((w) => w.word && w.word.trim())
+    .map((w) => toWordRow(w, deckId, '|'))
+
+  // One transaction for the deck and all of its words: a failure part-way
+  // through used to leave an empty deck behind with no way to tell.
+  db.transaction((tx) => {
+    tx.insert(deck).values({ id: deckId, name, description, isCustom: true }).run()
+    if (rows.length) tx.insert(word).values(rows).run()
+  })
+
+  return { id: deckId, count: rows.length }
 }
 
 function pickRandom<T>(arr: T[], n: number): T[] {
+  // Fisher-Yates rather than repeated splice: pickOptions shuffles the whole
+  // distractor pool, and splice-per-element is O(n^2) — fine for a 78-word
+  // deck, painful once someone imports a few thousand words.
   const copy = [...arr]
-  const out: T[] = []
-  while (copy.length && out.length < n) {
-    const idx = Math.floor(Math.random() * copy.length)
-    out.push(copy.splice(idx, 1)[0])
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
   }
-  return out
+  return copy.slice(0, Math.max(0, Math.min(n, copy.length)))
+}
+
+/** Words that carry a usable definition — the only ones a definition-based
+ *  question can be built from. A word added via CSV import with no definition
+ *  used to become a question whose correct answer was the empty string, with
+ *  `''` sitting in the option list (F-200/F-207). */
+type QuizWord = { dto: WordDTO; firstDef: string }
+
+function buildWordPool(rows: (typeof word.$inferSelect)[]): { all: QuizWord[]; withDef: QuizWord[] } {
+  const all = rows.map((r) => {
+    const dto = parseWord(r)
+    return { dto, firstDef: dto.definitions[0]?.text?.trim() ?? '' }
+  })
+  return { all, withDef: all.filter((x) => x.firstDef.length > 0) }
+}
+
+/**
+ * Pick `n` distinct options that all differ from the correct answer.
+ * Deduplication is essential: two words can legitimately share a definition,
+ * and offering it twice makes the question unanswerable in a different way —
+ * the learner can pick the "wrong" option that is in fact also correct.
+ */
+function pickOptions(correct: string, pool: string[], n: number): string[] | null {
+  const seen = new Set([correct])
+  const distractors: string[] = []
+  for (const candidate of pickRandom(pool, pool.length)) {
+    if (seen.has(candidate)) continue
+    seen.add(candidate)
+    distractors.push(candidate)
+    if (distractors.length === n - 1) break
+  }
+  return distractors.length === n - 1 ? [correct, ...distractors] : null
 }
 
 async function generateQuiz(deckId: string | null, mode: QuizMode, count: number) {
@@ -190,50 +257,55 @@ async function generateQuiz(deckId: string | null, mode: QuizMode, count: number
   const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
   if (words.length < 4) return []
 
-  const sample = pickRandom(words, Math.min(count, words.length))
+  // `typing` and `spelling_bee` are graded on the word itself, so they can use
+  // every word. The three multiple-choice modes need a definition on both sides.
+  const definitionBased = mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round'
+  const deckPool = buildWordPool(words)
+  const sample = pickRandom(definitionBased ? deckPool.withDef : deckPool.all, Math.min(count, words.length))
+  if (sample.length === 0) return []
+
+  // A deck can be too small to yield 4 unique options on its own. Widen the
+  // distractor pool to the whole dictionary before giving up on a question,
+  // so a 5-word custom deck still produces a real multiple-choice question.
+  let globalDefPool: string[] = []
+  let globalWordPool: string[] = []
+  if (definitionBased) {
+    const allWordRows = deckId
+      ? await db.select().from(word)
+      : words
+    const global = buildWordPool(allWordRows as (typeof word.$inferSelect)[])
+    globalDefPool = [...new Set(global.withDef.map((x) => x.firstDef))]
+    globalWordPool = [...new Set(global.all.map((x) => x.dto.word))]
+  }
+
   const questions: QuizQuestion[] = []
 
-  for (const w of sample) {
-    const wordDto = parseWord(w)
-    const firstDef = wordDto.definitions[0]?.text ?? ''
-    const allWords = words.map((x) => x.word)
-
-    if (mode === 'mc') {
-      const distractors = pickRandom(
-        words.filter((x) => x.id !== w.id).map((x) => parseWord(x).definitions[0]?.text ?? '').filter(Boolean),
-        3
-      )
-      const options = pickRandom([firstDef, ...distractors], 4)
+  for (const { dto: wordDto, firstDef } of sample) {
+    if (mode === 'mc' || mode === 'speed_round') {
+      const own = [...new Set(deckPool.withDef.filter((x) => x.dto.id !== wordDto.id).map((x) => x.firstDef))]
+      const options = pickOptions(firstDef, [...own, ...globalDefPool], 4)
+      if (!options) continue
       questions.push({
-        id: createId(), mode, prompt: `What does "${w.word}" mean?`,
+        id: createId(), mode, prompt: `What does "${wordDto.word}" mean?`,
         promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
       })
     } else if (mode === 'reverse_mc') {
-      const distractors = pickRandom(allWords.filter((x) => x !== w.word), 3)
-      const options = pickRandom([w.word, ...distractors], 4)
+      const own = [...new Set(deckPool.all.filter((x) => x.dto.word !== wordDto.word).map((x) => x.dto.word))]
+      const options = pickOptions(wordDto.word, [...own, ...globalWordPool], 4)
+      if (!options) continue
       questions.push({
         id: createId(), mode, prompt: `Which word means: "${firstDef}"?`,
-        definition: firstDef, options, correctAnswer: w.word, wordDTO: wordDto,
+        definition: firstDef, options, correctAnswer: wordDto.word, wordDTO: wordDto,
       })
     } else if (mode === 'typing') {
       questions.push({
         id: createId(), mode, prompt: `Type the word that means: "${firstDef}"`,
-        definition: firstDef, correctAnswer: w.word.toLowerCase(), wordDTO: wordDto,
+        definition: firstDef, correctAnswer: wordDto.word.toLowerCase(), wordDTO: wordDto,
       })
     } else if (mode === 'spelling_bee') {
       questions.push({
         id: createId(), mode, prompt: 'Listen and type the word you hear.',
-        audioWord: w.word, promptWord: wordDto, correctAnswer: w.word.toLowerCase(), wordDTO: wordDto,
-      })
-    } else if (mode === 'speed_round') {
-      const distractors = pickRandom(
-        words.filter((x) => x.id !== w.id).map((x) => parseWord(x).definitions[0]?.text ?? '').filter(Boolean),
-        3
-      )
-      const options = pickRandom([firstDef, ...distractors], 4)
-      questions.push({
-        id: createId(), mode, prompt: `What does "${w.word}" mean?`,
-        promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
+        audioWord: wordDto.word, promptWord: wordDto, correctAnswer: wordDto.word.toLowerCase(), wordDTO: wordDto,
       })
     }
   }
@@ -256,6 +328,8 @@ export async function GET(req: NextRequest) {
   try {
     switch (action) {
       case 'due': {
+        // Kept as part of the public API surface: the e2e suite smoke-tests it
+        // directly, and it is the deck-agnostic variant of `reviewable`.
         const now = new Date()
         const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
           .innerJoin(word, eq(srsCard.wordId, word.id))
@@ -363,17 +437,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(node)
       }
 
-      case 'mentorIndexKnowledge': {
-        await ensureMentorSeed()
-        const { ollamaEmbed } = await import('@/features/coach/server/ollama')
-        const chunks = await db.select().from(mentorKnowledge).where(isNull(mentorKnowledge.embedding))
-        let indexed = 0
-        for (const c of chunks) {
-          try { const [vec] = await ollamaEmbed(`${c.title}. ${c.content}`); if (vec?.length) { await db.update(mentorKnowledge).set({ embedding: JSON.stringify(vec) }).where(eq(mentorKnowledge.id, c.id)); indexed++ } } catch {}
-        }
-        return NextResponse.json({ ok:true, indexed, total:chunks.length })
-      }
-
       case 'mentorDueErrors': {
         const errors = await db.select().from(mentorErrorCard).where(lte(mentorErrorCard.dueAt, new Date())).orderBy(asc(mentorErrorCard.dueAt)).limit(30)
         return NextResponse.json(errors)
@@ -408,8 +471,11 @@ export async function GET(req: NextRequest) {
 
       case 'search': {
         if (!query.trim()) return NextResponse.json([])
+        // instr() instead of LIKE: a literal "%" or "_" typed into the search
+        // box is a LIKE wildcard, so searching for one used to return 20
+        // arbitrary words. instr() has no wildcard semantics to escape.
         const words = await db.select().from(word)
-          .where(like(word.word, `%${query.toLowerCase()}%`))
+          .where(sql`instr(lower(${word.word}), lower(${query.trim().toLowerCase()})) > 0`)
           .limit(20)
         return NextResponse.json(words.map(parseWord))
       }
@@ -444,10 +510,130 @@ const SettingsPatch = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
 })
 
+// Bulk-import shapes. `words` is capped so one request cannot pin the local
+// server (see MAX_BULK_WORDS); every field is length-bounded so a stray
+// megabyte in a textarea cannot reach the database.
+const BulkWordSchema = z.object({
+  word: z.string().min(1).max(200),
+  pos: z.string().max(50).optional(),
+  ipa: z.string().max(200).optional(),
+  definition: z.string().max(2000).optional(),
+  example: z.string().max(2000).optional(),
+  cefr: z.string().max(10).optional(),
+  synonyms: z.string().max(2000).optional(),
+  antonyms: z.string().max(2000).optional(),
+  amharic: z.string().max(500).optional(),
+})
+
+const CreateDeckBody = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  words: z.array(BulkWordSchema).max(MAX_BULK_WORDS),
+})
+
+const AddWordsBody = z.object({
+  deckId: z.string().min(1),
+  words: z.array(BulkWordSchema).min(1).max(MAX_BULK_WORDS),
+})
+
+const AddWordBody = z.object({
+  deckId: z.string().min(1),
+  word: z.string().min(1).max(200),
+  pos: z.string().max(50).optional(),
+  ipa: z.string().max(200).optional(),
+  definition: z.string().max(2000).optional(),
+  example: z.string().max(2000).optional(),
+  cefr: z.string().max(10).optional(),
+  synonyms: z.string().max(2000).optional(),
+  antonyms: z.string().max(2000).optional(),
+  amharic: z.string().max(500).optional(),
+})
+
+const UpdateWordBody = z.object({
+  wordId: z.string().min(1),
+  pos: z.string().max(50).nullable().optional(),
+  ipa: z.string().max(200).nullable().optional(),
+  definition: z.string().max(2000).optional(),
+  example: z.string().max(2000).optional(),
+  cefr: z.string().max(10).nullable().optional(),
+  synonyms: z.string().max(2000).optional(),
+  antonyms: z.string().max(2000).optional(),
+  amharic: z.string().max(500).nullable().optional(),
+})
+
+const IdBody = z.object({ wordId: z.string().min(1) })
+const DeckIdBody = z.object({ deckId: z.string().min(1) })
+
+const ClaimChallengeBody = z.object({
+  key: z.enum(['sprint', 'recall', 'streak']),
+})
+
+const MentorProjectBody = z.object({
+  name: z.string().min(1).max(200),
+  goal: z.string().max(2000).optional(),
+})
+
+const MentorBranchBody = z.object({
+  projectId: z.string().min(1),
+  title: z.string().min(1).max(300),
+  focusTag: z.string().min(1).max(100),
+  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question']).optional(),
+  difficultyCeiling: z.number().int().min(1).max(5).optional(),
+  locked: z.boolean().optional(),
+})
+
+const MentorNextBody = z.object({ branchId: z.string().min(1) })
+
+const MentorAttemptBody = z.object({
+  nodeId: z.string().min(1),
+  answer: z.string().min(1).max(10_000),
+  confidence: z.number().int().min(1).max(5).optional(),
+  timeMs: z.number().int().min(0).max(86_400_000).optional(),
+  keystrokes: z.number().int().min(0).max(100_000).optional(),
+  hintLevel: z.number().int().min(0).max(4).optional(),
+  selfCorrect: z.string().max(10_000).optional(),
+})
+
+const MentorHintBody = z.object({
+  nodeId: z.string().min(1),
+  level: z.number().int().min(1).max(4).optional(),
+})
+
+const MentorSelfCorrectBody = z.object({
+  attemptId: z.string().min(1),
+  correction: z.string().max(10_000).optional(),
+})
+
+const MentorForkBody = z.object({
+  nodeId: z.string().min(1),
+  title: z.string().max(300).optional(),
+  focusTag: z.string().max(100).optional(),
+  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question']).optional(),
+  difficultyCeiling: z.number().int().min(1).max(5).optional(),
+})
+
+const MentorExplainBody = z.object({
+  query: z.string().min(1).max(4000),
+  context: z.string().max(10_000).optional(),
+})
+
+const MentorPronunciationBody = z.object({
+  target: z.string().min(1).max(2000),
+  transcript: z.string().min(1).max(2000),
+})
+
+const MentorNaturalnessBody = z.object({ input: z.string().min(1).max(10_000) })
+
 // ============================================================
 //  POST /api/lexilearn?action=...   body = JSON
 // ============================================================
 export async function POST(req: NextRequest) {
+  // Reject cross-site writes before anything touches the database. A browser
+  // on any website can POST to this endpoint; without this, a one-line form
+  // could wipe the user's study history (see src/server/csrf.ts).
+  const blocked = assertSameOrigin(req)
+  if (blocked) return blocked
+
   const url = new URL(req.url)
   const action = url.searchParams.get('action') || ''
   let body: any = {}
@@ -464,45 +650,35 @@ export async function POST(req: NextRequest) {
       }
 
       case 'createDeck': {
-        const { name, description, words } = body as { name: string; description?: string; words: any[] }
-        if (!name || !Array.isArray(words)) return NextResponse.json({ error: 'name and words required' }, { status: 400 })
-        const result = await createCustomDeck(name, description || '', words)
+        const parsed = CreateDeckBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'name and words required' }, { status: 400 })
+        const result = await createCustomDeck(parsed.data.name, parsed.data.description ?? '', parsed.data.words)
         return NextResponse.json(result)
       }
 
       case 'addWords': {
-        const { deckId, words } = body as { deckId: string; words: any[] }
-        if (!deckId || !Array.isArray(words) || words.length === 0) {
-          return NextResponse.json({ error: 'deckId and words array required' }, { status: 400 })
+        const parsed = AddWordsBody.safeParse(body)
+        if (!parsed.success) {
+          const tooMany = parsed.error.issues.some((i) => i.code === 'too_big')
+          return NextResponse.json(
+            { error: tooMany ? `at most ${MAX_BULK_WORDS} words per import` : 'deckId and words array required' },
+            { status: 400 }
+          )
         }
-        const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
+        const deckRow = await db.select().from(deck).where(eq(deck.id, parsed.data.deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
-        let count = 0
-        for (const w of words) {
-          if (!w.word || !w.word.trim()) continue
-          await db.insert(word).values({
-            id: createId(),
-            word: w.word.trim().toLowerCase(),
-            pos: w.pos ?? null,
-            ipa: w.ipa ?? null,
-            definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
-            examples: w.example ? JSON.stringify([w.example]) : null,
-            syllables: null,
-            cefr: w.cefr ?? null,
-            synonyms: w.synonyms ? JSON.stringify(w.synonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
-            antonyms: w.antonyms ? JSON.stringify(w.antonyms.split('|').map((s: string) => s.trim()).filter(Boolean)) : null,
-            etymology: null,
-            amharic: w.amharic ?? null,
-            deckId,
-          })
-          count++
-        }
-        return NextResponse.json({ count })
+
+        const rows = parsed.data.words
+          .filter((w) => w.word && w.word.trim())
+          .map((w) => toWordRow(w, parsed.data.deckId, '|'))
+        if (rows.length) db.transaction((tx) => { tx.insert(word).values(rows).run() })
+        return NextResponse.json({ count: rows.length })
       }
 
       case 'deleteDeck': {
-        const { deckId: id } = body as { deckId: string }
-        if (!id) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
+        const parsed = DeckIdBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
+        const id = parsed.data.deckId
         // Bundled decks (Common 500 / IELTS / TOEFL / GRE) ship with the
         // offline seed and must not be deletable — only custom decks (W5).
         const deckRow = await db.select().from(deck).where(eq(deck.id, id)).get()
@@ -524,53 +700,84 @@ export async function POST(req: NextRequest) {
       }
 
       case 'claimChallenge': {
-        const { key } = body as { key?: string }
+        const parsed = ClaimChallengeBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'unknown challenge' }, { status: 400 })
         const today = dayKey(new Date())
-        const claimed = await getStat('challengeClaimedDate', '')
-        if (claimed === today) return NextResponse.json({ ok: true, xpAwarded: 0, alreadyClaimed: true })
         const start = new Date(); start.setHours(0, 0, 0, 0)
         const end = new Date(); end.setHours(23, 59, 59, 999)
         const logs = await db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, start), lte(reviewLog.reviewedAt, end)))
-        // Review log only — every quiz answer is logged per question, so the
-        // quizSession totals would double-count them (W1).
-        const todayCorrect = logs.filter((l) => l.isCorrect).length
-        const streak = parseInt(await getStat('streak', '0'), 10) || 0
-        const targets: Record<string, { progress: number; target: number; reward: number }> = {
-          sprint: { progress: logs.length, target: 10, reward: 35 },
-          recall: { progress: todayCorrect, target: 8, reward: 40 },
-          streak: { progress: streak > 0 ? 1 : 0, target: 1, reward: 25 },
-        }
-        const challenge = targets[key || '']
-        if (!challenge || challenge.progress < challenge.target) return NextResponse.json({ error: 'Challenge is not complete yet' }, { status: 400 })
-        const cur = parseInt(await getStat('totalXp', '0'), 10) || 0
-        await setStat('totalXp', String(cur + challenge.reward))
-        await setStat('challengeClaimedDate', today)
-        return NextResponse.json({ ok: true, xpAwarded: challenge.reward, alreadyClaimed: false })
+
+        // Awarding XP and marking the challenge claimed is one read-modify-write;
+        // doing it in a transaction stops a double-click from paying out twice.
+        const outcome = db.transaction((tx) => {
+          const get = (key: string, fallback = '') =>
+            tx.select().from(appStat).where(eq(appStat.key, key)).get()?.value ?? fallback
+          const set = (key: string, value: string) => {
+            tx.insert(appStat).values({ key, value })
+              .onConflictDoUpdate({ target: appStat.key, set: { value } }).run()
+          }
+
+          if (get('challengeClaimedDate', '') === today) return { alreadyClaimed: true as const, reward: 0 }
+
+          // Review log only — every quiz answer is logged per question, so the
+          // quizSession totals would double-count them (W1).
+          const todayCorrect = logs.filter((l) => l.isCorrect).length
+          const streak = parseInt(get('streak', '0'), 10) || 0
+          const targets: Record<string, { progress: number; target: number; reward: number }> = {
+            sprint: { progress: logs.length, target: 10, reward: 35 },
+            recall: { progress: todayCorrect, target: 8, reward: 40 },
+            streak: { progress: streak > 0 ? 1 : 0, target: 1, reward: 25 },
+          }
+          const challenge = targets[parsed.data.key]
+          if (!challenge || challenge.progress < challenge.target) return { incomplete: true as const }
+
+          set('totalXp', String((parseInt(get('totalXp', '0'), 10) || 0) + challenge.reward))
+          set('challengeClaimedDate', today)
+          return { alreadyClaimed: false as const, reward: challenge.reward }
+        })
+
+        if ('incomplete' in outcome) return NextResponse.json({ error: 'Challenge is not complete yet' }, { status: 400 })
+        if (outcome.alreadyClaimed) return NextResponse.json({ ok: true, xpAwarded: 0, alreadyClaimed: true })
+        return NextResponse.json({ ok: true, xpAwarded: outcome.reward, alreadyClaimed: false })
       }
 
       case 'repairStreak': {
         const today = dayKey(new Date())
-        const lastSession = await getStat('lastSessionDate', '')
-        const usedDate = await getStat('streakShieldUsedDate', '')
-        if (!lastSession) return NextResponse.json({ ok: false, error: 'No streak shield available' }, { status: 400 })
-        if (usedDate) {
-          const used = new Date(usedDate + 'T00:00:00')
-          const nowDay = new Date(today + 'T00:00:00')
-          const cooldown = Math.max(0, 7 - Math.round((nowDay.getTime() - used.getTime()) / 86_400_000))
-          if (cooldown > 0) return NextResponse.json({ ok: false, error: `Streak shield recharges in ${cooldown} day${cooldown === 1 ? '' : 's'}` }, { status: 400 })
-        }
-        const last = new Date(lastSession + 'T00:00:00')
-        const now = new Date(today + 'T00:00:00')
-        const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000)
-        if (diff <= 1) return NextResponse.json({ ok: false, error: 'Your streak does not need repair' }, { status: 400 })
-        const streak = parseInt(await getStat('streak', '0'), 10) || 0
-        const repaired = Math.max(1, streak + 1)
-        await setStat('streak', String(repaired))
-        const longest = parseInt(await getStat('longestStreak', '0'), 10) || 0
-        if (repaired > longest) await setStat('longestStreak', String(repaired))
-        await setStat('lastSessionDate', today)
-        await setStat('streakShieldUsedDate', today)
-        return NextResponse.json({ ok: true, streak: repaired })
+        // Same read-modify-write as claimChallenge: the shield has a cooldown,
+        // so two clicks in quick succession must not both consume it.
+        const result = db.transaction((tx) => {
+          const get = (key: string, fallback = '') =>
+            tx.select().from(appStat).where(eq(appStat.key, key)).get()?.value ?? fallback
+          const set = (key: string, value: string) => {
+            tx.insert(appStat).values({ key, value })
+              .onConflictDoUpdate({ target: appStat.key, set: { value } }).run()
+          }
+
+          const lastSession = get('lastSessionDate', '')
+          if (!lastSession) return { error: 'No streak shield available' } as const
+          const usedDate = get('streakShieldUsedDate', '')
+          if (usedDate) {
+            const used = new Date(usedDate + 'T00:00:00')
+            const nowDay = new Date(today + 'T00:00:00')
+            const cooldown = Math.max(0, 7 - Math.round((nowDay.getTime() - used.getTime()) / 86_400_000))
+            if (cooldown > 0) return { error: `Streak shield recharges in ${cooldown} day${cooldown === 1 ? '' : 's'}` } as const
+          }
+          const last = new Date(lastSession + 'T00:00:00')
+          const now = new Date(today + 'T00:00:00')
+          if (Math.round((now.getTime() - last.getTime()) / 86_400_000) <= 1) {
+            return { error: 'Your streak does not need repair' } as const
+          }
+
+          const repaired = Math.max(1, (parseInt(get('streak', '0'), 10) || 0) + 1)
+          set('streak', String(repaired))
+          if (repaired > (parseInt(get('longestStreak', '0'), 10) || 0)) set('longestStreak', String(repaired))
+          set('lastSessionDate', today)
+          set('streakShieldUsedDate', today)
+          return { streak: repaired } as const
+        })
+
+        if ('error' in result) return NextResponse.json({ ok: false, error: result.error }, { status: 400 })
+        return NextResponse.json({ ok: true, streak: result.streak })
       }
 
       case 'updateSettings': {
@@ -585,93 +792,124 @@ export async function POST(req: NextRequest) {
       }
 
       case 'addWord': {
-        const { deckId, word: wordText, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = body as any
-        if (!deckId || !wordText?.trim()) return NextResponse.json({ error: 'deckId and word required' }, { status: 400 })
+        const parsed = AddWordBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'deckId and word required' }, { status: 400 })
+        const { deckId, ...fields } = parsed.data
         const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
-        const inserted = await db.insert(word).values({
-          id: createId(),
-          word: wordText.trim().toLowerCase(),
-          pos: pos ?? null,
-          ipa: ipa ?? null,
-          definitions: definition ? JSON.stringify([{ pos: pos ?? 'n.', text: definition }]) : null,
-          examples: example ? JSON.stringify([example]) : null,
-          syllables: null,
-          cefr: cefr ?? null,
-          synonyms: synonyms ? JSON.stringify(synonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
-          antonyms: antonyms ? JSON.stringify(antonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null,
-          etymology: null,
-          amharic: amharic ?? null,
-          deckId,
-        }).returning({ id: word.id })
-        return NextResponse.json({ id: inserted[0].id })
+        const inserted = db.insert(word).values(toWordRow(fields, deckId, ',')).returning({ id: word.id }).get()
+        return NextResponse.json({ id: inserted.id })
       }
 
       case 'updateWord': {
-        const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = body as any
-        if (!wordId) return NextResponse.json({ error: 'wordId required' }, { status: 400 })
+        const parsed = UpdateWordBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'invalid word payload' }, { status: 400 })
+        const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = parsed.data
         const existing = await db.select().from(word).where(eq(word.id, wordId)).get()
         if (!existing) return NextResponse.json({ error: 'word not found' }, { status: 404 })
-        const data: any = {}
+        const splitList = (s: string) => JSON.stringify(s.split(',').map((x) => x.trim()).filter(Boolean))
+        const data: Record<string, unknown> = {}
         if (pos !== undefined) data.pos = pos
         if (ipa !== undefined) data.ipa = ipa
         if (definition !== undefined) data.definitions = JSON.stringify([{ pos: pos ?? existing.pos ?? 'n.', text: definition }])
         if (example !== undefined) data.examples = example ? JSON.stringify([example]) : null
         if (cefr !== undefined) data.cefr = cefr
-        if (synonyms !== undefined) data.synonyms = synonyms ? JSON.stringify(synonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null
-        if (antonyms !== undefined) data.antonyms = antonyms ? JSON.stringify(antonyms.split(',').map((s: string) => s.trim()).filter(Boolean)) : null
+        if (synonyms !== undefined) data.synonyms = synonyms ? splitList(synonyms) : null
+        if (antonyms !== undefined) data.antonyms = antonyms ? splitList(antonyms) : null
         if (amharic !== undefined) data.amharic = amharic
-        await db.update(word).set(data).where(eq(word.id, wordId))
+        if (Object.keys(data).length) await db.update(word).set(data).where(eq(word.id, wordId))
         return NextResponse.json({ ok: true })
       }
 
       case 'deleteWord': {
-        const { wordId } = body as { wordId: string }
-        if (!wordId) return NextResponse.json({ error: 'wordId required' }, { status: 400 })
-        await db.delete(word).where(eq(word.id, wordId))
+        const parsed = IdBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'wordId required' }, { status: 400 })
+        await db.delete(word).where(eq(word.id, parsed.data.wordId))
         return NextResponse.json({ ok: true })
       }
 
       case 'reset': {
-        await db.delete(reviewLog)
-        await db.delete(quizSession)
-        await db.delete(srsCard)
-        await db.delete(appStat)
-        const initialStats: Record<string, string> = {
-          streak: '0', longestStreak: '0', lastSessionDate: '', totalXp: '0',
-          dailyGoal: '20', ttsVoice: '', ttsRate: '1', theme: 'system',
-          totalReviews: '0', totalCorrect: '0', achievements: '[]', streakShieldUsedDate: '', challengeClaimedDate: '',
-        }
-        for (const [k, v] of Object.entries(initialStats)) {
-          await db.insert(appStat).values({ key: k, value: v })
-        }
+        // "Reset all progress" now covers the AI Coach too — leaving months of
+        // mentor conversations, skill mastery and weekly reports behind while
+        // wiping XP read as a bug to users. F-504.
+        //
+        // Word data (Deck/Word/SrsCard-free vocabulary) is deliberately
+        // preserved. mentorKnowledge is preserved as well: it is seeded
+        // reference content, not user progress, and deleting it would force a
+        // full re-embed of the RAG index on the next mentor request.
+        //
+        // Deleting mentorProject cascades branch -> node -> attempt -> feedback
+        // (see onDelete in db/schema.ts); everything below is FK-less and has
+        // to be cleared explicitly.
+        const mentorTables = [
+          pronunciationAttempt, naturalnessAttempt, mentorWeeklyReport,
+          mentorSkillMastery, mentorErrorCard, mentorTurn, mentorSession,
+          practiceMaterial, errorLog, mentorProfile, mentorProject,
+        ]
+        db.transaction((tx) => {
+          tx.delete(reviewLog).run()
+          tx.delete(quizSession).run()
+          tx.delete(srsCard).run()
+          tx.delete(appStat).run()
+          for (const t of mentorTables) tx.delete(t).run()
+
+          const initialStats: Record<string, string> = {
+            streak: '0', longestStreak: '0', lastSessionDate: '', totalXp: '0',
+            dailyGoal: '20', ttsVoice: '', ttsRate: '1', theme: 'system',
+            totalReviews: '0', totalCorrect: '0', achievements: '[]', streakShieldUsedDate: '', challengeClaimedDate: '',
+          }
+          tx.insert(appStat).values(
+            Object.entries(initialStats).map(([key, value]) => ({ key, value }))
+          ).run()
+          // The mentor profile row is a singleton (id = 1); getMentorOverview
+          // recreates it via ensureMentorSeed, but seeding it here keeps the
+          // post-reset state identical to a fresh install.
+          tx.insert(mentorProfile).values({ id: 1 }).run()
+        })
         return NextResponse.json({ ok: true })
       }
 
+      case 'mentorIndexKnowledge': {
+        // Was a GET, which meant a browser prefetch — or the service worker
+        // caching it — could trigger a full re-embed of the knowledge index.
+        // It writes, so it is a POST like every other mutation.
+        await ensureMentorSeed()
+        const { ollamaEmbed } = await import('@/features/coach/server/ollama')
+        const chunks = await db.select().from(mentorKnowledge).where(isNull(mentorKnowledge.embedding))
+        let indexed = 0
+        for (const c of chunks) {
+          try { const [vec] = await ollamaEmbed(`${c.title}. ${c.content}`); if (vec?.length) { await db.update(mentorKnowledge).set({ embedding: JSON.stringify(vec) }).where(eq(mentorKnowledge.id, c.id)); indexed++ } } catch {}
+        }
+        return NextResponse.json({ ok:true, indexed, total:chunks.length })
+      }
+
       case 'mentorExplain': {
+        const parsed = MentorExplainBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error:'query required' }, { status:400 })
         const { buildExplainPrompt, ollamaChat, MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
-        if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
-        const response = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildExplainPrompt(body.query.trim(), body.context) }])
+        const response = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildExplainPrompt(parsed.data.query.trim(), parsed.data.context) }])
         return NextResponse.json({ response })
       }
 
       case 'mentorProject': {
-        const { name, goal } = body as { name: string; goal?: string }
-        if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
-        const projectRows = await db.insert(mentorProject).values({ name: name.trim(), goal: goal?.trim() || null }).returning()
+        const parsed = MentorProjectBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'name required' }, { status: 400 })
+        const projectRows = await db.insert(mentorProject).values({ name: parsed.data.name.trim(), goal: parsed.data.goal?.trim() || null }).returning()
         return NextResponse.json(projectRows[0])
       }
 
       case 'mentorBranch': {
-        const { projectId, title, focusTag, mode = 'drill', difficultyCeiling = 3, locked = true } = body as any
-        if (!projectId || !title || !focusTag) return NextResponse.json({ error: 'projectId, title and focusTag required' }, { status: 400 })
+        const parsed = MentorBranchBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'projectId, title and focusTag required' }, { status: 400 })
+        const { projectId, title, focusTag, mode = 'drill', difficultyCeiling = 3, locked = true } = parsed.data
         const branchRows = await db.insert(mentorBranch).values({ projectId, title, focusTag, mode, difficultyCeiling, locked }).returning()
         return NextResponse.json(branchRows[0])
       }
 
       case 'mentorNext': {
-        if (!body.branchId) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
-        const node = await generateNextNode(body.branchId)
+        const parsed = MentorNextBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'branchId required' }, { status: 400 })
+        const node = await generateNextNode(parsed.data.branchId)
         return NextResponse.json(node)
       }
 
@@ -681,49 +919,51 @@ export async function POST(req: NextRequest) {
       }
 
       case 'mentorPronunciation': {
-        const { target, transcript } = body as any
-        if (!target?.trim() || !transcript?.trim()) return NextResponse.json({error:'target and transcript required'},{status:400})
-        return NextResponse.json(await evaluatePronunciation(target.trim(), transcript.trim()))
+        const parsed = MentorPronunciationBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({error:'target and transcript required'},{status:400})
+        return NextResponse.json(await evaluatePronunciation(parsed.data.target.trim(), parsed.data.transcript.trim()))
       }
 
       case 'mentorNaturalness': {
-        const { input } = body as any
-        if (!input?.trim()) return NextResponse.json({error:'input required'},{status:400})
-        return NextResponse.json(await evaluateNaturalness(input.trim()))
+        const parsed = MentorNaturalnessBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({error:'input required'},{status:400})
+        return NextResponse.json(await evaluateNaturalness(parsed.data.input.trim()))
       }
 
       case 'mentorAttempt': {
-        const { nodeId, answer, confidence, timeMs, keystrokes, hintLevel = 0, selfCorrect } = body as any
-        if (!nodeId || !answer?.trim()) return NextResponse.json({ error: 'nodeId and answer required' }, { status: 400 })
+        const parsed = MentorAttemptBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'nodeId and answer required' }, { status: 400 })
+        const { nodeId, answer, confidence, timeMs, keystrokes, hintLevel = 0, selfCorrect } = parsed.data
         const node = await db.select().from(mentorNode).where(eq(mentorNode.id, nodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
-        const attemptRows = await db.insert(mentorAttempt).values({ nodeId, branchId: node.branchId, answer: answer.trim(), confidence, timeMs, keystrokes, hintLevel, selfCorrect: selfCorrect ? String(selfCorrect) : null }).returning()
+        const attemptRows = await db.insert(mentorAttempt).values({ nodeId, branchId: node.branchId, answer: answer.trim(), confidence, timeMs, keystrokes, hintLevel, selfCorrect: selfCorrect ?? null }).returning()
         const attempt = attemptRows[0]
         const result = await evaluateAttempt(attempt.id)
         return NextResponse.json({ attemptId: attempt.id, ...result })
       }
 
       case 'mentorHint': {
-        const attemptNodeId = body.nodeId as string
-        if (!attemptNodeId) return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
-        const node = await db.select().from(mentorNode).where(eq(mentorNode.id, attemptNodeId)).get()
+        const parsed = MentorHintBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
+        const node = await db.select().from(mentorNode).where(eq(mentorNode.id, parsed.data.nodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
         const hints = JSON.parse(node.hints || '[]') as string[]
-        const level = Math.min(Math.max(Number(body.level) || 1, 1), Math.max(hints.length, 1))
+        const level = Math.min(Math.max(parsed.data.level ?? 1, 1), Math.max(hints.length, 1))
         return NextResponse.json({ action: 'hint', level, text: hints[level - 1] || hints[hints.length - 1] || 'Look again at the target skill.' })
       }
 
       case 'mentorSelfCorrect': {
-        const attemptId = body.attemptId as string
-        if (!attemptId) return NextResponse.json({ error: 'attemptId required' }, { status: 400 })
-        const { correction } = body
-        const attemptRows = await db.update(mentorAttempt).set({ selfCorrect: correction || '' }).where(eq(mentorAttempt.id, attemptId)).returning()
+        const parsed = MentorSelfCorrectBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'attemptId required' }, { status: 400 })
+        const attemptRows = await db.update(mentorAttempt).set({ selfCorrect: parsed.data.correction || '' }).where(eq(mentorAttempt.id, parsed.data.attemptId)).returning()
         if (!attemptRows[0]) return NextResponse.json({ error: 'attempt not found' }, { status: 404 })
         return NextResponse.json({ ok: true, selfCorrect: attemptRows[0].selfCorrect })
       }
 
       case 'mentorFork': {
-        const { nodeId, title, focusTag, mode = 'scenario', difficultyCeiling = 3 } = body as any
+        const parsed = MentorForkBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'nodeId required' }, { status: 400 })
+        const { nodeId, title, focusTag, mode = 'scenario', difficultyCeiling = 3 } = parsed.data
         const node = await db.select().from(mentorNode).where(eq(mentorNode.id, nodeId)).get()
         if (!node) return NextResponse.json({ error: 'node not found' }, { status: 404 })
         const parentBranch = await db.select().from(mentorBranch).where(eq(mentorBranch.id, node.branchId)).get()

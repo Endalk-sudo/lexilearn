@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { mentorProfile, mentorProject, mentorSkillMastery, mentorErrorCard, mentorKnowledge, mentorBranch, mentorNode, mentorAttempt, mentorFeedback, mentorTurn, mentorWeeklyReport, pronunciationAttempt, naturalnessAttempt, appStat, reviewLog } from '@/db/schema'
-import { eq, lte, asc, desc, isNull, gte, sql } from 'drizzle-orm'
+import { eq, lte, asc, desc, gte, sql } from 'drizzle-orm'
 import { ollamaChat, ollamaEmbed, MENTOR_SYSTEM } from '@/features/coach/server/ollama'
 import { dayKey } from '@/lib/date'
 

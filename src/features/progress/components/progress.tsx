@@ -10,7 +10,7 @@ import {
   Sun, Target, TrendingUp, Trash2, Trophy, Volume2, Zap,
 } from 'lucide-react'
 import { api, type Analytics, type DashboardStats, type Settings } from '@/lib/api'
-import { useAppStore } from '@/lib/store'
+import { ACCENT_THEMES, useAppStore } from '@/lib/store'
 import { PageHeader, SectionHeader } from '@/components/layout/page-header'
 import { SegmentedControl } from '@/components/layout/segmented-control'
 import { NextStep } from '@/components/layout/next-step'
@@ -402,6 +402,8 @@ function SettingsPanel() {
   const [haptics, setHaptics] = useState(() => isHapticsEnabled())
   const [confirmText, setConfirmText] = useState('')
   const { theme, setTheme } = useTheme()
+  const accentHue = useAppStore((s) => s.accentHue)
+  const setAccentHue = useAppStore((s) => s.setAccentHue)
 
   useEffect(() => {
     let live = true
@@ -626,6 +628,31 @@ function SettingsPanel() {
               </Button>
             )
           })}
+        </div>
+
+        <div className="mt-5 border-t border-border/50 pt-4">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accent Palette</Label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3">Custom color mood for highlights, focus rings, and primary actions.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {ACCENT_THEMES.map((t) => {
+              const active = accentHue === t.hue
+              return (
+                <button
+                  key={t.name}
+                  type="button"
+                  onClick={() => setAccentHue(t.hue)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border p-2.5 transition-all text-xs font-medium',
+                    active ? 'border-primary bg-primary/10 shadow-sm' : 'border-border/60 hover:border-border hover:bg-muted/30'
+                  )}
+                  title={t.name}
+                >
+                  <span className="h-3.5 w-3.5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: t.color }} />
+                  <span className="text-xs truncate">{t.name}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowRight, AudioLines, Check, ChevronDown, Ear,
+  AlertTriangle, ArrowLeft, ArrowRight, AudioLines, Check, ChevronDown, Ear,
   Keyboard, Lightbulb, Play, Settings2, Snail, Volume2, X,
 } from 'lucide-react'
 import {
@@ -11,6 +11,8 @@ import {
   loadRung, MIN_SESSION_ITEMS, nextRung, RUNG_LABELS, saveRung, tokenize,
   type DictationGrade, type DictationItem, type DiffSegment, type Rung,
 } from '@/features/dictation/lib/dictation'
+import { SpellingInput } from '@/features/learn/components/spelling-input'
+import { WordSlotsInput } from '@/features/dictation/components/word-slots-input'
 import {
   createDictationPlayer, PRESET_RATES, useAudioReadiness,
   type AudioProbe, type DictationPlayer, type DictationPreset,
@@ -26,7 +28,7 @@ import { EmptyState } from '@/components/feedback/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkmark } from '@/components/feedback/checkmark'
 import { XpPopLayer, popXpFromElement, useXpPops } from '@/components/feedback/xp-pop'
-import { buzz, playSound, typeFeelFromKey } from '@/lib/feel'
+import { buzz, playSound } from '@/lib/feel'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { fadeUp, gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
@@ -483,15 +485,21 @@ function DictationSession({
       <XpPopLayer pops={pops} />
 
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="label text-primary">Dictation · {KIND_TITLES[item.kind]}</h1>
-          <div className="mt-1 text-sm text-muted-foreground num">
-            {idx + 1} / {items.length} · {RUNG_LABELS[rungUsed]}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onExit} className="text-muted-foreground -ml-2" aria-label="Back to dictation start">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="label text-primary">Dictation · {KIND_TITLES[item.kind]}</h1>
+            <div className="mt-0.5 text-sm text-muted-foreground num">
+              {idx + 1} / {items.length} · {RUNG_LABELS[rungUsed]}
+            </div>
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onExit} className="text-muted-foreground">
           <X className="h-4 w-4" />
-          End session
+          End
         </Button>
       </div>
 
@@ -521,8 +529,11 @@ function DictationSession({
                 {playing ? <Volume2 className="h-8 w-8" /> : <Play className="ml-1 h-8 w-8" />}
               </Button>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground num">
-              Played {replays} time{replays === 1 ? '' : 's'} · replays are free
+            {item.amharic ? (
+              <p className="mt-3 text-sm text-muted-foreground" lang="am">{item.amharic}</p>
+            ) : null}
+            <p className="mt-2 text-xs text-muted-foreground num">
+              Played {replays} time{replays === 1 ? '' : 's'} · Space replays
             </p>
             <div className="mt-4 flex justify-center gap-2" role="radiogroup" aria-label="Playback speed">
               {(['normal', 'slow'] as const).map((option) => (
@@ -595,6 +606,27 @@ function DictationSession({
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Laptop Keyboard HUD Bar */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
+        <div className="flex items-center gap-3.5 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              Space
+            </kbd>
+            <span>{result ? 'Next' : 'Replay audio'}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              Enter
+            </kbd>
+            <span>{result ? 'Next item' : 'Submit'}</span>
+          </span>
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {RUNG_LABELS[rungUsed]} · {item.kind}
+        </span>
+      </div>
     </div>
   )
 }
@@ -685,27 +717,27 @@ function DictationItemAnswer({
         Type exactly what you hear
       </label>
       <div key={shakeKey} className={cn(attempts > 0 && 'shake')}>
-        <textarea
-          ref={inputRef}
-          id="dictation-input"
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          placeholder={item.kind === 'word' ? 'Type the word…' : 'Type it word for word…'}
-          rows={item.kind === 'sentence' ? 3 : 2}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          aria-describedby="dictation-hint"
-          className="mt-2 min-h-20 w-full rounded-md border border-input bg-card p-4 text-base leading-relaxed outline-none transition-colors focus-visible:border-primary-line md:text-[15px]"
-          onKeyDown={(e) => {
-            typeFeelFromKey(e)
-            if (e.key === 'Enter' && !e.shiftKey && typed.trim()) {
-              e.preventDefault()
-              handleCheck()
-            }
-          }}
-        />
+        {item.kind === 'word' ? (
+          <SpellingInput
+            value={typed}
+            onChange={setTyped}
+            target={item.word}
+            autoFocus
+            onSubmit={handleCheck}
+            guided={hintStage >= 1}
+            size="xl"
+            testId="dictation-input"
+          />
+        ) : (
+          <WordSlotsInput
+            target={item.text}
+            value={typed}
+            onChange={setTyped}
+            autoFocus
+            onSubmit={handleCheck}
+            guided={hintStage >= 1}
+          />
+        )}
       </div>
       {attempts > 0 ? (
         <p role="status" aria-live="polite" className="mt-3 rounded-md border border-warning/30 bg-warning-soft p-3 text-center text-sm font-medium text-warning">

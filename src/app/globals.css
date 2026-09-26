@@ -347,6 +347,47 @@
 
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
+
+  /* 3D Perspective & Flip Card Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* CEFR ambient glow borders */
+  .cefr-glow-a {
+    border-color: color-mix(in oklab, #10b981 40%, var(--border));
+    box-shadow: var(--shadow-sm), 0 0 24px -6px rgba(16, 185, 129, 0.18);
+  }
+  .cefr-glow-b {
+    border-color: color-mix(in oklab, #3b82f6 40%, var(--border));
+    box-shadow: var(--shadow-sm), 0 0 24px -6px rgba(59, 130, 246, 0.18);
+  }
+  .cefr-glow-c {
+    border-color: color-mix(in oklab, #8b5cf6 40%, var(--border));
+    box-shadow: var(--shadow-sm), 0 0 24px -6px rgba(139, 92, 246, 0.20);
+  }
+
+  /* Combo Fire / Streak Glow */
+  .combo-fire {
+    animation: fire-pulse 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes fire-pulse {
+    0% {
+      box-shadow: 0 0 12px -2px oklch(0.7 0.16 45 / 0.35);
+      border-color: oklch(0.7 0.16 45 / 0.6);
+    }
+    100% {
+      box-shadow: 0 0 24px 2px oklch(0.7 0.18 35 / 0.55);
+      border-color: oklch(0.7 0.18 35 / 0.85);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

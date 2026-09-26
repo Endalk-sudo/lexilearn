@@ -1,12 +1,10 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
-/**
- * One page header for every top-level view: eyebrow -> title -> description -> actions.
- * Keeps hierarchy identical across the app so nothing feels like a different product.
- */
 export function PageHeader({
   eyebrow,
   icon: Icon,
@@ -14,6 +12,8 @@ export function PageHeader({
   description,
   actions,
   className,
+  onBack,
+  backLabel = 'Back',
 }: {
   eyebrow?: string
   icon?: React.ElementType
@@ -21,6 +21,8 @@ export function PageHeader({
   description?: string
   actions?: ReactNode
   className?: string
+  onBack?: () => void
+  backLabel?: string
 }) {
   return (
     <header
@@ -30,6 +32,17 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
+        {onBack ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="mb-2 -ml-2 text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {backLabel}
+          </Button>
+        ) : null}
         {eyebrow ? (
           <div className="label flex items-center gap-1.5 text-primary">
             {Icon ? <Icon className="h-3.5 w-3.5" aria-hidden="true" /> : null}
@@ -48,7 +61,6 @@ export function PageHeader({
   )
 }
 
-/** Consistent section heading used inside pages. */
 export function SectionHeader({
   title,
   description,

@@ -29,6 +29,34 @@ export type QuizMode =
   | 'speed_round'
   | 'match'
 
+export type AccentTheme = {
+  name: string
+  hue: number
+  color: string
+}
+
+export const ACCENT_THEMES: AccentTheme[] = [
+  { name: 'Iris', hue: 259, color: 'oklch(0.65 0.18 259)' },
+  { name: 'Sapphire', hue: 220, color: 'oklch(0.65 0.16 220)' },
+  { name: 'Emerald', hue: 155, color: 'oklch(0.65 0.16 155)' },
+  { name: 'Amber', hue: 50, color: 'oklch(0.72 0.16 50)' },
+  { name: 'Rose', hue: 345, color: 'oklch(0.65 0.18 345)' },
+]
+
+export function syncAccentHue() {
+  if (typeof window === 'undefined') return
+  try {
+    const saved = localStorage.getItem('lexilearn-accent-hue')
+    if (saved) {
+      const val = Number(saved)
+      if (!Number.isNaN(val)) {
+        document.documentElement.style.setProperty('--accent-hue', String(val))
+        useAppStore.setState({ accentHue: val })
+      }
+    }
+  } catch {}
+}
+
 export type NavigateOptions = {
   deckId?: string | null
   quizMode?: QuizMode | null
@@ -50,6 +78,7 @@ type AppState = RouteState & {
   dictationDeckId: string | null
   searchQuery: string
   paletteOpen: boolean
+  accentHue: number
   navigate: (view: ViewName, opts?: NavigateOptions) => void
   applyRoute: (route: RouteState) => void
   setLibraryTab: (tab: LibraryTab) => void
@@ -59,6 +88,7 @@ type AppState = RouteState & {
   setDictationDeckId: (dictationDeckId: string | null) => void
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
+  setAccentHue: (hue: number) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -71,6 +101,7 @@ export const useAppStore = create<AppState>((set) => ({
   dictationDeckId: null,
   searchQuery: '',
   paletteOpen: false,
+  accentHue: 259,
 
   navigate: (view, opts = {}) =>
     set((s) => ({
@@ -90,6 +121,13 @@ export const useAppStore = create<AppState>((set) => ({
   setDictationDeckId: (dictationDeckId) => set({ dictationDeckId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  setAccentHue: (accentHue) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lexilearn-accent-hue', String(accentHue))
+      document.documentElement.style.setProperty('--accent-hue', String(accentHue))
+    }
+    set({ accentHue })
+  },
 }))
 
 /** Views that correspond to a primary bottom tab, in order. */

@@ -77,6 +77,28 @@ small (typically well under 1 KB) instead of shipping 371 mostly-empty rows.
 Streak maths inside the calendar walks the calendar by date, so a quiet day
 breaks a run even though the payload skips it.
 
+## Database path and the standalone bundle
+
+`src/db/env.ts` resolves the SQLite file from `LEXILEARN_DB_URL`, then
+`.env`'s `DATABASE_URL`, then the `file:./db/custom.db` default, always
+relative to `process.cwd()`. Absolute paths outside the project root are
+legitimate — that is how `scripts/e2e-isolated.sh` points the server at a
+throwaway clone in `$TMPDIR`.
+
+Paths **inside `.next/` are refused**. `output: 'standalone'` traces the
+project into `.next/standalone`, and because the db path is resolved from the
+cwd, a server started from inside that directory would silently open the
+bundled *snapshot* of the database and write progress there instead of to the
+real one. `next.config.ts` keeps `db/` and the rest of the project out
+of the trace; the refusal in `env.ts` is the backstop for when it cannot.
+
+Always start the standalone server from the project root (`pnpm start`).
+
+`.env` is the one file that still ships in the bundle — Next copies it there
+itself so the server can read config at runtime, and every variable in it has a
+code-level fallback (`features/coach/server/ollama.ts`, `db/env.ts`). Keep real
+secrets out of `.env` and pass those through the environment instead.
+
 ## Testing
 
 ```bash

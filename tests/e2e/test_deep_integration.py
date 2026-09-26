@@ -160,7 +160,11 @@ with sync_playwright() as p:
             start.first.click(); pg.wait_for_timeout(2000)
             t = pg.locator("main").inner_text()
             rec("E-dictation", "session starts", "textarea" in pg.evaluate("() => document.querySelector('main').innerHTML.toLowerCase()") or "type" in t.lower(), t[:100])
-    inp = pg.locator("main textarea#dictation-input, main textarea").first
+    # The dictation input is a visually-hidden <input> (the boxes are the visible
+    # affordance), not a <textarea> — see word-slots-input.tsx.
+    inp = pg.locator("main [data-testid='dictation-input']").first
+    if inp.count() == 0:
+        inp = pg.locator("main textarea").first
     if inp.count() > 0:
         inp.fill("hello"); pg.wait_for_timeout(400)
         check = pg.locator("main button").filter(has_text=re.compile("check it", re.I))

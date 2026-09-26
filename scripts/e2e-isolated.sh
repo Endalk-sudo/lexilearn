@@ -31,13 +31,18 @@ SUITE_LOG="$TMP_DIR/suite.log"
 SERVER_PID=""
 
 cleanup() {
-  if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
-    kill "$SERVER_PID" 2>/dev/null || true
+  # The standalone server re-execs itself as a `next-server` child, so killing
+  # only $SERVER_PID left an orphan holding the (now deleted) clone open on
+  # $PORT after every run. Those orphans accumulate, and anything still bound
+  # to the port answers the next run. The server is started with setsid, so it
+  # leads its own process group and a negative PID takes the children with it.
+  if [[ -n "$SERVER_PID" ]]; then
+    kill -- "-$SERVER_PID" 2>/dev/null || kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
   fi
   rm -rf "$TMP_DIR"
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 if [[ "${1:-}" == "--build" ]]; then
   echo "▶ building production bundle…"
@@ -61,7 +66,7 @@ else
 fi
 
 echo "▶ starting server on $BASE (LEXILEARN_DB_URL=$TMP_DB)"
-NODE_ENV=production PORT="$PORT" HOSTNAME=127.0.0.1 \
+setsid env NODE_ENV=production PORT="$PORT" HOSTNAME=127.0.0.1 \
   LEXILEARN_DB_URL="file:$TMP_DB" \
   node .next/standalone/server.js > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
