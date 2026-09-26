@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AppSidebar, MobileTabs, MobileTopBar, ShellOverlays } from '@/components/app-shell'
+import { LaptopTopNav } from '@/components/layout/laptop-top-nav'
 import { TodayView } from '@/features/today/components/today'
 import { LearnView } from '@/features/learn/components/learn'
 import { ReviewView } from '@/features/review/components/review'
@@ -67,6 +68,7 @@ export default function Home() {
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar />
+        <LaptopTopNav />
         <main id="main" tabIndex={-1} className="flex-1 pb-28 focus:outline-none md:pb-12">
           <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
             <AnimatePresence mode="wait">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BrainCircuit, Flame, Snail, Sparkles, Undo2, Volume2 } from 'lucide-react'
+import { BrainCircuit, Flame, Snail, Sparkles, Star, Undo2, Volume2 } from 'lucide-react'
 import { api, type CardWithWord } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { NextStep } from '@/components/layout/next-step'
@@ -95,10 +95,27 @@ export function ReviewView() {
   const [levelAfter, setLevelAfter] = useState('')
   const [streak, setStreak] = useState(0)
   const [newAfter, setNewAfter] = useState(0)
+  const [speaking, setSpeaking] = useState(false)
+  const [bookmarked, setBookmarked] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  useEffect(() => {
+    if (!cards[idx]) return
+    try {
+      const raw = localStorage.getItem('lexilearn-bookmarked-words')
+      if (raw) {
+        const list: string[] = JSON.parse(raw)
+        setBookmarked(Array.isArray(list) && list.includes(cards[idx].word.word.toLowerCase()))
+      } else {
+        setBookmarked(false)
+      }
+    } catch {
+      setBookmarked(false)
+    }
+  }, [cards, idx])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -154,11 +171,31 @@ export function ReviewView() {
   const playAudio = useCallback((slow = false) => {
     if (!current) return
     playSound('tap')
+    setSpeaking(true)
+    setTimeout(() => setSpeaking(false), 1400)
     const rate = slow ? 0.72 : (ttsRate || 1)
     if (!speak(current.word.word, { voice: ttsVoice, rate })) {
       toast.error('Pronunciation is unavailable in this browser.')
     }
   }, [current, ttsRate, ttsVoice])
+
+  const toggleBookmark = useCallback(() => {
+    if (!current) return
+    playSound('tap')
+    const next = !bookmarked
+    setBookmarked(next)
+    try {
+      const raw = localStorage.getItem('lexilearn-bookmarked-words')
+      let list: string[] = raw ? JSON.parse(raw) : []
+      if (!Array.isArray(list)) list = []
+      const lower = current.word.word.toLowerCase()
+      if (next && !list.includes(lower)) list.push(lower)
+      else if (!next) list = list.filter((w) => w !== lower)
+      localStorage.setItem('lexilearn-bookmarked-words', JSON.stringify(list))
+      window.dispatchEvent(new CustomEvent('lexilearn-bookmarks-changed'))
+      toast.success(next ? `Starred "${current.word.word}"` : `Unstarred "${current.word.word}"`)
+    } catch {}
+  }, [bookmarked, current])
 
   const reveal = useCallback(() => {
     if (!current) return
@@ -470,6 +507,19 @@ export function ReviewView() {
                 <div className="flex items-center gap-1.5">
                   <Button
                     size="icon"
+                    variant="ghost"
+                    onClick={toggleBookmark}
+                    className={cn(
+                      'h-9 w-9 text-muted-foreground hover:text-amber-500 transition-colors cursor-pointer',
+                      bookmarked && 'text-amber-500'
+                    )}
+                    title={bookmarked ? 'Unstar word' : 'Star word'}
+                    aria-label={bookmarked ? 'Unstar word' : 'Star word'}
+                  >
+                    <Star className={cn('h-4 w-4', bookmarked && 'fill-current scale-110')} />
+                  </Button>
+                  <Button
+                    size="icon"
                     variant="outline"
                     title="Pronounce slowly (S)"
                     aria-label={`Hear ${current.word.word} slowly`}
@@ -479,12 +529,13 @@ export function ReviewView() {
                   </Button>
                   <Button
                     size="icon-lg"
-                    variant="outline"
+                    variant={speaking ? 'soft' : 'outline'}
                     title="Pronounce (R)"
                     aria-label={`Hear ${current.word.word}`}
                     onClick={() => playAudio(false)}
+                    className={cn('relative transition-all cursor-pointer', speaking && 'text-primary border-primary audio-pulse')}
                   >
-                    <Volume2 className="h-5 w-5" />
+                    <Volume2 className={cn('h-5 w-5', speaking && 'scale-110')} />
                   </Button>
                 </div>
               </div>

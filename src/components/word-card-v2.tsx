@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Languages, Lightbulb, Volume2 } from 'lucide-react'
+import { ChevronDown, Languages, Lightbulb, Star, Volume2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,35 @@ import { cn } from '@/lib/utils'
 import { revealBlock, transition, useMotionSafe } from '@/lib/motion'
 
 type Tab = 'meaning' | 'example' | 'amharic'
+
+function isWordBookmarked(word: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const raw = localStorage.getItem('lexilearn-bookmarked-words')
+    if (!raw) return false
+    const list: string[] = JSON.parse(raw)
+    return Array.isArray(list) && list.includes(word.toLowerCase())
+  } catch {
+    return false
+  }
+}
+
+function setWordBookmarked(word: string, bookmarked: boolean) {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = localStorage.getItem('lexilearn-bookmarked-words')
+    let list: string[] = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(list)) list = []
+    const lower = word.toLowerCase()
+    if (bookmarked && !list.includes(lower)) {
+      list.push(lower)
+    } else if (!bookmarked) {
+      list = list.filter((w) => w !== lower)
+    }
+    localStorage.setItem('lexilearn-bookmarked-words', JSON.stringify(list))
+    window.dispatchEvent(new CustomEvent('lexilearn-bookmarks-changed'))
+  } catch {}
+}
 
 /**
  * The word detail card used by Learn, the palette and the dictionary.
@@ -36,13 +65,29 @@ export function WordCardV2({
   const [details, setDetails] = useState(false)
   const [hint, setHint] = useState(false)
   const [revealed, setRevealed] = useState(showDefinition)
+  const [speaking, setSpeaking] = useState(false)
+  const [bookmarked, setBookmarked] = useState(false)
   const { v, t } = useMotionSafe()
+
+  useEffect(() => {
+    setBookmarked(isWordBookmarked(word.word))
+  }, [word.word])
 
   const hear = () => {
     playSound('tap')
+    setSpeaking(true)
+    setTimeout(() => setSpeaking(false), 1400)
     if (!speak(word.word, { voice: ttsVoice, rate: ttsRate })) {
       toast.error('Pronunciation is unavailable in this browser.')
     }
+  }
+
+  const toggleBookmark = () => {
+    playSound('tap')
+    const next = !bookmarked
+    setBookmarked(next)
+    setWordBookmarked(word.word, next)
+    toast.success(next ? `Saved "${word.word}" to favorites` : `Removed "${word.word}" from favorites`)
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -51,39 +96,100 @@ export function WordCardV2({
     { id: 'amharic', label: 'አማር' },
   ]
 
+  const posClass = word.pos
+    ? word.pos.includes('noun')
+      ? 'badge-noun'
+      : word.pos.includes('verb')
+      ? 'badge-verb'
+      : word.pos.includes('adj')
+      ? 'badge-adj'
+      : word.pos.includes('adv')
+      ? 'badge-adv'
+      : 'border-border/70 bg-muted/50 text-muted-foreground'
+    : ''
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm">
       <div className="p-5 sm:p-6">
         {!hideWord ? (
           <>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2 className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">{word.word}</h2>
-                  {word.pos ? <span className="text-sm italic text-muted-foreground">{word.pos}</span> : null}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <h2 className="break-words text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
+                    {word.word}
+                  </h2>
+                  {word.pos ? (
+                    <span className={cn('rounded-full border px-2.5 py-0.5 text-xs font-semibold lowercase tracking-wide shadow-2xs', posClass)}>
+                      {word.pos}
+                    </span>
+                  ) : null}
                 </div>
-                {word.ipa ? <p className="mt-1.5 font-mono text-sm text-muted-foreground">{word.ipa}</p> : null}
+                
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {word.ipa ? (
+                    <span className="font-mono text-sm text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md border border-border/40">
+                      {word.ipa}
+                    </span>
+                  ) : null}
+
+                  {word.syllables && word.syllables.length > 0 ? (
+                    <div className="flex items-center gap-1" title="Syllable structure">
+                      {word.syllables.map((syl, i) => (
+                        <span
+                          key={i}
+                          className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground hover:bg-primary-soft hover:text-primary transition-colors cursor-default"
+                        >
+                          {syl}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <Button size="icon-lg" variant="outline" onClick={hear} aria-label={`Hear ${word.word}`}>
-                <Volume2 className="h-5 w-5" />
-              </Button>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={toggleBookmark}
+                  className={cn(
+                    'h-10 w-10 text-muted-foreground hover:text-amber-500 transition-colors cursor-pointer',
+                    bookmarked && 'text-amber-500'
+                  )}
+                  title={bookmarked ? 'Remove from starred words' : 'Star this word'}
+                  aria-label={bookmarked ? 'Unstar word' : 'Star word'}
+                >
+                  <Star className={cn('h-4 w-4', bookmarked && 'fill-current scale-110')} />
+                </Button>
+
+                <Button
+                  size="icon-lg"
+                  variant={speaking ? 'soft' : 'outline'}
+                  onClick={hear}
+                  className={cn('relative transition-all cursor-pointer', speaking && 'text-primary border-primary audio-pulse')}
+                  aria-label={`Hear ${word.word}`}
+                >
+                  <Volume2 className={cn('h-5 w-5', speaking && 'scale-110')} />
+                </Button>
+              </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3.5 flex flex-wrap items-center gap-2">
               {word.cefr ? (
                 <Badge
                   variant="outline"
                   className={cn(
-                    'font-mono text-xs font-semibold px-2 py-0.5 rounded-md',
-                    word.cefr.startsWith('A') && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                    word.cefr.startsWith('B') && 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                    word.cefr.startsWith('C') && 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                    'font-mono text-xs font-bold px-2 py-0.5 rounded-md shadow-2xs',
+                    word.cefr.startsWith('A') && 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                    word.cefr.startsWith('B') && 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                    word.cefr.startsWith('C') && 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400'
                   )}
                 >
                   {word.cefr}
                 </Badge>
               ) : null}
-              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => setHint((value) => !value)} aria-expanded={hint}>
+              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground cursor-pointer text-xs" onClick={() => setHint((value) => !value)} aria-expanded={hint}>
                 <Lightbulb className="h-3.5 w-3.5 text-warning" />
                 {hint ? 'Hide hint' : 'Need a hint?'}
               </Button>

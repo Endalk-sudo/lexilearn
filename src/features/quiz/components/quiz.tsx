@@ -99,15 +99,15 @@ function ModeCard({
         playSound('tap')
         onClick()
       }}
-      className="surface lift group p-4 text-left transition-all duration-150 hover:border-primary-line cursor-pointer active:scale-[.98]"
+      className="surface lift group relative overflow-hidden rounded-xl border border-border/80 bg-card/90 p-4.5 text-left transition-all duration-200 hover:border-primary-line hover:shadow-md cursor-pointer active:scale-[.98]"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary group-hover:scale-105 transition-transform" aria-hidden="true">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary group-hover:scale-110 transition-transform shadow-xs" aria-hidden="true">
           <Icon className="h-5 w-5" />
         </span>
-        <Badge variant="outline" className="text-xs group-hover:border-primary/40 transition-colors">{tag}</Badge>
+        <Badge variant="outline" className="text-xs group-hover:border-primary/50 group-hover:text-primary transition-colors font-medium">{tag}</Badge>
       </div>
-      <div className="mt-3.5 text-base font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">{title}</div>
+      <div className="mt-4 text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">{title}</div>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
     </motion.button>
   )
@@ -379,13 +379,17 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
         {mode === 'speed_round' ? (
           <span
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-semibold num',
-              timeLeft <= 10 ? 'border-destructive/40 bg-destructive-soft text-destructive' : 'border-border bg-card'
+              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-bold num transition-colors shadow-2xs',
+              timeLeft <= 10
+                ? 'border-destructive/60 bg-destructive-soft text-destructive animate-pulse'
+                : timeLeft <= 20
+                ? 'border-warning/60 bg-warning-soft text-warning'
+                : 'border-border/80 bg-card text-foreground'
             )}
             role="timer"
             aria-live="off"
           >
-            <Timer className="h-3.5 w-3.5" aria-hidden="true" />
+            <Timer className="h-4 w-4" aria-hidden="true" />
             {timeLeft}s
           </span>
         ) : (

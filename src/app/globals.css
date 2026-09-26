@@ -388,6 +388,78 @@
       border-color: oklch(0.7 0.18 35 / 0.85);
     }
   }
+
+  /* Audio pronunciation wave pulse */
+  .audio-pulse {
+    animation: audio-ring 1.4s ease-out infinite;
+  }
+  @keyframes audio-ring {
+    0% {
+      transform: scale(0.96);
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent);
+    }
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 9px transparent;
+    }
+    100% {
+      transform: scale(0.96);
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  /* Glassmorphism surface */
+  .surface-glass {
+    background-color: color-mix(in oklab, var(--card) 85%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+  }
+
+  /* POS semantic badges */
+  .badge-noun {
+    background-color: oklch(0.95 0.04 155 / 0.85);
+    color: oklch(0.38 0.12 155);
+    border-color: oklch(0.85 0.08 155 / 0.6);
+  }
+  .dark .badge-noun {
+    background-color: oklch(0.3 0.06 155 / 0.4);
+    color: oklch(0.78 0.12 155);
+    border-color: oklch(0.45 0.08 155 / 0.5);
+  }
+
+  .badge-verb {
+    background-color: oklch(0.95 0.04 270 / 0.85);
+    color: oklch(0.42 0.14 270);
+    border-color: oklch(0.85 0.08 270 / 0.6);
+  }
+  .dark .badge-verb {
+    background-color: oklch(0.3 0.06 270 / 0.4);
+    color: oklch(0.8 0.12 270);
+    border-color: oklch(0.45 0.08 270 / 0.5);
+  }
+
+  .badge-adj {
+    background-color: oklch(0.95 0.05 75 / 0.85);
+    color: oklch(0.42 0.14 75);
+    border-color: oklch(0.85 0.08 75 / 0.6);
+  }
+  .dark .badge-adj {
+    background-color: oklch(0.3 0.06 75 / 0.4);
+    color: oklch(0.82 0.12 75);
+    border-color: oklch(0.45 0.08 75 / 0.5);
+  }
+
+  .badge-adv {
+    background-color: oklch(0.95 0.04 210 / 0.85);
+    color: oklch(0.42 0.13 210);
+    border-color: oklch(0.85 0.08 210 / 0.6);
+  }
+  .dark .badge-adv {
+    background-color: oklch(0.3 0.06 210 / 0.4);
+    color: oklch(0.8 0.11 210);
+    border-color: oklch(0.45 0.08 210 / 0.5);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

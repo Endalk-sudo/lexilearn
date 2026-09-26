@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, BookOpen, Ear, Layers, Library as LibraryIcon, Pencil, Plus,
-  Search as SearchIcon, Trash2, Upload, Volume2,
+  Search as SearchIcon, Star, Trash2, Upload, Volume2, X,
 } from 'lucide-react'
 import {
   api, type DeckDetail, type DeckSummary, type WordDTO,
@@ -76,6 +76,7 @@ function DecksPanel() {
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
+  const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const { v, t } = useMotionSafe()
 
   const load = useCallback(async () => {
@@ -201,14 +202,30 @@ function DecksPanel() {
                     <BookOpen className="h-3.5 w-3.5 text-primary/70" />
                     {deck.wordCount} words
                   </span>
-                  <Button
-                    size="sm"
-                    variant="soft"
-                    onClick={() => navigate('library-deck', { deckId: deck.id })}
-                    className="h-8 px-3 text-xs font-medium cursor-pointer"
-                  >
-                    Open deck
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDictationDeckId(deck.id)
+                        navigate('dictation')
+                      }}
+                      className="h-8 px-2.5 text-xs font-medium cursor-pointer"
+                      title={`Practice listening on ${deck.name}`}
+                    >
+                      <Ear className="h-3.5 w-3.5 mr-1 text-primary" />
+                      Dictate
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      onClick={() => navigate('library-deck', { deckId: deck.id })}
+                      className="h-8 px-3 text-xs font-medium cursor-pointer"
+                    >
+                      Open deck
+                    </Button>
+                  </div>
                 </div>
               </div>
             </motion.li>
@@ -359,11 +376,25 @@ function DictionaryPanel() {
   const setSearchQuery = useAppStore((s) => s.setSearchQuery)
   const navigate = useAppStore((s) => s.navigate)
   const [results, setResults] = useState<WordDTO[]>([])
-  // The query lives in the store so the search palette can pre-fill it.
-  // `resultsFor` marks which query produced the results, making "pending"
-  // derived state — no effect ever sets state synchronously.
   const [resultsFor, setResultsFor] = useState('')
   const [selected, setSelected] = useState<WordDTO | null>(null)
+  const [cefrFilter, setCefrFilter] = useState<'all' | 'A' | 'B' | 'C'>('all')
+  const [posFilter, setPosFilter] = useState<'all' | 'noun' | 'verb' | 'adj' | 'adv'>('all')
+  const [onlyStarred, setOnlyStarred] = useState(false)
+  const [bookmarkedList, setBookmarkedList] = useState<string[]>([])
+
+  useEffect(() => {
+    const syncBookmarks = () => {
+      try {
+        const raw = localStorage.getItem('lexilearn-bookmarked-words')
+        if (raw) setBookmarkedList(JSON.parse(raw))
+        else setBookmarkedList([])
+      } catch {}
+    }
+    syncBookmarks()
+    window.addEventListener('lexilearn-bookmarks-changed', syncBookmarks)
+    return () => window.removeEventListener('lexilearn-bookmarks-changed', syncBookmarks)
+  }, [])
 
   const query = searchQuery
   const trimmed = query.trim()
@@ -384,20 +415,29 @@ function DictionaryPanel() {
     return () => window.clearTimeout(id)
   }, [trimmed])
 
-  const activeWord = selected ?? results[0] ?? null
+  const filteredResults = useMemo(() => {
+    return results.filter((w) => {
+      if (cefrFilter !== 'all' && (!w.cefr || !w.cefr.toUpperCase().startsWith(cefrFilter))) return false
+      if (posFilter !== 'all' && (!w.pos || !w.pos.toLowerCase().includes(posFilter))) return false
+      if (onlyStarred && !bookmarkedList.includes(w.word.toLowerCase())) return false
+      return true
+    })
+  }, [results, cefrFilter, posFilter, onlyStarred, bookmarkedList])
+
+  const activeWord = selected ?? filteredResults[0] ?? null
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (results.length === 0) return
-    const currentIdx = activeWord ? results.findIndex((w) => w.id === activeWord.id) : 0
+    if (filteredResults.length === 0) return
+    const currentIdx = activeWord ? filteredResults.findIndex((w) => w.id === activeWord.id) : 0
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const nextIdx = Math.min(results.length - 1, currentIdx + 1)
-      setSelected(results[nextIdx])
+      const nextIdx = Math.min(filteredResults.length - 1, currentIdx + 1)
+      setSelected(filteredResults[nextIdx])
       playSound('tap')
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       const prevIdx = Math.max(0, currentIdx - 1)
-      setSelected(results[prevIdx])
+      setSelected(filteredResults[prevIdx])
       playSound('tap')
     }
   }
@@ -417,9 +457,83 @@ function DictionaryPanel() {
           aria-label="Search your dictionary"
           autoComplete="off"
           spellCheck={false}
-          className="h-11 pl-9 shadow-2xs"
+          className="h-11 pl-9 pr-9 shadow-2xs"
         />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('')
+              setSelected(null)
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
+
+      {/* Filter Chips Bar */}
+      {results.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Level:</span>
+          {(['all', 'A', 'B', 'C'] as const).map((lvl) => (
+            <button
+              key={lvl}
+              type="button"
+              onClick={() => setCefrFilter(lvl)}
+              className={cn(
+                'rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+                cefrFilter === lvl
+                  ? 'bg-primary text-primary-foreground shadow-2xs font-semibold'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              {lvl === 'all' ? 'All' : `${lvl}-Level`}
+            </button>
+          ))}
+
+          <div className="h-3.5 w-px bg-border/80 mx-1 hidden sm:block" />
+
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1 hidden sm:inline">Type:</span>
+          {(['all', 'noun', 'verb', 'adj'] as const).map((pos) => (
+            <button
+              key={pos}
+              type="button"
+              onClick={() => setPosFilter(pos)}
+              className={cn(
+                'rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+                posFilter === pos
+                  ? 'bg-primary text-primary-foreground shadow-2xs font-semibold'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              {pos === 'all' ? 'All' : pos === 'adj' ? 'Adjective' : pos.charAt(0).toUpperCase() + pos.slice(1)}
+            </button>
+          ))}
+
+          <div className="h-3.5 w-px bg-border/80 mx-1" />
+
+          <button
+            type="button"
+            onClick={() => setOnlyStarred(!onlyStarred)}
+            className={cn(
+              'flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+              onlyStarred
+                ? 'bg-amber-500 text-white font-semibold shadow-2xs'
+                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
+          >
+            <Star className={cn('h-3 w-3', onlyStarred && 'fill-current')} />
+            <span>Starred</span>
+          </button>
+
+          <span className="ml-auto text-xs text-muted-foreground num">
+            {filteredResults.length} {filteredResults.length === 1 ? 'word' : 'words'}
+          </span>
+        </div>
+      ) : null}
 
       {pending ? (
         <div className="space-y-2" aria-busy="true">
@@ -443,12 +557,27 @@ function DictionaryPanel() {
           actionLabel="Add words to a deck"
           onAction={() => navigate('library', { libraryTab: 'decks' })}
         />
+      ) : filteredResults.length === 0 ? (
+        <div className="surface p-6 text-center space-y-2 rounded-xl border border-dashed border-border/70">
+          <p className="text-sm font-semibold text-foreground">No words match the selected filters.</p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setCefrFilter('all')
+              setPosFilter('all')
+              setOnlyStarred(false)
+            }}
+          >
+            Reset filters
+          </Button>
+        </div>
       ) : (
         <>
           {/* Laptop Widescreen Split-Pane Layout */}
           <div className="hidden lg:grid lg:grid-cols-12 lg:gap-6 items-start">
             <div className="lg:col-span-5 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-              {results.map((word) => {
+              {filteredResults.map((word) => {
                 const isSelected = activeWord?.id === word.id
                 return (
                   <div
@@ -465,7 +594,18 @@ function DictionaryPanel() {
                     <div className="min-w-0 flex-1 px-1.5 py-1 text-left">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-semibold">{word.word}</span>
-                        {word.pos ? <span className="text-xs italic text-muted-foreground">{word.pos}</span> : null}
+                        {word.pos ? (
+                          <span className={cn(
+                            'text-[11px] px-1.5 py-0.2 rounded border font-medium lowercase',
+                            word.pos.includes('noun') && 'badge-noun',
+                            word.pos.includes('verb') && 'badge-verb',
+                            word.pos.includes('adj') && 'badge-adj',
+                            word.pos.includes('adv') && 'badge-adv',
+                            !word.pos.match(/noun|verb|adj|adv/) && 'border-border/60 text-muted-foreground'
+                          )}>
+                            {word.pos}
+                          </span>
+                        ) : null}
                         {word.cefr ? (
                           <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
                             {word.cefr}
@@ -511,7 +651,7 @@ function DictionaryPanel() {
               </div>
             ) : (
               <ul className="space-y-2">
-                {results.map((word) => (
+                {filteredResults.map((word) => (
                   <li key={word.id} className="surface flex items-center gap-1 p-2 transition-colors duration-150 hover:border-primary-line">
                     <button
                       type="button"
