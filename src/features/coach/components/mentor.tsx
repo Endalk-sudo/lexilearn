@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowRight, Check, ChevronRight, Cpu, GitBranch, History, Lightbulb,
-  Loader2, Map, MessageCircle, RotateCcw, Send, Sparkles, Star,
+  ArrowRight, Check, ChevronRight, GitBranch, History, Lightbulb,
+  Loader2, Map, MessageCircle, RotateCcw, Send, Sparkles,
   Target, Trophy, Volume2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -58,8 +58,6 @@ export const CONFIDENCE_OPTIONS = [
   { level: 4, label: 'Confident', emoji: '✨' },
   { level: 5, label: 'Certain', emoji: '🎯' },
 ]
-
-const CONFIDENCE_LABELS = ['A guess', 'Shaky', 'Fairly sure', 'Confident', 'Certain']
 
 const THINKING_STATUS = [
   'Reading your history…',
@@ -317,7 +315,7 @@ export function MentorView() {
   const mastery = overview.mastery.find(m=>m.tag===branch.focusTag)?.mastery ?? 0.5
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="space-y-4">
       <PageHeader
         eyebrow="AI Coach"
         icon={Sparkles}
@@ -340,7 +338,7 @@ export function MentorView() {
             ) : null}
             <Popover open={memoryOpen} onOpenChange={setMemoryOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="What the Mentor remembers" className="relative cursor-pointer">
+                <Button variant="outline" size="icon" aria-label="What the Mentor remembers" className="h-8 w-8 relative cursor-pointer">
                   <History className="h-4 w-4"/>
                   {overview.dueErrors.length>0 && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true"/>}
                 </Button>
@@ -351,7 +349,7 @@ export function MentorView() {
             </Popover>
             <Popover open={mapOpen} onOpenChange={setMapOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Learning map" className="cursor-pointer">
+                <Button variant="outline" size="icon" aria-label="Learning map" className="h-8 w-8 cursor-pointer">
                   <Map className="h-4 w-4"/>
                 </Button>
               </PopoverTrigger>
@@ -390,7 +388,7 @@ export function MentorView() {
               variant="outline"
               size="sm"
               onClick={() => setMapOpen(true)}
-              className="gap-1.5 text-xs cursor-pointer"
+              className="h-8 gap-1.5 text-xs cursor-pointer"
             >
               <Map className="h-3.5 w-3.5" />
               <span>Switch</span>
@@ -399,7 +397,7 @@ export function MentorView() {
               variant="secondary"
               size="sm"
               onClick={() => setShowBranchMaker((v) => !v)}
-              className="gap-1.5 text-xs cursor-pointer"
+              className="h-8 gap-1.5 text-xs cursor-pointer"
             >
               <GitBranch className="h-3.5 w-3.5" />
               <span>New</span>
@@ -447,20 +445,43 @@ export function MentorView() {
               transition={t(springSoft)}
               className="space-y-5"
             >
-              {/* Challenge Studio Header */}
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2 text-xs">
+              {/* Challenge Studio Header with Snapped Step Progress */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <div className="flex flex-wrap items-center gap-2.5 text-xs">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 font-semibold text-primary">
                     <Target className="h-3.5 w-3.5" />
                     Challenge
                   </span>
                   <span className="text-muted-foreground tabular-nums font-medium">Difficulty {node.difficulty}/5</span>
+
+                  {!feedback && (
+                    <>
+                      <span className="text-border/70 hidden sm:inline" aria-hidden="true">•</span>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Progress through this challenge">
+                        {['Answer','Self-correct','Diagnosis'].map((label, i) => {
+                          const step = selfCorrecting ? 1 : 0
+                          return (
+                            <div key={label} className="flex items-center gap-1.5">
+                              {i > 0 && <span className="h-px w-3 bg-border" aria-hidden="true"/>}
+                              <span className={cn(
+                                'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
+                                i === step ? 'bg-primary-soft text-primary font-semibold' : i < step ? 'text-success font-semibold' : 'text-muted-foreground'
+                              )}>
+                                {i < step ? <Check className="h-2.5 w-2.5"/> : <span className="tabular-nums">{i+1}</span>}
+                                {label}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => speak(node.prompt)}
-                  className="gap-1.5 h-8 text-xs font-medium cursor-pointer"
+                  className="gap-1.5 h-8 text-xs font-medium cursor-pointer shrink-0 self-end sm:self-auto"
                   title="Listen to challenge"
                 >
                   <Volume2 className="h-3.5 w-3.5 text-primary" />
@@ -468,27 +489,10 @@ export function MentorView() {
                 </Button>
               </div>
 
+              {/* Challenge Prompt */}
               <p className="text-xl sm:text-2xl font-semibold leading-relaxed tracking-tight text-balance text-foreground">
                 {node.prompt}
               </p>
-
-              {!feedback && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground" aria-label="Progress through this challenge">
-                  {['Answer','Self-correct','Diagnosis'].map((label, i) => {
-                    const step = selfCorrecting ? 1 : 0
-                    return (
-                      <div key={label} className="flex items-center gap-2">
-                        {i > 0 && <span className="h-px w-5 bg-border" aria-hidden="true"/>}
-                        <span className={cn('flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium transition-colors',
-                          i === step ? 'bg-primary-soft text-primary font-semibold' : i < step ? 'text-success font-semibold' : 'text-muted-foreground')}>
-                          {i < step ? <Check className="h-3 w-3"/> : <span className="tabular-nums">{i+1}</span>}
-                          {label}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
 
               {/* Progressive hints list */}
               <AnimatePresence>
@@ -517,8 +521,8 @@ export function MentorView() {
 
               {!feedback ? (
                 <div className="space-y-4">
-                  {/* Elevated response canvas */}
-                  <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs focus-within:border-primary-line focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                  {/* Integrated Editorial Writing Canvas (Container Dissolution) */}
+                  <div className="rounded-lg border border-border/80 bg-muted/15 p-3.5 shadow-2xs focus-within:border-primary-line focus-within:bg-card focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                     <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b border-border/40">
                       <span className="font-medium text-foreground">
                         {selfCorrecting ? 'Your first attempt (read only)' : 'Your response'}
@@ -543,7 +547,7 @@ export function MentorView() {
                           }
                         }}
                         placeholder="Write your sentence here…"
-                        className="mt-2 min-h-[96px] border-0 bg-transparent p-0 text-base focus-visible:ring-0 resize-none"
+                        className="mt-2 min-h-[104px] border-0 bg-transparent p-0 text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 resize-none"
                         aria-label="Your answer"
                       />
                     )}
@@ -551,7 +555,7 @@ export function MentorView() {
 
                   {selfCorrecting && (
                     <motion.div variants={v(revealBlock)} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-                      <div className="rounded-xl border border-primary-line bg-primary-soft/90 p-3.5">
+                      <div className="rounded-lg border border-primary-line bg-primary-soft/90 p-3.5">
                         <div className="text-xs font-semibold text-primary uppercase tracking-wider">
                           Self-Correction — Polish or confirm before evaluation
                         </div>
@@ -574,11 +578,14 @@ export function MentorView() {
                     </motion.div>
                   )}
 
-                  {/* Confidence selector & Actions */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground shrink-0">Confidence:</span>
-                      <div role="radiogroup" aria-label="Confidence" className="flex items-center gap-1">
+                  {/* Multi-Edge Anchored Confidence Selector & Action Bar */}
+                  <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between border-t border-border/50">
+                    <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-0.5">
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">
+                        Confidence: <span className="font-semibold text-foreground num">{confidence}</span>
+                        <span className="text-muted-foreground/70 text-[11px] hidden sm:inline"> · {CONFIDENCE_OPTIONS.find(o => o.level === confidence)?.label}</span>
+                      </span>
+                      <div role="radiogroup" aria-label="Confidence" className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shrink-0">
                         {CONFIDENCE_OPTIONS.map((opt) => (
                           <button
                             key={opt.level}
@@ -586,28 +593,29 @@ export function MentorView() {
                             role="radio"
                             aria-checked={confidence === opt.level}
                             onClick={() => { setConfidence(opt.level); playSound('tap'); buzz('light') }}
-                            title={opt.label}
+                            title={`${opt.level} — ${opt.label}`}
+                            aria-label={`Confidence level ${opt.level}: ${opt.label}`}
                             className={cn(
-                              'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all cursor-pointer',
+                              'h-8 w-8 inline-flex items-center justify-center rounded-md font-mono text-xs font-semibold tabular-nums transition-all cursor-pointer select-none',
                               confidence === opt.level
-                                ? 'bg-primary text-primary-foreground shadow-xs ring-1 ring-primary/40'
-                                : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
+                                ? 'bg-primary text-primary-foreground font-bold shadow-xs ring-1 ring-primary/40'
+                                : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
                             )}
                           >
-                            <span>{opt.emoji}</span>
-                            <span className="hidden sm:inline text-[11px]">{opt.label}</span>
+                            {opt.level}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 justify-end">
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                       {!selfCorrecting && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
+                          size="sm"
                           onClick={requestHint}
                           disabled={hintLevel >= 4}
-                          className="gap-1.5 text-xs cursor-pointer"
+                          className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
                         >
                           <Lightbulb className="h-3.5 w-3.5 text-warning" />
                           <span>Hint</span>
@@ -615,11 +623,12 @@ export function MentorView() {
                         </Button>
                       )}
                       <Button
+                        size="sm"
                         onClick={submit}
                         disabled={submitting || !answer.trim() || (selfCorrecting && !selfCorrection.trim())}
-                        className="gap-2 text-xs font-semibold cursor-pointer"
+                        className="h-8 gap-2 text-xs font-semibold cursor-pointer shadow-xs"
                       >
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                         <span>{selfCorrecting ? 'Evaluate' : 'Submit'}</span>
                         <kbd className="rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1 py-0.2 font-mono text-[10px] text-primary-foreground">
                           {prettyKbd()}

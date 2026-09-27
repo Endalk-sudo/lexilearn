@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Languages, Lightbulb, Star, Volume2 } from 'lucide-react'
+import { ChevronDown, HelpCircle, Sparkles, Star, Volume2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { speak } from '@/lib/tts'
 import { toast } from 'sonner'
@@ -15,6 +14,16 @@ import { cn } from '@/lib/utils'
 import { revealBlock, transition, useMotionSafe } from '@/lib/motion'
 
 type Tab = 'meaning' | 'example' | 'amharic'
+
+function subscribeBookmarks(callback: () => void) {
+  if (typeof window === 'undefined') return () => {}
+  window.addEventListener('lexilearn-bookmarks-changed', callback)
+  window.addEventListener('storage', callback)
+  return () => {
+    window.removeEventListener('lexilearn-bookmarks-changed', callback)
+    window.removeEventListener('storage', callback)
+  }
+}
 
 function isWordBookmarked(word: string): boolean {
   if (typeof window === 'undefined') return false
@@ -45,9 +54,18 @@ function setWordBookmarked(word: string, bookmarked: boolean) {
   } catch {}
 }
 
+const CEFR_STYLES: Record<string, string> = {
+  A1: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  A2: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  B1: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  B2: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  C1: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400',
+  C2: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400',
+}
+
 /**
- * The word detail card used by Learn, the palette and the dictionary.
- * Progressive disclosure: meaning first, everything else on demand.
+ * WordCardV2: Scannable Micro-Layout implementation
+ * Strict edge alignment, container dissolution, quiet default contrast, zero text bloat.
  */
 export function WordCardV2({
   word,
@@ -71,13 +89,10 @@ export function WordCardV2({
   const [hint, setHint] = useState(false)
   const [revealed, setRevealed] = useState(showDefinition)
   const [speaking, setSpeaking] = useState(false)
-  const [bookmarked, setBookmarked] = useState(false)
+  const getSnapshot = useCallback(() => isWordBookmarked(word.word), [word.word])
+  const bookmarked = useSyncExternalStore(subscribeBookmarks, getSnapshot, () => false)
   const { v, t } = useMotionSafe()
   const lastSpokenIdRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    setBookmarked(isWordBookmarked(word.word))
-  }, [word.word])
 
   // Auto-pronounce word when WordCardV2 opens/updates if autoSpeak is active
   useEffect(() => {
@@ -104,116 +119,109 @@ export function WordCardV2({
   const toggleBookmark = () => {
     playSound('tap')
     const next = !bookmarked
-    setBookmarked(next)
     setWordBookmarked(word.word, next)
     toast.success(next ? `Saved "${word.word}" to favorites` : `Removed "${word.word}" from favorites`)
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'meaning', label: 'Meaning' },
-    { id: 'example', label: 'Example' },
-    { id: 'amharic', label: 'አማር' },
+    { id: 'meaning', label: 'Definition' },
+    { id: 'example', label: 'In Context' },
+    { id: 'amharic', label: 'አማርኛ' },
   ]
 
-  const posClass = word.pos
-    ? word.pos.includes('noun')
-      ? 'badge-noun'
-      : word.pos.includes('verb')
-      ? 'badge-verb'
-      : word.pos.includes('adj')
-      ? 'badge-adj'
-      : word.pos.includes('adv')
-      ? 'badge-adv'
-      : 'border-border/70 bg-muted/50 text-muted-foreground'
-    : ''
+  const cefrStyle = word.cefr ? CEFR_STYLES[word.cefr] ?? 'border-border bg-muted/40 text-muted-foreground' : null
 
   return (
-    <Card className="overflow-hidden border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm">
-      <div className="p-5 sm:p-6">
+    <Card className="overflow-hidden border border-border/80 bg-card/95 shadow-xs">
+      <div className="p-4 sm:p-5">
         {!hideWord ? (
           <>
+            {/* Primary Multi-Edge Row: Word + Metadata (Left) | Action Cluster (Right) */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <h2 className="break-words text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
+                {/* Structural Line 1: Word Name + Tags */}
+                <div className="flex flex-wrap items-baseline gap-2.5">
+                  <h2 className="break-words text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                     {word.word}
                   </h2>
                   {word.pos ? (
-                    <span className={cn('rounded-full border px-2.5 py-0.5 text-xs font-semibold lowercase tracking-wide shadow-2xs', posClass)}>
-                      {word.pos}
+                    <span className="text-xs font-semibold lowercase tracking-wide text-muted-foreground/80">
+                      /{word.pos}/
+                    </span>
+                  ) : null}
+                  {word.cefr ? (
+                    <span
+                      className={cn(
+                        'rounded px-1.5 py-0.2 font-mono text-[10px] font-bold tracking-wider uppercase border',
+                        cefrStyle
+                      )}
+                    >
+                      {word.cefr}
                     </span>
                   ) : null}
                 </div>
-                
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {word.ipa ? (
-                    <span className="font-mono text-sm text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md border border-border/40">
-                      {word.ipa}
-                    </span>
-                  ) : null}
 
-                  {word.syllables && word.syllables.length > 0 ? (
-                    <div className="flex items-center gap-1" title="Syllable structure">
-                      {word.syllables.map((syl, i) => (
-                        <span
-                          key={i}
-                          className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground hover:bg-primary-soft hover:text-primary transition-colors cursor-default"
-                        >
-                          {syl}
-                        </span>
-                      ))}
-                    </div>
+                {/* Structural Line 2: Phonetics & Syllable Edge */}
+                <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground font-mono">
+                  {word.ipa ? <span>{word.ipa}</span> : null}
+                  {word.ipa && word.syllables && word.syllables.length > 1 ? (
+                    <span className="text-border" aria-hidden="true">•</span>
+                  ) : null}
+                  {word.syllables && word.syllables.length > 1 ? (
+                    <span className="tracking-widest text-muted-foreground/70" title="Syllable structure">
+                      {word.syllables.join(' · ')}
+                    </span>
                   ) : null}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
+              {/* Edge-Anchored Action Cluster */}
+              <div className="flex items-center gap-1 shrink-0 self-start">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setHint((v) => !v)}
+                  className={cn(
+                    'h-8 w-8 text-muted-foreground/70 hover:text-foreground transition-colors cursor-pointer',
+                    hint && 'text-amber-500 bg-amber-500/10'
+                  )}
+                  title={hint ? 'Hide hint' : 'Show structural hint'}
+                  aria-label="Toggle word hint"
+                  aria-expanded={hint}
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </Button>
+
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={toggleBookmark}
                   className={cn(
-                    'h-10 w-10 text-muted-foreground hover:text-amber-500 transition-colors cursor-pointer',
+                    'h-8 w-8 text-muted-foreground/70 hover:text-amber-500 transition-colors cursor-pointer',
                     bookmarked && 'text-amber-500'
                   )}
-                  title={bookmarked ? 'Remove from starred words' : 'Star this word'}
+                  title={bookmarked ? 'Remove from favorites' : 'Save to favorites'}
                   aria-label={bookmarked ? 'Unstar word' : 'Star word'}
                 >
-                  <Star className={cn('h-4 w-4', bookmarked && 'fill-current scale-110')} />
+                  <Star className={cn('h-4 w-4', bookmarked && 'fill-current scale-105')} />
                 </Button>
 
                 <Button
-                  size="icon-lg"
+                  size="icon"
                   variant={speaking ? 'soft' : 'outline'}
                   onClick={hear}
-                  className={cn('relative transition-all cursor-pointer', speaking && 'text-primary border-primary audio-pulse')}
-                  aria-label={`Hear ${word.word}`}
+                  className={cn(
+                    'h-8 w-8 transition-all cursor-pointer',
+                    speaking && 'text-primary border-primary bg-primary/10'
+                  )}
+                  aria-label={`Pronounce ${word.word}`}
                 >
-                  <Volume2 className={cn('h-5 w-5', speaking && 'scale-110')} />
+                  <Volume2 className={cn('h-4 w-4', speaking && 'scale-110')} />
                 </Button>
               </div>
             </div>
 
-            <div className="mt-3.5 flex flex-wrap items-center gap-2">
-              {word.cefr ? (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'font-mono text-xs font-bold px-2 py-0.5 rounded-md shadow-2xs',
-                    word.cefr.startsWith('A') && 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                    word.cefr.startsWith('B') && 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                    word.cefr.startsWith('C') && 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                  )}
-                >
-                  {word.cefr}
-                </Badge>
-              ) : null}
-              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground cursor-pointer text-xs" onClick={() => setHint((value) => !value)} aria-expanded={hint}>
-                <Lightbulb className="h-3.5 w-3.5 text-warning" />
-                {hint ? 'Hide hint' : 'Need a hint?'}
-              </Button>
-            </div>
-
+            {/* Micro-Hint Inline Drawer (Dissolved Container) */}
             <AnimatePresence initial={false}>
               {hint ? (
                 <motion.div
@@ -224,24 +232,30 @@ export function WordCardV2({
                   transition={t()}
                   className="overflow-hidden"
                 >
-                  <div className="mt-3 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-                    Starts with <b className="font-semibold text-foreground">{word.word[0]?.toUpperCase()}</b> ·{' '}
-                    {word.word.length} letters
+                  <div className="mt-2.5 flex items-center justify-between rounded border border-border/60 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3 text-amber-500 shrink-0" aria-hidden="true" />
+                      Starts with <strong className="font-semibold text-foreground uppercase">{word.word[0]}</strong>
+                    </span>
+                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground/80">
+                      {word.word.length} letters
+                    </span>
                   </div>
                 </motion.div>
               ) : null}
             </AnimatePresence>
           </>
         ) : (
-          <div className="flex items-center justify-between gap-3">
-            <span className="label text-muted-foreground">Listen carefully</span>
-            <Button size="sm" variant="outline" onClick={hear}>
-              <Volume2 className="h-3.5 w-3.5" />
-              Play
+          <div className="flex items-center justify-between gap-3 py-1">
+            <span className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Audio Prompt</span>
+            <Button size="sm" variant="outline" onClick={hear} className="h-7 text-xs px-2.5 cursor-pointer">
+              <Volume2 className="h-3.5 w-3.5 mr-1" />
+              Listen
             </Button>
           </div>
         )}
 
+        {/* Revealed Content: Dissolved Tab Layout */}
         <AnimatePresence mode="wait" initial={false}>
           {revealed ? (
             <motion.div
@@ -253,82 +267,99 @@ export function WordCardV2({
               transition={t(transition.base)}
               className="overflow-hidden"
             >
-              <div className="mt-5 border-t border-border pt-4">
-                <div className="flex gap-1 rounded-md border border-border bg-muted/40 p-1" role="tablist" aria-label="Word details">
-                  {tabs.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === item.id}
-                      onClick={() => setTab(item.id)}
-                      className={cn(
-                        'h-8 flex-1 rounded font-medium transition-colors duration-150',
-                        tab === item.id ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+              <div className="mt-4 pt-2">
+                {/* Hairline Edge-Anchored Tab Bar (Zero Card Chrome) */}
+                <div
+                  className="flex items-center gap-5 border-b border-border/60"
+                  role="tablist"
+                  aria-label="Word views"
+                >
+                  {tabs.map((item) => {
+                    const active = tab === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setTab(item.id)}
+                        className={cn(
+                          'relative pb-2 text-xs transition-colors duration-150 cursor-pointer',
+                          active
+                            ? 'font-semibold text-foreground border-b-2 border-primary -mb-px'
+                            : 'font-medium text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    )
+                  })}
+
+                  {/* Micro-Disclosure Toggle Aligned to Right Edge */}
+                  <button
+                    type="button"
+                    onClick={() => setDetails((prev) => !prev)}
+                    aria-expanded={details}
+                    className="ml-auto pb-2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <span>More</span>
+                    <ChevronDown
+                      className={cn('h-3.5 w-3.5 transition-transform duration-200', details && 'rotate-180')}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
 
-                <div className="mt-3 min-h-16">
+                {/* Tab Panels */}
+                <div className="py-3">
                   {tab === 'meaning' ? (
                     word.definitions.length ? (
-                      <ul className="space-y-1.5">
+                      <ol className="space-y-1.5">
                         {word.definitions.map((definition, i) => (
-                          <li key={i} className="text-[15px] leading-relaxed">
-                            {definition.pos ? (
-                              <span className="mr-1.5 italic text-muted-foreground">{definition.pos}</span>
-                            ) : null}
-                            {definition.text}
+                          <li key={i} className="grid grid-cols-[1.5rem_1fr] items-start text-sm leading-snug">
+                            <span className="font-mono text-xs font-semibold tabular-nums text-muted-foreground/60 select-none">
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <div className="text-foreground/90">
+                              {definition.pos ? (
+                                <span className="mr-1.5 text-xs italic text-muted-foreground">[{definition.pos}]</span>
+                              ) : null}
+                              {definition.text}
+                            </div>
                           </li>
                         ))}
-                      </ul>
+                      </ol>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No definition yet.</p>
+                      <div className="text-xs text-muted-foreground/60 italic">—</div>
                     )
                   ) : null}
 
                   {tab === 'example' ? (
                     word.examples.length ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 border-l border-border/80 pl-3">
                         {word.examples.slice(0, 2).map((example, i) => (
-                          <blockquote
-                            key={i}
-                            className="border-l-2 border-primary-line bg-primary-soft px-3.5 py-2.5 text-sm italic leading-relaxed"
-                          >
+                          <p key={i} className="text-sm italic text-foreground/80 leading-relaxed">
                             “{example}”
-                          </blockquote>
+                          </p>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No example yet.</p>
+                      <div className="text-xs text-muted-foreground/60 italic">—</div>
                     )
                   ) : null}
 
                   {tab === 'amharic' ? (
                     word.amharic ? (
-                      <p className="rounded-md bg-muted/50 p-3.5 text-[15px]" lang="am">{word.amharic}</p>
+                      <p className="text-base text-foreground font-medium py-1" lang="am">
+                        {word.amharic}
+                      </p>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No Amharic translation yet.</p>
+                      <div className="text-xs text-muted-foreground/60 italic">—</div>
                     )
                   ) : null}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setDetails((value) => !value)}
-                  aria-expanded={details}
-                  className="mt-3 flex w-full items-center justify-between rounded-md border border-border bg-muted/30 px-3.5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Languages className="h-3.5 w-3.5" aria-hidden="true" />
-                    More details
-                  </span>
-                  <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', details && 'rotate-180')} aria-hidden="true" />
-                </button>
-
+                {/* Secondary Micro-Details Drawer (Zero Outer Card Wrapper) */}
                 <AnimatePresence initial={false}>
                   {details ? (
                     <motion.div
@@ -337,43 +368,51 @@ export function WordCardV2({
                       animate="show"
                       exit="exit"
                       transition={t()}
-                      className="overflow-hidden"
+                      className="overflow-hidden border-t border-border/50 pt-2.5 mt-1"
                     >
-                      <div className="space-y-3 pt-3">
-                        {word.syllables?.length > 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            Syllables:{' '}
-                            <span className="font-medium text-foreground">{word.syllables.join(' · ')}</span>
-                          </div>
-                        ) : null}
+                      <div className="space-y-2 text-xs">
                         {word.synonyms.length > 0 ? (
-                          <div>
-                            <div className="label text-muted-foreground">Synonyms</div>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {word.synonyms.map((synonym) => (
-                                <Badge key={synonym} variant="secondary" className="font-normal">
-                                  {synonym}
-                                </Badge>
+                          <div className="grid grid-cols-[68px_1fr] items-baseline gap-2">
+                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                              Synonyms
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {word.synonyms.map((s) => (
+                                <span
+                                  key={s}
+                                  className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-foreground/90 font-mono"
+                                >
+                                  {s}
+                                </span>
                               ))}
                             </div>
                           </div>
                         ) : null}
+
                         {word.antonyms.length > 0 ? (
-                          <div>
-                            <div className="label text-muted-foreground">Antonyms</div>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {word.antonyms.map((antonym) => (
-                                <Badge key={antonym} variant="outline" className="font-normal">
-                                  {antonym}
-                                </Badge>
+                          <div className="grid grid-cols-[68px_1fr] items-baseline gap-2">
+                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                              Antonyms
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {word.antonyms.map((a) => (
+                                <span
+                                  key={a}
+                                  className="rounded border border-border/60 px-1.5 py-0.5 text-[11px] text-muted-foreground font-mono"
+                                >
+                                  {a}
+                                </span>
                               ))}
                             </div>
                           </div>
                         ) : null}
+
                         {word.etymology ? (
-                          <div>
-                            <div className="label text-muted-foreground">Origin</div>
-                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{word.etymology}</p>
+                          <div className="grid grid-cols-[68px_1fr] items-baseline gap-2">
+                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                              Origin
+                            </span>
+                            <p className="text-muted-foreground leading-relaxed">{word.etymology}</p>
                           </div>
                         ) : null}
                       </div>
@@ -382,17 +421,35 @@ export function WordCardV2({
                 </AnimatePresence>
 
                 {!showDefinition ? (
-                  <Button size="sm" variant="ghost" className="mt-3" onClick={() => setRevealed(false)}>
-                    Hide answer
-                  </Button>
+                  <div className="mt-2 pt-2 border-t border-border/40 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => setRevealed(false)}
+                    >
+                      Hide answer
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             </motion.div>
           ) : (
-            <motion.div key="hidden" variants={v(fadeInish)} initial="hidden" animate="show" className="overflow-hidden">
-              <Button variant="outline" onClick={() => setRevealed(true)} data-testid="wordcard-reveal" className="mt-5 h-12 w-full text-sm font-medium">
+            <motion.div
+              key="hidden"
+              variants={v(fadeInish)}
+              initial="hidden"
+              animate="show"
+              className="overflow-hidden"
+            >
+              <Button
+                variant="outline"
+                onClick={() => setRevealed(true)}
+                data-testid="wordcard-reveal"
+                className="mt-4 h-10 w-full text-xs font-semibold cursor-pointer border-border hover:bg-muted/40 transition-colors"
+              >
                 Reveal meaning
-                <span className="ml-auto hidden font-mono text-xs text-muted-foreground sm:inline">SPACE</span>
+                <span className="ml-auto hidden font-mono text-[10px] text-muted-foreground sm:inline">SPACE</span>
               </Button>
             </motion.div>
           )}

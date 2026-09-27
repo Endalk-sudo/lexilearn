@@ -24,7 +24,7 @@ export function CoachView() {
       initial="hidden"
       animate="show"
       transition={t()}
-      className="space-y-5"
+      className="mx-auto max-w-3xl space-y-5"
     >
       <SegmentedControl
         ariaLabel="Coach sections"
