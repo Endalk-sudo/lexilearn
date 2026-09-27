@@ -40,7 +40,11 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
     setImporting(true)
     try {
       const res = await api.addWordsToDeck(deckId, parsed)
-      toast.success(`${res.count} words added to "${deckName}"`)
+      if (res.skipped && res.skipped > 0) {
+        toast.success(`${res.count} words added, ${res.skipped} skipped (already in deck)`)
+      } else {
+        toast.success(`${res.count} words added to "${deckName}"`)
+      }
       setCsv('')
       onOpenChange(false)
       onImported()

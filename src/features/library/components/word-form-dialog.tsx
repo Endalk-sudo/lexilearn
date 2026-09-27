@@ -126,12 +126,12 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
               <Input id="wf-cefr" value={cefr} onChange={(e) => setCefr(e.target.value)} placeholder="C1" />
             </div>
             <div>
-              <Label htmlFor="wf-synonyms">Synonyms (comma-separated)</Label>
-              <Input id="wf-synonyms" value={synonyms} onChange={(e) => setSynonyms(e.target.value)} placeholder="luck, fortune" />
+              <Label htmlFor="wf-synonyms">Synonyms (pipe-separated)</Label>
+              <Input id="wf-synonyms" value={synonyms} onChange={(e) => setSynonyms(e.target.value)} placeholder="luck | fortune" />
             </div>
           </div>
           <div>
-            <Label htmlFor="wf-antonyms">Antonyms (comma-separated)</Label>
+            <Label htmlFor="wf-antonyms">Antonyms (pipe-separated)</Label>
             <Input id="wf-antonyms" value={antonyms} onChange={(e) => setAntonyms(e.target.value)} placeholder="misfortune" />
           </div>
         </div>

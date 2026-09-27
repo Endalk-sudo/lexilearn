@@ -170,11 +170,11 @@ type BulkWord = {
   example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string
 }
 
-/** Map one loose word payload to an insert row. `synonyms`/`ant antonyms` are
- *  pipe- or comma-separated in the UI, so they are split and cleaned here. */
-function toWordRow(w: BulkWord, deckId: string, separator: '|' | ',') {
+/** Map one loose word payload to an insert row. `synonyms`/`antonyms` are
+ *  pipe-separated (the UI label says so), so they are split and cleaned here. */
+function toWordRow(w: BulkWord, deckId: string) {
   const splitList = (s?: string) =>
-    s ? JSON.stringify(s.split(separator).map((x) => x.trim()).filter(Boolean)) : null
+    s ? JSON.stringify(s.split('|').map((x) => x.trim()).filter(Boolean)) : null
   return {
     id: createId(),
     word: w.word.trim().toLowerCase(),
@@ -194,9 +194,19 @@ function toWordRow(w: BulkWord, deckId: string, separator: '|' | ',') {
 
 async function createCustomDeck(name: string, description: string, words: BulkWord[]) {
   const deckId = createId()
-  const rows = words
-    .filter((w) => w.word && w.word.trim())
-    .map((w) => toWordRow(w, deckId, '|'))
+  const validWords = words.filter((w) => w.word && w.word.trim())
+
+  // De-duplicate within the import itself (same deck is brand new, so no
+  // existing words to collide with).
+  const seen = new Set<string>()
+  const uniqueWords = validWords.filter((w) => {
+    const key = w.word.trim().toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  const rows = uniqueWords.map((w) => toWordRow(w, deckId))
 
   // One transaction for the deck and all of its words: a failure part-way
   // through used to leave an empty deck behind with no way to tell.
@@ -205,7 +215,7 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
     if (rows.length) tx.insert(word).values(rows).run()
   })
 
-  return { id: deckId, count: rows.length }
+  return { id: deckId, count: rows.length, skipped: validWords.length - uniqueWords.length }
 }
 
 function pickRandom<T>(arr: T[], n: number): T[] {
@@ -670,11 +680,37 @@ export async function POST(req: NextRequest) {
         const deckRow = await db.select().from(deck).where(eq(deck.id, parsed.data.deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
 
-        const rows = parsed.data.words
-          .filter((w) => w.word && w.word.trim())
-          .map((w) => toWordRow(w, parsed.data.deckId, '|'))
-        if (rows.length) db.transaction((tx) => { tx.insert(word).values(rows).run() })
-        return NextResponse.json({ count: rows.length })
+        const validWords = parsed.data.words.filter((w) => w.word && w.word.trim())
+        if (validWords.length === 0) {
+          return NextResponse.json({ error: 'No valid words found — every row was empty.' }, { status: 400 })
+        }
+
+        // Check for duplicates already in the deck so we can report them
+        // instead of failing the entire import on a constraint violation.
+        const deckWords = await db.select({ word: word.word }).from(word).where(eq(word.deckId, parsed.data.deckId)).all()
+        const existing = new Set(deckWords.map((r) => r.word.toLowerCase()))
+        const duplicates: string[] = []
+        const toInsert = validWords.filter((w) => {
+          const key = w.word.trim().toLowerCase()
+          if (existing.has(key)) { duplicates.push(key); return false }
+          existing.add(key) // also catch duplicates within the same import
+          return true
+        })
+
+        if (toInsert.length === 0) {
+          return NextResponse.json(
+            { error: `All ${duplicates.length} word(s) already exist in this deck`, duplicates },
+            { status: 409 }
+          )
+        }
+
+        const rows = toInsert.map((w) => toWordRow(w, parsed.data.deckId))
+        db.transaction((tx) => { tx.insert(word).values(rows).run() })
+        return NextResponse.json({
+          count: rows.length,
+          skipped: duplicates.length,
+          duplicates: duplicates.length ? duplicates : undefined,
+        })
       }
 
       case 'deleteDeck': {
@@ -798,10 +834,24 @@ export async function POST(req: NextRequest) {
         const parsed = AddWordBody.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: 'deckId and word required' }, { status: 400 })
         const { deckId, ...fields } = parsed.data
-        const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
-        if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
-        const inserted = db.insert(word).values(toWordRow(fields, deckId, ',')).returning({ id: word.id }).get()
-        return NextResponse.json({ id: inserted.id })
+        const wordKey = fields.word.trim().toLowerCase()
+        try {
+          const inserted = db.transaction((tx) => {
+            const deckRow = tx.select().from(deck).where(eq(deck.id, deckId)).get()
+            if (!deckRow) return null
+            const existing = tx.select({ id: word.id }).from(word)
+              .where(and(eq(word.deckId, deckId), eq(word.word, wordKey))).get()
+            if (existing) return { duplicate: true }
+            return tx.insert(word).values(toWordRow(fields, deckId)).returning({ id: word.id }).get()
+          })
+          if (!inserted) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
+          if ('duplicate' in inserted) {
+            return NextResponse.json({ error: `"${wordKey}" already exists in this deck` }, { status: 409 })
+          }
+          return NextResponse.json({ id: inserted.id })
+        } catch {
+          return NextResponse.json({ error: `"${wordKey}" already exists in this deck` }, { status: 409 })
+        }
       }
 
       case 'updateWord': {
@@ -810,7 +860,7 @@ export async function POST(req: NextRequest) {
         const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = parsed.data
         const existing = await db.select().from(word).where(eq(word.id, wordId)).get()
         if (!existing) return NextResponse.json({ error: 'word not found' }, { status: 404 })
-        const splitList = (s: string) => JSON.stringify(s.split(',').map((x) => x.trim()).filter(Boolean))
+        const splitList = (s: string) => JSON.stringify(s.split('|').map((x) => x.trim()).filter(Boolean))
         const data: Record<string, unknown> = {}
         if (pos !== undefined) data.pos = pos
         if (ipa !== undefined) data.ipa = ipa

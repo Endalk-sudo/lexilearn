@@ -1,7 +1,7 @@
 // LexiLearn Drizzle schema — mirrors the previous Prisma schema 1:1.
 // Table/column names and SQLite storage formats are byte-compatible with the
 // existing db/custom.db, so the current database file works unchanged.
-import { sqliteTable, integer, text, real, index, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, integer, text, real, index, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { createId } from './id'
 
@@ -43,6 +43,8 @@ export const word = sqliteTable('Word', {
 }, (t) => [
   index('Word_deckId_idx').on(t.deckId),
   index('Word_word_idx').on(t.word),
+  // Prevent the same word from being added to the same deck twice.
+  uniqueIndex('Word_word_deckId_unique').on(t.word, t.deckId),
 ])
 
 export const srsCard = sqliteTable('SrsCard', {

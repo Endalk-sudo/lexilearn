@@ -173,9 +173,9 @@ export const api = {
   getDecks: () => getJSON<DeckSummary[]>('decks'),
   getDeck: (deckId: string) => getJSON<DeckDetail>('deck', { deckId }),
   createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }[]) =>
-    postJSON<{ id: string; count: number }>('createDeck', { name, description, words }),
+    postJSON<{ id: string; count: number; skipped?: number }>('createDeck', { name, description, words }),
   addWordsToDeck: (deckId: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }[]) =>
-    postJSON<{ count: number }>('addWords', { deckId, words }),
+    postJSON<{ count: number; skipped?: number; duplicates?: string[] }>('addWords', { deckId, words }),
   addWord: (deckId: string, fields: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }) =>
     postJSON<{ id: string }>('addWord', { deckId, ...fields }),
   updateWord: (wordId: string, fields: { pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }) =>
