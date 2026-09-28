@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { listItem, popIn, stagger, useMotionSafe } from '@/lib/motion'
 import { useCountUp } from '@/hooks/use-count-up'
 
-export function SessionCompleteV2({
+export function SessionComplete({
   title,
   subtitle,
   correct,

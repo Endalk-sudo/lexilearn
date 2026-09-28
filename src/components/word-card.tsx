@@ -64,10 +64,10 @@ const CEFR_STYLES: Record<string, string> = {
 }
 
 /**
- * WordCardV2: Scannable Micro-Layout implementation
+ * WordCard: Scannable Micro-Layout implementation
  * Strict edge alignment, container dissolution, quiet default contrast, zero text bloat.
  */
-export function WordCardV2({
+export function WordCard({
   word,
   ttsVoice,
   ttsRate,
@@ -94,7 +94,7 @@ export function WordCardV2({
   const { v, t } = useMotionSafe()
   const lastSpokenIdRef = useRef<string | null>(null)
 
-  // Auto-pronounce word when WordCardV2 opens/updates if autoSpeak is active
+  // Auto-pronounce word when WordCard opens/updates if autoSpeak is active
   useEffect(() => {
     if (!autoSpeak || hideWord) return
     if (lastSpokenIdRef.current === word.id) return

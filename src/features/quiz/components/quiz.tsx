@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
-import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
+import { SessionComplete } from '@/components/feedback/session-complete'
 import { XpPopLayer, popXpAt, useXpPops } from '@/components/feedback/xp-pop'
 import { MatchGame, type MatchPair } from '@/features/quiz/components/match-game'
 import { GRADE_XP } from '@/lib/srs'
@@ -323,7 +323,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   if (finished) {
     return (
       <div className="space-y-4">
-        <SessionCompleteV2
+        <SessionComplete
           title={mode === 'speed_round' ? 'Time! Round over' : 'Quiz complete'}
           subtitle={
             mode === 'speed_round'

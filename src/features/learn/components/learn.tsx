@@ -8,9 +8,9 @@ import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
-import { WordCardV2 } from '@/components/word-card-v2'
+import { WordCard } from '@/components/word-card'
 import { SpellingInput } from '@/features/learn/components/spelling-input'
-import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
+import { SessionComplete } from '@/components/feedback/session-complete'
 import { SessionSkeleton } from '@/components/feedback/session-skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
 import { Checkmark } from '@/components/feedback/checkmark'
@@ -220,7 +220,7 @@ export function LearnView() {
   if (done) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <SessionCompleteV2
+        <SessionComplete
           title="New words locked in"
           correct={correctCount}
           total={cards.length}
@@ -335,7 +335,7 @@ export function LearnView() {
           }}
           className="touch-pan-y"
         >
-          <WordCardV2
+          <WordCard
             word={current.word}
             ttsVoice={ttsVoice}
             ttsRate={ttsRate}

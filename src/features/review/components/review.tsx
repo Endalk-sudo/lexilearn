@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
+import { SessionComplete } from '@/components/feedback/session-complete'
 import { SessionSkeleton } from '@/components/feedback/session-skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
 import { XpPopLayer, popXpAt, useXpPops } from '@/components/feedback/xp-pop'
@@ -357,7 +357,7 @@ export function ReviewView() {
   if (done) {
     return (
       <div className="mx-auto max-w-2xl space-y-4">
-        <SessionCompleteV2
+        <SessionComplete
           title="Review complete"
           correct={correctCount}
           total={cards.length}

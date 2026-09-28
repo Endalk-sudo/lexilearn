@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { OnboardingV2 } from "@/features/onboarding/components/onboarding-v2";
+import { Onboarding } from "@/features/onboarding/components/onboarding";
 import { ServiceWorkerRegistrar, OfflineBanner } from "@/components/pwa";
 
 const geistSans = Geist({
@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   authors: [{ name: "LexiLearn" }],
   icons: {
     icon: [
+      { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/favicon.ico", sizes: "any" },
       { url: "/logo.png", type: "image/png" },
     ],
@@ -68,7 +69,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <OfflineBanner />
           {children}
-          <OnboardingV2 />
+          <Onboarding />
           <Toaster
             position="bottom-right"
             mobileOffset={{ bottom: 96, right: 16 }}

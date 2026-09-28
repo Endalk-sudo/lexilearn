@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
-import { WordCardV2 } from '@/components/word-card-v2'
+import { WordCard } from '@/components/word-card'
 import { WordFormDialog } from '@/features/library/components/word-form-dialog'
 import { BulkAddWordsDialog } from '@/features/library/components/bulk-add-words-dialog'
 import {
@@ -635,7 +635,7 @@ function DictionaryPanel() {
             </div>
 
             <div className="lg:col-span-7 sticky top-6">
-              {activeWord ? <WordCardV2 word={activeWord} /> : null}
+              {activeWord ? <WordCard word={activeWord} /> : null}
             </div>
           </div>
 
@@ -647,7 +647,7 @@ function DictionaryPanel() {
                   <ArrowLeft className="h-4 w-4" />
                   Back to results
                 </Button>
-                <WordCardV2 word={selected} />
+                <WordCard word={selected} />
               </div>
             ) : (
               <ul className="space-y-2">

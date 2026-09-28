@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { api, type WordDTO } from '@/lib/api'
 import { useAppStore, type LibraryTab, type ViewName } from '@/lib/store'
-import { WordCardV2 } from '@/components/word-card-v2'
+import { WordCard } from '@/components/word-card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { speak } from '@/lib/tts'
@@ -224,7 +224,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
         <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-2">
           {selected ? (
             <div className="p-1">
-              <WordCardV2 word={selected} />
+              <WordCard word={selected} />
             </div>
           ) : showQuick ? (
             <div className="space-y-3">

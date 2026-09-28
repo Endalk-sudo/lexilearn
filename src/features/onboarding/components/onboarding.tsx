@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { fadeUp, stagger, listItem, useMotionSafe } from '@/lib/motion'
 
-const KEY = 'lexilearn-onboarding-v2'
+const KEY = 'lexilearn-onboarding'
 
 const STEPS = [
   {
@@ -40,7 +40,7 @@ const GOALS = [
   { value: 20, label: 'Intense', hint: 'About 10 min' },
 ]
 
-export function OnboardingV2() {
+export function Onboarding() {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [goal, setGoal] = useState(10)

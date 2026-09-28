@@ -23,7 +23,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { SessionCompleteV2 } from '@/components/feedback/session-complete-v2'
+import { SessionComplete } from '@/components/feedback/session-complete'
 import { EmptyState } from '@/components/feedback/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkmark } from '@/components/feedback/checkmark'
@@ -811,7 +811,7 @@ function DictationComplete({
 
   return (
     <div className="space-y-4">
-      <SessionCompleteV2
+      <SessionComplete
         title="Dictation complete"
         subtitle={rungMessage}
         correct={summary.correct}
