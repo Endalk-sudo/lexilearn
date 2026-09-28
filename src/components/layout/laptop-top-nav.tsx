@@ -18,7 +18,7 @@ export function LaptopTopNav() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [soundOn, setSoundOn] = useState(true)
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled())
 
   useEffect(() => {
     let live = true
@@ -36,7 +36,6 @@ export function LaptopTopNav() {
   }, [view])
 
   useEffect(() => {
-    setSoundOn(isSoundEnabled())
     const sync = () => setSoundOn(isSoundEnabled())
     window.addEventListener('lexilearn-feel', sync)
     return () => window.removeEventListener('lexilearn-feel', sync)

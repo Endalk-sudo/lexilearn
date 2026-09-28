@@ -76,6 +76,7 @@ export const reviewLog = sqliteTable('ReviewLog', {
 }, (t) => [
   index('ReviewLog_reviewedAt_idx').on(t.reviewedAt),
   index('ReviewLog_wordId_idx').on(t.wordId),
+  index('ReviewLog_deckId_reviewedAt_idx').on(t.deckId, t.reviewedAt),
 ])
 
 export const quizSession = sqliteTable('QuizSession', {
@@ -105,6 +106,7 @@ export const mentorSession = sqliteTable('MentorSession', {
 }, (t) => [
   index('MentorSession_mode_idx').on(t.mode),
   index('MentorSession_createdAt_idx').on(t.createdAt),
+  index('MentorSession_mode_createdAt_idx').on(t.mode, t.createdAt),
 ])
 
 export const errorLog = sqliteTable('ErrorLog', {
@@ -155,6 +157,7 @@ export const mentorAttempt = sqliteTable('MentorAttempt', {
   index('MentorAttempt_nodeId_idx').on(t.nodeId),
   index('MentorAttempt_branchId_idx').on(t.branchId),
   index('MentorAttempt_createdAt_idx').on(t.createdAt),
+  index('MentorAttempt_branchId_createdAt_idx').on(t.branchId, t.createdAt),
 ])
 
 export const mentorProject = sqliteTable('MentorProject', {

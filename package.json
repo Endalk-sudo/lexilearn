@@ -19,7 +19,10 @@
     "e2e:router": "python3 tests/e2e/test_router_e668.py",
     "e2e:interactions": "python3 tests/e2e/test_ui_ux_interactions.py",
     "e2e:isolated": "bash scripts/e2e-isolated.sh",
-    "e2e:shots": "ls -lh /tmp/e2e-shots/final-*.png"
+    "e2e:shots": "ls -lh /tmp/e2e-shots/final-*.png",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -98,6 +101,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

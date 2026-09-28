@@ -44,9 +44,15 @@ export function WordSlotsInput({
       ? selectedSlot
       : defaultIdx
 
+  // Reset slot selection when target changes — use a ref to track previous target
+  // and avoid synchronous setState in effect (React 19 best practice).
+  const prevTargetRef = useRef(target)
   useEffect(() => {
-    setSelectedSlot(null)
-    setCursorPos(0)
+    if (prevTargetRef.current !== target) {
+      prevTargetRef.current = target
+      setSelectedSlot(null)
+      setCursorPos(0)
+    }
   }, [target])
 
   useEffect(() => {
@@ -61,9 +67,15 @@ export function WordSlotsInput({
 
   const currentWord = typedWords[activeIdx] ?? ''
 
+  // Clamp cursor position when word length changes — use a ref to avoid
+  // synchronous setState in effect (React 19 best practice).
+  const prevWordLenRef = useRef(currentWord.length)
   useEffect(() => {
-    if (cursorPos > currentWord.length) {
-      setCursorPos(currentWord.length)
+    if (prevWordLenRef.current !== currentWord.length) {
+      prevWordLenRef.current = currentWord.length
+      if (cursorPos > currentWord.length) {
+        setCursorPos(currentWord.length)
+      }
     }
   }, [currentWord, cursorPos])
 

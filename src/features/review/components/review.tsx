@@ -96,7 +96,18 @@ export function ReviewView() {
   const [streak, setStreak] = useState(0)
   const [newAfter, setNewAfter] = useState(0)
   const [speaking, setSpeaking] = useState(false)
-  const [bookmarked, setBookmarked] = useState(false)
+  // Read bookmark state from localStorage — use lazy initialization to avoid
+  // synchronous setState in effect (React 19 best practice).
+  const [bookmarked, setBookmarked] = useState(() => {
+    try {
+      const raw = localStorage.getItem('lexilearn-bookmarked-words')
+      if (raw) {
+        const list: string[] = JSON.parse(raw)
+        return Array.isArray(list) && list.includes(cards[idx]?.word.word.toLowerCase() ?? '')
+      }
+    } catch {}
+    return false
+  })
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
   const { pops, pop } = useXpPops()

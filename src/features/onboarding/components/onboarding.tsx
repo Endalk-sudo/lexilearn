@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
 import { fadeUp, stagger, listItem, useMotionSafe } from '@/lib/motion'
 
 const KEY = 'lexilearn-onboarding'
+const KEY_V2 = 'lexilearn-onboarding-v2'
+const KEY_DISMISSED = 'lexilearn-onboarding-dismissed'
 
 const STEPS = [
   {
@@ -49,7 +51,10 @@ export function Onboarding() {
 
   useEffect(() => {
     try {
-      if (!localStorage.getItem(KEY)) {
+      // Check both old and new onboarding keys so e2e tests that set
+      // 'lexilearn-onboarding-v2' or 'lexilearn-onboarding-dismissed'
+      // don't get blocked by the dialog.
+      if (!localStorage.getItem(KEY) && !localStorage.getItem(KEY_V2) && !localStorage.getItem(KEY_DISMISSED)) {
         const id = window.setTimeout(() => setOpen(true), 600)
         return () => window.clearTimeout(id)
       }
@@ -77,6 +82,8 @@ export function Onboarding() {
   async function finish() {
     try {
       localStorage.setItem(KEY, '1')
+      localStorage.setItem(KEY_V2, '1')
+      localStorage.setItem(KEY_DISMISSED, 'true')
     } catch {
       /* storage unavailable */
     }

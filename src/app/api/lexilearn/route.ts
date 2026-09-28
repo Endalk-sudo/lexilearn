@@ -12,6 +12,7 @@ import { z } from 'zod'
 import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion } from '@/lib/api'
 import { getStat, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
 import { assertSameOrigin } from '@/server/csrf'
+import { isRateLimited } from '@/server/rate-limit'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
 // ---------- Helpers ----------
@@ -375,13 +376,13 @@ export async function GET(req: NextRequest) {
 
       case 'decks': {
         const deckRows = await db.select().from(deck).orderBy(asc(deck.createdAt))
-        const counts = await db.select({ deckId: word.deckId, id: word.id }).from(word)
-        const countByDeck = new Map<string, number>()
-        for (const c of counts) countByDeck.set(c.deckId, (countByDeck.get(c.deckId) ?? 0) + 1)
+        // Single GROUP BY instead of fetching every word row into JS (W7).
+        const counts = await db.select({ deckId: word.deckId, total: sql<number>`count(*)` }).from(word).groupBy(word.deckId)
+        const countByDeck = new Map(counts.map((c) => [c.deckId, c.total]))
         return NextResponse.json(deckRows.map((d) => ({
           id: d.id, name: d.name, description: d.description,
           isCustom: d.isCustom, wordCount: countByDeck.get(d.id) ?? 0, createdAt: d.createdAt,
-        })))
+        })), { headers: { 'Cache-Control': 'private, max-age=30' } })
       }
 
       case 'deck': {
@@ -435,8 +436,10 @@ export async function GET(req: NextRequest) {
         const branchRow = await db.query.mentorBranch.findFirst({ where: eq(mentorBranch.id, branchId), with: { project: true, nodes: { with: { attempts: { with: { feedback: true } } } } } })
         if (!branchRow) return NextResponse.json({ error: 'branch not found' }, { status: 404 })
         // RQB has no per-relation orderBy; mirror Prisma's asc sort in JS
-        const branch = branchRow as any
-        branch.nodes = [...(branch.nodes ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        const branch = {
+          ...branchRow,
+          nodes: [...(branchRow.nodes ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        }
         for (const n of branch.nodes) n.attempts = [...(n.attempts ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         return NextResponse.json(branch)
       }
@@ -496,7 +499,9 @@ export async function GET(req: NextRequest) {
     }
   } catch (e) {
     console.error('API GET error:', e)
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'unknown error' }, { status: 500 })
+    // Don't leak internal error details to the client in production.
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : 'unknown error')
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -636,6 +641,27 @@ const MentorPronunciationBody = z.object({
 
 const MentorNaturalnessBody = z.object({ input: z.string().min(1).max(10_000) })
 
+const MentorBody = z.object({
+  mode: z.enum(['practice', 'writing', 'conversation', 'explain']),
+  words: z.array(z.object({
+    word: z.string().min(1).max(200),
+    definition: z.string().max(2000).optional(),
+    amharic: z.string().max(500).optional(),
+  })).max(500).optional(),
+  practiceType: z.enum(['cloze', 'rewrite', 'error_correction', 'use_in_paragraph', 'discussion']).optional(),
+  count: z.number().int().min(1).max(50).optional(),
+  level: z.string().max(50).optional(),
+  text: z.string().min(1).max(10_000).optional(),
+  targetWords: z.array(z.string().min(1).max(200)).max(50).optional(),
+  scenario: z.string().max(200).optional(),
+  messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(4000) })).max(50).optional(),
+  start: z.boolean().optional(),
+  query: z.string().min(1).max(4000).optional(),
+  context: z.string().max(10_000).optional(),
+  title: z.string().max(200).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
 // ============================================================
 //  POST /api/lexilearn?action=...   body = JSON
 // ============================================================
@@ -645,6 +671,12 @@ export async function POST(req: NextRequest) {
   // could wipe the user's study history (see src/server/csrf.ts).
   const blocked = assertSameOrigin(req)
   if (blocked) return blocked
+
+  // Rate limit by IP to prevent a buggy client from flooding the server.
+  const ip = req.headers.get('x-forwarded-for') ?? 'localhost'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 })
+  }
 
   const url = new URL(req.url)
   const action = url.searchParams.get('action') || ''
@@ -1028,26 +1060,25 @@ export async function POST(req: NextRequest) {
       case 'mentor': {
         // Legacy free-form mentor modes remain available; the new agentic flow uses mentorNext/mentorAttempt.
         const { MENTOR_SYSTEM, ollamaChat, buildPracticePrompt, buildWritingFeedbackPrompt, buildConversationSystem, buildExplainPrompt } = await import('@/features/coach/server/ollama')
-        const mode = body.mode as string
-        if (!mode) return NextResponse.json({ error: 'mode required' }, { status: 400 })
+        const parsed = MentorBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'invalid mentor payload' }, { status: 400 })
+        const { mode } = parsed.data
         let responseText = ''
         if (mode === 'practice') {
-          const userPrompt = buildPracticePrompt({ words: (body.words || []) as any, type: body.practiceType || 'cloze', count: body.count || 5, level: body.level })
+          const userPrompt = buildPracticePrompt({ words: parsed.data.words ?? [], type: parsed.data.practiceType || 'cloze', count: parsed.data.count || 5, level: parsed.data.level })
           responseText = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:userPrompt }])
         } else if (mode === 'writing') {
-          if (!body.text?.trim()) return NextResponse.json({ error:'text required' }, { status:400 })
-          responseText = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildWritingFeedbackPrompt(body.text.trim(), body.targetWords) }])
+          responseText = await ollamaChat([{ role:'system', content:MENTOR_SYSTEM }, { role:'user', content:buildWritingFeedbackPrompt(parsed.data.text!, parsed.data.targetWords) }])
         } else if (mode === 'conversation') {
-          const system = buildConversationSystem(body.scenario || 'Casual conversation practice', body.targetWords)
-          const prior = (body.messages || []) as {role:string;content:string}[]
-          const messages:any[] = [{role:'system',content:system}, ...prior.map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}))]
-          if (body.start || prior.length === 0) messages.push({role:'user', content:'Start with one short natural question and stay in character.'})
+          const system = buildConversationSystem(parsed.data.scenario || 'Casual conversation practice', parsed.data.targetWords)
+          const prior = parsed.data.messages ?? []
+          const messages = [{role:'system' as const, content:system}, ...prior.map(m => ({role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content}))]
+          if (parsed.data.start || prior.length === 0) messages.push({role:'user' as const, content:'Start with one short natural question and stay in character.'})
           responseText = await ollamaChat(messages, { temperature:0.8 })
         } else if (mode === 'explain') {
-          if (!body.query?.trim()) return NextResponse.json({ error:'query required' }, { status:400 })
-          responseText = await ollamaChat([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:buildExplainPrompt(body.query.trim(),body.context)}])
+          responseText = await ollamaChat([{role:'system' as const, content:MENTOR_SYSTEM},{role:'user' as const, content:buildExplainPrompt(parsed.data.query!, parsed.data.context)}])
         } else return NextResponse.json({ error:'unknown mentor mode' }, {status:400})
-        await db.insert(mentorSession).values({ mode, title: body.title || mode, prompt: JSON.stringify(body).slice(0, 2000), response: responseText.slice(0, 15000), metadata: body.metadata ? JSON.stringify(body.metadata) : null }).catch(() => {})
+        await db.insert(mentorSession).values({ mode, title: parsed.data.title || mode, prompt: JSON.stringify(parsed.data).slice(0, 2000), response: responseText.slice(0, 15000), metadata: parsed.data.metadata ? JSON.stringify(parsed.data.metadata) : null }).catch(() => {})
         return NextResponse.json({response:responseText})
       }
 
@@ -1056,6 +1087,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     console.error('API POST error:', e)
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'unknown error' }, { status: 500 })
+    // Don't leak internal error details to the client in production.
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : 'unknown error')
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

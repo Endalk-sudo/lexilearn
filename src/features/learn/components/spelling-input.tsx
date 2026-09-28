@@ -50,9 +50,15 @@ export function SpellingInput({
     }
   }, [autoFocus, disabled, target])
 
+  // Clamp cursor position when value length changes — use a ref to avoid
+  // synchronous setState in effect (React 19 best practice).
+  const prevValueLenRef = useRef(value.length)
   useEffect(() => {
-    if (cursorPos > value.length) {
-      setCursorPos(value.length)
+    if (prevValueLenRef.current !== value.length) {
+      prevValueLenRef.current = value.length
+      if (cursorPos > value.length) {
+        setCursorPos(value.length)
+      }
     }
   }, [value, cursorPos])
 

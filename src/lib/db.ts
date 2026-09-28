@@ -13,10 +13,11 @@ function createDb() {
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
   const d = drizzle(sqlite, { schema })
-  if (process.env.NODE_ENV !== 'production') {
-    globalForDb.sqlite = sqlite
-    globalForDb.db = d
-  }
+  // Cache in all environments — the HMR issue was that the old code only
+  // cached in development, causing a new DB connection on every hot reload.
+  // The globalThis cache prevents connection leaks across HMR cycles.
+  globalForDb.sqlite = sqlite
+  globalForDb.db = d
   return d
 }
 

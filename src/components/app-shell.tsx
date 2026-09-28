@@ -411,10 +411,9 @@ export function AppSidebar() {
 }
 
 function CompactSoundButton() {
-  const [soundOn, setSoundOn] = useState(true)
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled())
 
   useEffect(() => {
-    setSoundOn(isSoundEnabled())
     const sync = () => setSoundOn(isSoundEnabled())
     window.addEventListener('lexilearn-feel', sync)
     return () => window.removeEventListener('lexilearn-feel', sync)
@@ -442,10 +441,9 @@ function CompactSoundButton() {
 }
 
 function SoundButton() {
-  const [soundOn, setSoundOn] = useState(true)
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled())
 
   useEffect(() => {
-    setSoundOn(isSoundEnabled())
     const sync = () => setSoundOn(isSoundEnabled())
     window.addEventListener('lexilearn-feel', sync)
     return () => window.removeEventListener('lexilearn-feel', sync)

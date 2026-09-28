@@ -35,6 +35,17 @@ async function postJSON<T>(action: string, body: any): Promise<T> {
   return res.json()
 }
 
+/** Retry a failed API call with exponential backoff. */
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500): Promise<T> {
+  try {
+    return await fn()
+  } catch (error) {
+    if (retries <= 0) throw error
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    return withRetry(fn, retries - 1, delay * 2)
+  }
+}
+
 // ---------- Types ----------
 export type WordDTO = {
   id: string
@@ -169,7 +180,7 @@ export const api = {
   getNewCards: (deckId: string | null, limit = 10) => getJSON<CardWithWord[]>('new', { deckId, limit }),
   getReviewableCards: (deckId: string | null, limit = 50) => getJSON<CardWithWord[]>('reviewable', { deckId, limit }),
   submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' = 'review') =>
-    postJSON<{ ok: boolean }>('review', { wordId, grade, mode }),
+    withRetry(() => postJSON<{ ok: boolean }>('review', { wordId, grade, mode })),
   getDecks: () => getJSON<DeckSummary[]>('decks'),
   getDeck: (deckId: string) => getJSON<DeckDetail>('deck', { deckId }),
   createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }[]) =>

@@ -102,11 +102,17 @@ secrets out of `.env` and pass those through the environment instead.
 ## Testing
 
 ```bash
-pnpm e2e:isolated     # all suites, against a throwaway copy of the db
+pnpm test              # unit tests (vitest)
+pnpm test:watch        # unit tests in watch mode
+pnpm test:coverage     # unit tests with coverage report
+pnpm e2e:isolated     # all e2e suites, against a throwaway copy of the db
 pnpm e2e              # phased suite against a server you started yourself
 pnpm e2e:deep         # deep integration suite (A–Z phases)
 pnpm e2e:router       # hash-router regression (E668)
 ```
+
+Unit tests cover pure functions: SM-2 algorithm (`srs.ts`), date helpers
+(`date.ts`), and the rate limiter (`server/rate-limit.ts`).
 
 `scripts/e2e-isolated.sh` clones `db/custom.db` to a temp file and boots the
 standalone server with `LEXILEARN_DB_URL` pointed at the clone, so grading real
@@ -114,4 +120,30 @@ cards and adding real words during a run can never touch your study database.
 The deep suite also deletes the words it creates (phase Z). Suites accept
 `LEXILEARN_E2E_BASE` to target another host/port.
 
-CI runs the same script (`.github/workflows/e2e.yml`).
+CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
+
+## Security
+
+- **CSRF protection**: `src/server/csrf.ts` rejects cross-site POST requests
+  via `Sec-Fetch-Site` and `Origin` vs `Host` header checks.
+- **Rate limiting**: `src/server/rate-limit.ts` provides a per-IP sliding
+  window (100 req/min) to prevent a buggy client from flooding the server.
+- **Input validation**: All POST bodies are validated with Zod schemas before
+  reaching the database. The `mentor` action was the last unvalidated endpoint
+  and now has a proper `MentorBody` schema.
+- **Error handling**: API error responses don't leak internal details in
+  production (`NODE_ENV=production`).
+
+## Performance
+
+- **Database**: Composite indexes on `ReviewLog(deckId, reviewedAt)`,
+  `MentorAttempt(branchId, createdAt)`, and `MentorSession(mode, createdAt)`
+  for common query patterns.
+- **Queries**: The `decks` endpoint uses a single `GROUP BY` instead of
+  fetching every word row into JS. Dashboard and analytics queries are
+  range-bounded or aggregated in SQL.
+- **Caching**: The `decks` endpoint returns `Cache-Control: private, max-age=30`.
+- **Service worker**: Cache version bumped to `lexilearn-v2` with proper
+  cleanup of stale caches on activate.
+- **DB singleton**: Fixed HMR caching issue — the DB connection is now cached
+  in all environments, preventing connection leaks across hot reloads.

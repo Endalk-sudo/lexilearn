@@ -105,11 +105,12 @@ async function structured<T>(messages: { role: 'system'|'user'|'assistant', cont
   const enhanced = [...messages, { role: 'user' as const, content: `Return ONLY valid JSON matching this schema. Do not use markdown.\nSCHEMA:\n${schemaJson}` }]
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const raw = await ollamaChat(enhanced, { temperature, format: jsonSchema(schema) as any })
+      const raw = await ollamaChat(enhanced, { temperature, format: 'json' })
       const parsed = schema.parse(JSON.parse(cleanJson(raw)))
       return parsed
     } catch (error) {
       if (attempt === 1) throw error
+      // Push a repair message that references the schema, not the original prompt
       enhanced.push({ role: 'user', content: 'Your previous response was invalid. Repair it and return only the JSON object.' })
     }
   }
@@ -180,9 +181,9 @@ Learner focus mastery: ${ctx.focused?.mastery ?? 0.5}. Due errors: ${JSON.string
 Recent node: ${latestWithAttempt ? JSON.stringify({prompt:latestWithAttempt.prompt,attempt:latestWithAttempt.attempts[0]?.answer,feedback:latestWithAttempt.attempts[0]?.feedback?.explanation}) : 'none'}.
 Relevant grammar notes: ${rules.map(r=>r.content).join('\n')}
 Rules: one question only; do not reveal the answer; target 1-2 skills; aim for ~80-85% success; vary context; interleave up to 30% due-error review.`
-  let result: any
+  let result: z.infer<typeof QuestionSchema>
   try {
-    result = await structured<any>([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content: prompt }], QuestionSchema, 0.35)
+    result = await structured([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content: prompt }], QuestionSchema, 0.35)
   } catch {
     const fallback = {
       past_tense: ['Yesterday I ___ (go) to the market.', ['went'], ['Think about a completed action.','This verb is irregular.','It starts with w.']],
@@ -213,11 +214,11 @@ export async function evaluateAttempt(attemptId: string) {
   const patterns = JSON.parse(attempt.node.expectedPatterns || '[]')
   const tags = JSON.parse(attempt.node.targetTags || '[]')
   const rules = await retrieveKnowledge(`${tags.join(', ')} ${attempt.answer}`, tags[0], 3)
-  let diagnosis:any
-  let feedback:any
+  let diagnosis: z.infer<typeof DiagnosisSchema>
+  let feedback: z.infer<typeof FeedbackSchema>
   try {
-    diagnosis = await structured<any>([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Diagnose this English attempt. Question: ${attempt.node.prompt}\nExpected patterns: ${JSON.stringify(patterns)}\nLearner answer: ${attempt.answer}\nSelf-correction: ${attempt.selfCorrect || 'none'}\nHint level: ${attempt.hintLevel}\nRelevant rules: ${rules.map(r=>r.content).join('\n')}` }], DiagnosisSchema, 0.15)
-    feedback = await structured<any>([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Evaluate the learner answer and teach ONE main lesson. Question: ${attempt.node.prompt}\nExpected patterns: ${JSON.stringify(patterns)}\nAnswer: ${attempt.answer}\nSelf-correction: ${attempt.selfCorrect || 'none'}\nDiagnosis: ${JSON.stringify(diagnosis)}\nRules: ${rules.map(r=>r.content).join('\n')}\nCreate a side-by-side correction. Keep explanation under 3 sentences.` }], FeedbackSchema, 0.1)
+    diagnosis = await structured([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Diagnose this English attempt. Question: ${attempt.node.prompt}\nExpected patterns: ${JSON.stringify(patterns)}\nLearner answer: ${attempt.answer}\nSelf-correction: ${attempt.selfCorrect || 'none'}\nHint level: ${attempt.hintLevel}\nRelevant rules: ${rules.map(r=>r.content).join('\n')}` }], DiagnosisSchema, 0.15)
+    feedback = await structured([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Evaluate the learner answer and teach ONE main lesson. Question: ${attempt.node.prompt}\nExpected patterns: ${JSON.stringify(patterns)}\nAnswer: ${attempt.answer}\nSelf-correction: ${attempt.selfCorrect || 'none'}\nDiagnosis: ${JSON.stringify(diagnosis)}\nRules: ${rules.map(r=>r.content).join('\n')}\nCreate a side-by-side correction. Keep explanation under 3 sentences.` }], FeedbackSchema, 0.1)
   } catch {
     const expected = patterns[0] || ''
     const correct = expected && attempt.answer.trim().toLowerCase() === String(expected).trim().toLowerCase()
@@ -321,7 +322,7 @@ export async function buildWeeklyCoachReport(): Promise<{ report: WeeklyReport; 
   const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
   let report: WeeklyReport
   try {
-    report = await structured<any>([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Create a concise weekly English coach report from the following evidence. Be honest and specific. Identify real strengths, recurring weaknesses, confidence calibration, and 2-3 next focuses. Do not invent data.\n${JSON.stringify(evidence)}` }], WeeklyReportSchema, 0.2)
+    report = await structured([{ role:'system', content: MENTOR_SYSTEM }, { role:'user', content:`Create a concise weekly English coach report from the following evidence. Be honest and specific. Identify real strengths, recurring weaknesses, confidence calibration, and 2-3 next focuses. Do not invent data.\n${JSON.stringify(evidence)}` }], WeeklyReportSchema, 0.2)
   } catch {
     const weak = mastery.slice(0,3)
     report = {
@@ -345,8 +346,8 @@ export async function evaluatePronunciation(target: string, transcript: string) 
   const positionMatches = expected.reduce((n,w,i)=>n+(heard[i]===w?1:0),0)
   const accuracy = expected.length ? Math.max(0, Math.min(1, (positionMatches / expected.length) * 0.75 + (1 - missing.length/expected.length) * 0.25)) : 0
   const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
-  let feedback:any
-  try { feedback = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Evaluate pronunciation practice using only this speech-to-text evidence. Target: ${target}\nHeard: ${transcript}\nMissing words: ${JSON.stringify(missing)}\nExtra words: ${JSON.stringify(extra)}\nGive actionable pronunciation feedback without pretending you heard phonemes.`}], PronunciationSchema, 0.2) }
+  let feedback: z.infer<typeof PronunciationSchema>
+  try { feedback = await structured([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Evaluate pronunciation practice using only this speech-to-text evidence. Target: ${target}\nHeard: ${transcript}\nMissing words: ${JSON.stringify(missing)}\nExtra words: ${JSON.stringify(extra)}\nGive actionable pronunciation feedback without pretending you heard phonemes.`}], PronunciationSchema, 0.2) }
   catch { feedback = { verdict: accuracy>=.9?'Clear':accuracy>=.7?'Mostly clear':'Needs another attempt', feedback: accuracy>=.9?'The transcript closely matches the target. Focus on rhythm and natural stress.':`Try again and aim to say the whole phrase clearly. ${missing.length ? `You may be dropping: ${missing.slice(0,3).join(', ')}.`:''}`, focus: missing[0] || 'stress and rhythm' } }
   const savedRows = await db.insert(pronunciationAttempt).values({ target, transcript, accuracy, missingWords: JSON.stringify(missing), extraWords: JSON.stringify(extra), feedback: JSON.stringify(feedback) }).returning()
   const saved = savedRows[0]
@@ -355,8 +356,8 @@ export async function evaluatePronunciation(target: string, transcript: string) 
 
 export async function evaluateNaturalness(input: string) {
   const { MENTOR_SYSTEM } = await import('@/features/coach/server/ollama')
-  let result:any
-  try { result = await structured<any>([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Judge how natural this English sentence sounds to a proficient native speaker. Preserve the intended meaning. Score naturalness 0-1. Provide one native version, 2 alternatives, a short explanation, and a verdict. Sentence: ${input}`}], NaturalnessSchema, 0.15) }
+  let result: z.infer<typeof NaturalnessSchema>
+  try { result = await structured([{role:'system',content:MENTOR_SYSTEM},{role:'user',content:`Judge how natural this English sentence sounds to a proficient native speaker. Preserve the intended meaning. Score naturalness 0-1. Provide one native version, 2 alternatives, a short explanation, and a verdict. Sentence: ${input}`}], NaturalnessSchema, 0.15) }
   catch { result = { score:0.7, verdict:'Understandable but can sound more natural', native:input, alternatives:[input], explanation:'Try using the common collocation and word order native speakers usually choose.' } }
   const savedRows = await db.insert(naturalnessAttempt).values({ input, score: result.score, verdict: result.verdict, native: result.native, alternatives: JSON.stringify(result.alternatives || []), explanation: result.explanation }).returning()
   const saved = savedRows[0]

@@ -9,7 +9,7 @@
  *    generation needs the local Ollama process.
  */
 
-const VERSION = 'lexilearn-v1'
+const VERSION = 'lexilearn-v2'
 const SHELL_CACHE = `${VERSION}-shell`
 const STATIC_CACHE = `${VERSION}-static`
 const API_CACHE = `${VERSION}-api`
@@ -31,6 +31,11 @@ self.addEventListener('activate', (event) => {
       Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   )
+})
+
+/** Invalidate stale API caches when a new version activates. */
+self.addEventListener('message', (event) => {
+  if (event.data === 'skipWaiting') self.skipWaiting()
 })
 
 self.addEventListener('fetch', (event) => {
