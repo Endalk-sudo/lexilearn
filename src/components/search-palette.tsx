@@ -93,17 +93,23 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
 
   useEffect(() => {
     if (!trimmed) return
+    let cancelled = false
     const id = window.setTimeout(async () => {
       try {
         const found = await api.searchWords(trimmed)
+        if (cancelled) return
         setResults(found)
       } catch {
+        if (cancelled) return
         setResults([])
       } finally {
-        setResultsFor(trimmed)
+        if (!cancelled) setResultsFor(trimmed)
       }
     }, 180)
-    return () => window.clearTimeout(id)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
   }, [trimmed])
 
   const hear = useCallback((word: WordDTO) => {
@@ -224,7 +230,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
         <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-2">
           {selected ? (
             <div className="p-1">
-              <WordCard word={selected} />
+              <WordCard word={selected} autoSpeak={false} />
             </div>
           ) : showQuick ? (
             <div className="space-y-3">

@@ -171,20 +171,22 @@ type BulkWord = {
   example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string
 }
 
-/** Map one loose word payload to an insert row. `synonyms`/`antonyms` are
- *  pipe-separated (the UI label says so), so they are split and cleaned here. */
+/** Map one loose word payload to an insert row. `synonyms`/`antonyms` accept
+ *  pipe- or comma-separated lists (the UI label says so), split and cleaned here.
+ *  Display casing is preserved; dedupe stays case-insensitive at the call site. */
 function toWordRow(w: BulkWord, deckId: string) {
   const splitList = (s?: string) =>
-    s ? JSON.stringify(s.split('|').map((x) => x.trim()).filter(Boolean)) : null
+    s ? JSON.stringify(s.split(/[|,]/).map((x) => x.trim()).filter(Boolean)) : null
+  const cefrNorm = w.cefr?.trim().toUpperCase() || null
   return {
     id: createId(),
-    word: w.word.trim().toLowerCase(),
+    word: w.word.trim(),
     pos: w.pos ?? null,
     ipa: w.ipa ?? null,
     definitions: w.definition ? JSON.stringify([{ pos: w.pos ?? 'n.', text: w.definition }]) : null,
     examples: w.example ? JSON.stringify([w.example]) : null,
     syllables: null,
-    cefr: w.cefr ?? null,
+    cefr: cefrNorm,
     synonyms: splitList(w.synonyms),
     antonyms: splitList(w.antonyms),
     etymology: null,
@@ -485,12 +487,16 @@ export async function GET(req: NextRequest) {
 
       case 'search': {
         if (!query.trim()) return NextResponse.json([])
+        const q = query.trim().toLowerCase()
         // instr() instead of LIKE: a literal "%" or "_" typed into the search
         // box is a LIKE wildcard, so searching for one used to return 20
         // arbitrary words. instr() has no wildcard semantics to escape.
+        // Prefix matches rank first, then alphabetical; cap raised to 50 so
+        // the result count label stops lying on bigger dictionaries.
         const words = await db.select().from(word)
-          .where(sql`instr(lower(${word.word}), lower(${query.trim().toLowerCase()})) > 0`)
-          .limit(20)
+          .where(sql`instr(lower(${word.word}), lower(${q})) > 0`)
+          .orderBy(sql`case when instr(lower(${word.word}), lower(${q})) = 1 then 0 else 1 end`, asc(word.word))
+          .limit(50)
         return NextResponse.json(words.map(parseWord))
       }
 
@@ -871,8 +877,10 @@ export async function POST(req: NextRequest) {
           const inserted = db.transaction((tx) => {
             const deckRow = tx.select().from(deck).where(eq(deck.id, deckId)).get()
             if (!deckRow) return null
+            // Case-insensitive: display casing is preserved, so `eq` on the
+            // raw column would miss "Abate" vs "abate".
             const existing = tx.select({ id: word.id }).from(word)
-              .where(and(eq(word.deckId, deckId), eq(word.word, wordKey))).get()
+              .where(and(eq(word.deckId, deckId), sql`lower(${word.word}) = lower(${wordKey})`)).get()
             if (existing) return { duplicate: true }
             return tx.insert(word).values(toWordRow(fields, deckId)).returning({ id: word.id }).get()
           })
@@ -892,13 +900,13 @@ export async function POST(req: NextRequest) {
         const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = parsed.data
         const existing = await db.select().from(word).where(eq(word.id, wordId)).get()
         if (!existing) return NextResponse.json({ error: 'word not found' }, { status: 404 })
-        const splitList = (s: string) => JSON.stringify(s.split('|').map((x) => x.trim()).filter(Boolean))
+        const splitList = (s: string) => JSON.stringify(s.split(/[|,]/).map((x) => x.trim()).filter(Boolean))
         const data: Record<string, unknown> = {}
         if (pos !== undefined) data.pos = pos
         if (ipa !== undefined) data.ipa = ipa
         if (definition !== undefined) data.definitions = JSON.stringify([{ pos: pos ?? existing.pos ?? 'n.', text: definition }])
         if (example !== undefined) data.examples = example ? JSON.stringify([example]) : null
-        if (cefr !== undefined) data.cefr = cefr
+        if (cefr !== undefined) data.cefr = cefr ? cefr.trim().toUpperCase() : cefr
         if (synonyms !== undefined) data.synonyms = synonyms ? splitList(synonyms) : null
         if (antonyms !== undefined) data.antonyms = antonyms ? splitList(antonyms) : null
         if (amharic !== undefined) data.amharic = amharic

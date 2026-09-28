@@ -15,11 +15,11 @@ export type ParsedWord = {
  * the delimiter, and `""` escapes a literal quote. (W6 — the old naive split
  * broke on the documented example value `a happy "accident", really`.)
  */
-function splitRow(line: string): string[] {
-  const delim = line.includes('\t') ? '\t' : ','
+function splitRow(line: string, delim: ',' | '\t'): string[] {
   const out: string[] = []
   let field = ''
   let quoted = false
+  let fieldHasContent = false
   for (let i = 0; i < line.length; i++) {
     const ch = line[i]
     if (quoted) {
@@ -28,12 +28,15 @@ function splitRow(line: string): string[] {
       } else {
         field += ch
       }
-    } else if (ch === '"' && field === '') {
+    } else if (ch === '"' && !fieldHasContent) {
       quoted = true
     } else if (ch === delim) {
       out.push(field)
       field = ''
+      fieldHasContent = false
     } else {
+      // Whitespace-only prefix stays "empty" so ` "a, b"` still opens quoted.
+      if (ch !== ' ' && ch !== '\t') fieldHasContent = true
       field += ch
     }
   }
@@ -56,10 +59,11 @@ const COLUMN_ALIASES: Record<string, keyof ParsedWord> = {
   amharic: 'amharic',
 }
 
-/** A row is the header when its first cell is "word" and a later cell is a known column name. */
+/** A row is the header when its first cell is "word" and at least two cells are known column names. */
 function isHeaderRow(parts: string[]): boolean {
   if ((parts[0] ?? '').trim().toLowerCase() !== 'word') return false
-  return parts.slice(1).some((p) => p.trim().toLowerCase() in COLUMN_ALIASES)
+  const known = parts.filter((p) => p.trim().toLowerCase() in COLUMN_ALIASES).length
+  return known >= 2
 }
 
 /** Build a column-index → field-name map from a header row. Returns null if no recognised columns. */
@@ -77,12 +81,18 @@ function mapHeader(parts: string[]): Record<number, keyof ParsedWord> | null {
 }
 
 export function parseCsv(text: string): ParsedWord[] {
-  const lines = text.trim().split(/\r?\n/).filter((l) => l.trim())
+  const rawLines = text.split(/\r?\n/)
+  // Detect the delimiter once per file (majority wins) so mixed content
+  // cannot flip parsing halfway through the import.
+  const sample = rawLines.filter((l) => l.trim()).slice(0, 20)
+  const tabHits = sample.filter((l) => l.includes('\t')).length
+  const delim: ',' | '\t' = tabHits > sample.length / 2 ? '\t' : ','
+  const lines = rawLines.map((l) => l.trim()).filter((l) => l && l.replace(/[,\t;]+/g, ''))
   const out: ParsedWord[] = []
   let colMap: Record<number, keyof ParsedWord> | null = null
 
   for (const line of lines) {
-    const parts = splitRow(line)
+    const parts = splitRow(line, delim)
     if (parts.length === 0) continue
 
     // Try to detect a header row — if found, use it for column mapping

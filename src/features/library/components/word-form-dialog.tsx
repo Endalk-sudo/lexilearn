@@ -41,22 +41,27 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
   const [antonyms, setAntonyms] = useState(initialValues?.antonyms ?? '')
   const [amharic, setAmharic] = useState(initialValues?.amharic ?? '')
   const [saving, setSaving] = useState(false)
+  const [cefrError, setCefrError] = useState('')
 
-  // Reset to the incoming values on every open. Doing this in the open event
-  // (rather than an effect) keeps React's lint rules happy and guarantees the
-  // first painted frame already shows this word's values — no stale flash.
+  // Reset in the close event (rather than an effect) to keep the lint rule
+  // react-hooks/set-state-in-effect happy. The edit instance additionally
+  // remounts per word via `key={editing?.id}`, so the first painted frame
+  // already shows this word's values — no stale flash.
+  const resetForm = () => {
+    setWord(initialValues?.word ?? '')
+    setPos(initialValues?.pos ?? '')
+    setIpa(initialValues?.ipa ?? '')
+    setDefinition(initialValues?.definition ?? '')
+    setExample(initialValues?.example ?? '')
+    setCefr(initialValues?.cefr ?? '')
+    setSynonyms(initialValues?.synonyms ?? '')
+    setAntonyms(initialValues?.antonyms ?? '')
+    setAmharic(initialValues?.amharic ?? '')
+    setCefrError('')
+  }
+
   const handleOpenChange = (v: boolean) => {
-    if (v) {
-      setWord(initialValues?.word ?? '')
-      setPos(initialValues?.pos ?? '')
-      setIpa(initialValues?.ipa ?? '')
-      setDefinition(initialValues?.definition ?? '')
-      setExample(initialValues?.example ?? '')
-      setCefr(initialValues?.cefr ?? '')
-      setSynonyms(initialValues?.synonyms ?? '')
-      setAntonyms(initialValues?.antonyms ?? '')
-      setAmharic(initialValues?.amharic ?? '')
-    }
+    if (!v) resetForm()
     onOpenChange(v)
   }
 
@@ -65,14 +70,22 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
       toast.error('Word is required')
       return
     }
+    const cefrNorm = cefr.trim().toUpperCase()
+    if (cefrNorm && !/^(A1|A2|B1|B2|C1|C2)$/.test(cefrNorm)) {
+      setCefrError('Use a CEFR level like A1, B2 or C1 — or leave it blank.')
+      return
+    }
+    setCefrError('')
     setSaving(true)
     try {
-      const fields = { pos: pos || undefined, ipa: ipa || undefined, definition: definition || undefined, example: example || undefined, cefr: cefr || undefined, synonyms: synonyms || undefined, antonyms: antonyms || undefined, amharic: amharic || undefined }
+      const fields = { pos: pos || undefined, ipa: ipa || undefined, definition: definition || undefined, example: example || undefined, cefr: cefrNorm || undefined, synonyms: synonyms || undefined, antonyms: antonyms || undefined, amharic: amharic || undefined }
       if (isEdit) {
         await api.updateWord(initialValues.id!, fields)
         toast.success('Word updated')
       } else {
-        const w = word.trim().toLowerCase()
+        // Preserve the user's casing for display; dedupe stays
+        // case-insensitive on the server.
+        const w = word.trim()
         await api.addWord(deckId, { word: w, ...fields })
         toast.success('Word added')
       }
@@ -111,6 +124,9 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
           <div>
             <Label htmlFor="wf-def">Definition</Label>
             <Input id="wf-def" value={definition} onChange={(e) => setDefinition(e.target.value)} placeholder="a happy accident" />
+            {!isEdit && !definition.trim() ? (
+              <p className="mt-1 text-xs text-muted-foreground">Tip: words without a definition are hidden from quizzes.</p>
+            ) : null}
           </div>
           <div>
             <Label htmlFor="wf-amharic">Amharic definition (አማርኛ)</Label>
@@ -123,20 +139,23 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="wf-cefr">CEFR level</Label>
-              <Input id="wf-cefr" value={cefr} onChange={(e) => setCefr(e.target.value)} placeholder="C1" />
+              <Input id="wf-cefr" value={cefr} onChange={(e) => { setCefr(e.target.value); setCefrError('') }} placeholder="C1" aria-invalid={!!cefrError} aria-describedby={cefrError ? 'wf-cefr-error' : undefined} className="uppercase" />
+              {cefrError ? (
+                <p id="wf-cefr-error" className="mt-1.5 text-xs font-medium text-destructive">{cefrError}</p>
+              ) : null}
             </div>
             <div>
-              <Label htmlFor="wf-synonyms">Synonyms (pipe-separated)</Label>
+              <Label htmlFor="wf-synonyms">Synonyms (| or , separated)</Label>
               <Input id="wf-synonyms" value={synonyms} onChange={(e) => setSynonyms(e.target.value)} placeholder="luck | fortune" />
             </div>
           </div>
           <div>
-            <Label htmlFor="wf-antonyms">Antonyms (pipe-separated)</Label>
+            <Label htmlFor="wf-antonyms">Antonyms (| or , separated)</Label>
             <Input id="wf-antonyms" value={antonyms} onChange={(e) => setAntonyms(e.target.value)} placeholder="misfortune" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add word'}
           </Button>

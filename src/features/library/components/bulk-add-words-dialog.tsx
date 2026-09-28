@@ -21,15 +21,38 @@ type Props = {
 export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImported }: Props) {
   const [csv, setCsv] = useState('')
   const [importing, setImporting] = useState(false)
+  const [fileError, setFileError] = useState('')
 
   const parsed: ParsedWord[] = csv.trim() ? parseCsv(csv) : []
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    // Always reset so the same file can be picked again.
+    e.target.value = ''
     if (!file) return
+    setFileError('')
+    if (file.size > 1024 * 1024) {
+      setFileError('That file is over 1 MB — paste a smaller list instead.')
+      toast.error('File too large (max 1 MB)')
+      return
+    }
     const reader = new FileReader()
+    reader.onerror = () => {
+      setFileError('Could not read that file. Try pasting the text instead.')
+      toast.error('Could not read that file')
+    }
     reader.onload = () => setCsv(String(reader.result || ''))
     reader.readAsText(file)
+  }
+
+  const handleOpenChange = (v: boolean) => {
+    // Block accidental close mid-import (double-import risk).
+    if (!v && importing) {
+      toast.error('Import still running — please wait.')
+      return
+    }
+    if (!v) setFileError('')
+    onOpenChange(v)
   }
 
   const handleImport = async () => {
@@ -56,8 +79,8 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl" onEscapeKeyDown={(e) => { if (importing) e.preventDefault() }} onPointerDownOutside={(e) => { if (importing) e.preventDefault() }}>
         <DialogHeader>
           <DialogTitle>Add words to "{deckName}"</DialogTitle>
         </DialogHeader>
@@ -85,6 +108,14 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
             </Label>
             <span className="text-xs text-muted-foreground">CSV or tab-separated</span>
           </div>
+          {fileError ? (
+            <p className="text-xs font-medium text-destructive" role="alert">{fileError}</p>
+          ) : null}
+          {csv.trim() && parsed.length === 0 ? (
+            <p className="text-xs font-medium text-amber-600" role="status">
+              No valid rows found — every line was empty or a header. Check the format above.
+            </p>
+          ) : null}
 
           {/* Preview */}
           {parsed.length > 0 && (

@@ -70,6 +70,7 @@ export type RouteState = {
   deckId: string | null
   libraryTab: LibraryTab
   progressTab: ProgressTab
+  searchQuery: string
 }
 
 type AppState = RouteState & {
@@ -113,7 +114,7 @@ export const useAppStore = create<AppState>((set) => ({
   navigate: (view, opts = {}) =>
     set((s) => ({
       view,
-      deckId: opts.deckId !== undefined ? opts.deckId : view === 'library-deck' ? s.deckId : null,
+      deckId: opts.deckId !== undefined ? opts.deckId : null,
       quizMode: opts.quizMode !== undefined ? opts.quizMode : view === 'quiz' ? s.quizMode : null,
       searchQuery: opts.query !== undefined ? opts.query : s.searchQuery,
       libraryTab: opts.libraryTab ?? s.libraryTab,

@@ -32,6 +32,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { CSV_FORMAT_HINT, CSV_PLACEHOLDER, parseCsv } from '@/features/library/lib/csv-parser'
+import { posKey } from '@/features/library/lib/pos'
 import { speak } from '@/lib/tts'
 import { playSound } from '@/lib/feel'
 import { toast } from 'sonner'
@@ -74,6 +75,7 @@ export function LibraryView() {
 function DecksPanel() {
   const [decks, setDecks] = useState<DeckSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
@@ -81,10 +83,11 @@ function DecksPanel() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       setDecks(await api.getDecks())
     } catch {
-      /* offline */
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -114,6 +117,28 @@ function DecksPanel() {
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-32 rounded-lg" />
         ))}
+      </div>
+    )
+  }
+
+  if (loadError && decks.length === 0) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          icon={Layers}
+          title="Could not load your decks"
+          hint="Check your connection and try again — nothing was deleted."
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
+        <CreateDeckDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={async (id) => {
+            await load()
+            if (id) navigate('library-deck', { deckId: id })
+          }}
+        />
       </div>
     )
   }
@@ -258,19 +283,33 @@ function CreateDeckDialog({
   const [description, setDescription] = useState('')
   const [csv, setCsv] = useState('')
   const [creating, setCreating] = useState(false)
+  const [fileError, setFileError] = useState('')
   const parsed = useMemo(() => (csv.trim() ? parseCsv(csv) : []), [csv])
-  const nameError = name.trim().length > 0 && name.trim().length < 2 ? 'Use at least 2 characters.' : ''
+  const nameError =
+    name.trim().length > 0 && name.trim().length < 2
+      ? 'Use at least 2 characters.'
+      : name.trim().length > 200
+        ? 'Keep the name under 200 characters.'
+        : ''
 
   const reset = () => {
     setName('')
     setDescription('')
     setCsv('')
+    setFileError('')
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
+    setFileError('')
+    if (file.size > 1024 * 1024) {
+      setFileError('That file is over 1 MB — paste a smaller list instead.')
+      return
+    }
     const reader = new FileReader()
+    reader.onerror = () => setFileError('Could not read that file. Try pasting the text instead.')
     reader.onload = () => setCsv(String(reader.result || ''))
     reader.readAsText(file)
   }
@@ -280,15 +319,23 @@ function CreateDeckDialog({
       toast.error('Give the deck a name first.')
       return
     }
-    if (name.trim().length < 2) return
+    if (name.trim().length < 2 || name.trim().length > 200) return
+    if (parsed.length > 1000) {
+      toast.error('At most 1000 words per deck at creation — split the list and import the rest after.')
+      return
+    }
     setCreating(true)
     try {
       const result = await api.createCustomDeck(name.trim(), description.trim(), parsed)
-      toast.success(
-        parsed.length
-          ? `Deck created with ${parsed.length} word${parsed.length === 1 ? '' : 's'}`
-          : 'Deck created'
-      )
+      if (result.skipped && result.skipped > 0) {
+        toast.success(`Deck created with ${result.count} words, ${result.skipped} duplicate rows skipped`)
+      } else {
+        toast.success(
+          result.count
+            ? `Deck created with ${result.count} word${result.count === 1 ? '' : 's'}`
+            : 'Deck created'
+        )
+      }
       reset()
       onOpenChange(false)
       onCreated(result.id)
@@ -300,8 +347,8 @@ function CreateDeckDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={(v) => { if (!v && creating) { toast.error('Deck is still being created — please wait.'); return } onOpenChange(v) }}>
+      <DialogContent className="max-w-2xl" onEscapeKeyDown={(e) => { if (creating) e.preventDefault() }} onPointerDownOutside={(e) => { if (creating) e.preventDefault() }}>
         <DialogHeader>
           <DialogTitle>New deck</DialogTitle>
         </DialogHeader>
@@ -329,6 +376,7 @@ function CreateDeckDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Chapter 3 vocabulary"
+              maxLength={2000}
             />
           </div>
           <div>
@@ -354,15 +402,25 @@ function CreateDeckDialog({
             </label>
             <input id="deck-csv-file" type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
             <span className="text-xs text-muted-foreground num">
-              {parsed.length ? `${parsed.length} words ready` : 'CSV or tab-separated'}
+              {parsed.length > 1000
+                ? `${parsed.length} words — over the 1000-word limit`
+                : parsed.length ? `${parsed.length} words ready` : 'CSV or tab-separated'}
             </span>
           </div>
+          {fileError ? (
+            <p className="text-xs font-medium text-destructive" role="alert">{fileError}</p>
+          ) : null}
+          {csv.trim() && parsed.length === 0 ? (
+            <p className="text-xs font-medium text-amber-600" role="status">
+              No valid rows found — every line was empty or a header. Check the format above.
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={creating}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={creating || !name.trim()}>
+          <Button onClick={submit} disabled={creating || !name.trim() || !!nameError}>
             {creating ? 'Creating…' : 'Create deck'}
           </Button>
         </DialogFooter>
@@ -382,6 +440,7 @@ function DictionaryPanel() {
   const [posFilter, setPosFilter] = useState<'all' | 'noun' | 'verb' | 'adj' | 'adv'>('all')
   const [onlyStarred, setOnlyStarred] = useState(false)
   const [bookmarkedList, setBookmarkedList] = useState<string[]>([])
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const syncBookmarks = () => {
@@ -401,42 +460,81 @@ function DictionaryPanel() {
   const pending = !!trimmed && resultsFor !== trimmed
 
   useEffect(() => {
-    if (!trimmed) return
+    if (!trimmed) {
+      // Deferred so the effect body never sets state synchronously
+      // (react-hooks/set-state-in-effect).
+      const id = window.setTimeout(() => {
+        setResults([])
+        setResultsFor('')
+        setSelected(null)
+      }, 0)
+      return () => window.clearTimeout(id)
+    }
+    let cancelled = false
     const id = window.setTimeout(async () => {
       try {
         const list = await api.searchWords(trimmed)
+        if (cancelled) return
         setResults(list)
       } catch {
+        if (cancelled) return
         /* offline: keep the last results */
       } finally {
-        setResultsFor(trimmed)
+        if (!cancelled) setResultsFor(trimmed)
       }
     }, 180)
-    return () => window.clearTimeout(id)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
   }, [trimmed])
 
   const filteredResults = useMemo(() => {
     return results.filter((w) => {
       if (cefrFilter !== 'all' && (!w.cefr || !w.cefr.toUpperCase().startsWith(cefrFilter))) return false
-      if (posFilter !== 'all' && (!w.pos || !w.pos.toLowerCase().includes(posFilter))) return false
+      if (posFilter !== 'all' && posKey(w.pos) !== posFilter) return false
       if (onlyStarred && !bookmarkedList.includes(w.word.toLowerCase())) return false
       return true
     })
   }, [results, cefrFilter, posFilter, onlyStarred, bookmarkedList])
 
-  const activeWord = selected ?? filteredResults[0] ?? null
+  // A selection that no longer matches the filtered list falls back to the
+  // first result — derived, so no effect needs to clear it synchronously.
+  const selectedValid = selected && filteredResults.some((w) => w.id === selected.id) ? selected : null
+  const activeWord = selectedValid ?? filteredResults[0] ?? null
+
+  // Keep the highlighted row visible while arrow-navigating.
+  useEffect(() => {
+    if (!activeWord || !listRef.current) return
+    const el = listRef.current.querySelector<HTMLElement>(`[data-word-id="${activeWord.id}"]`)
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [activeWord])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (query) {
+        e.preventDefault()
+        setSearchQuery('')
+        setSelected(null)
+      }
+      return
+    }
+    if (e.key === 'Enter' && activeWord) {
+      e.preventDefault()
+      setSelected(activeWord)
+      playSound('tap')
+      return
+    }
     if (filteredResults.length === 0) return
-    const currentIdx = activeWord ? filteredResults.findIndex((w) => w.id === activeWord.id) : 0
+    const currentIdx = activeWord ? filteredResults.findIndex((w) => w.id === activeWord.id) : -1
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const nextIdx = Math.min(filteredResults.length - 1, currentIdx + 1)
+      const nextIdx = currentIdx < 0 ? 0 : Math.min(filteredResults.length - 1, currentIdx + 1)
       setSelected(filteredResults[nextIdx])
       playSound('tap')
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const prevIdx = Math.max(0, currentIdx - 1)
+      const prevIdx = currentIdx < 0 ? 0 : Math.max(0, currentIdx - 1)
       setSelected(filteredResults[prevIdx])
       playSound('tap')
     }
@@ -497,11 +595,12 @@ function DictionaryPanel() {
           <div className="h-3.5 w-px bg-border/80 mx-1 hidden sm:block" />
 
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1 hidden sm:inline">Type:</span>
-          {(['all', 'noun', 'verb', 'adj'] as const).map((pos) => (
+          {(['all', 'noun', 'verb', 'adj', 'adv'] as const).map((pos) => (
             <button
               key={pos}
               type="button"
               onClick={() => setPosFilter(pos)}
+              aria-pressed={posFilter === pos}
               className={cn(
                 'rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
                 posFilter === pos
@@ -509,7 +608,7 @@ function DictionaryPanel() {
                   : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              {pos === 'all' ? 'All' : pos === 'adj' ? 'Adjective' : pos.charAt(0).toUpperCase() + pos.slice(1)}
+              {pos === 'all' ? 'All' : pos === 'adj' ? 'Adjective' : pos === 'adv' ? 'Adverb' : pos.charAt(0).toUpperCase() + pos.slice(1)}
             </button>
           ))}
 
@@ -529,8 +628,9 @@ function DictionaryPanel() {
             <span>Starred</span>
           </button>
 
-          <span className="ml-auto text-xs text-muted-foreground num">
+          <span className="ml-auto text-xs text-muted-foreground num" role="status">
             {filteredResults.length} {filteredResults.length === 1 ? 'word' : 'words'}
+            {results.length >= 50 ? ' (top 50 — refine your search)' : ''}
           </span>
         </div>
       ) : null}
@@ -545,7 +645,7 @@ function DictionaryPanel() {
         <EmptyState
           icon={BookOpen}
           title="Look up any word you have added"
-          hint="Search works entirely offline — it reads your local dictionary, not the internet."
+          hint="Search works entirely offline — it matches words in your local dictionary."
           actionLabel="Browse decks"
           onAction={() => navigate('library', { libraryTab: 'decks' })}
         />
@@ -560,6 +660,9 @@ function DictionaryPanel() {
       ) : filteredResults.length === 0 ? (
         <div className="surface p-6 text-center space-y-2 rounded-xl border border-dashed border-border/70">
           <p className="text-sm font-semibold text-foreground">No words match the selected filters.</p>
+          {onlyStarred && bookmarkedList.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Star words with the ☆ button to build a favorites list first.</p>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
@@ -576,12 +679,16 @@ function DictionaryPanel() {
         <>
           {/* Laptop Widescreen Split-Pane Layout */}
           <div className="hidden lg:grid lg:grid-cols-12 lg:gap-6 items-start">
-            <div className="lg:col-span-5 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+            <div ref={listRef} role="listbox" aria-label="Dictionary results" className="lg:col-span-5 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
               {filteredResults.map((word) => {
                 const isSelected = activeWord?.id === word.id
                 return (
                   <div
                     key={word.id}
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={0}
+                    data-word-id={word.id}
                     className={cn(
                       'surface flex items-center gap-1 p-2 transition-all duration-150 cursor-pointer',
                       isSelected ? 'border-primary ring-1 ring-primary/40 bg-primary-soft/40 shadow-xs' : 'hover:border-primary-line'
@@ -589,6 +696,13 @@ function DictionaryPanel() {
                     onClick={() => {
                       playSound('tap')
                       setSelected(word)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        playSound('tap')
+                        setSelected(word)
+                      }
                     }}
                   >
                     <div className="min-w-0 flex-1 px-1.5 py-1 text-left">
@@ -635,7 +749,7 @@ function DictionaryPanel() {
             </div>
 
             <div className="lg:col-span-7 sticky top-6">
-              {activeWord ? <WordCard word={activeWord} /> : null}
+              {activeWord ? <WordCard key={activeWord.id} word={activeWord} autoSpeak={false} /> : null}
             </div>
           </div>
 
@@ -647,7 +761,7 @@ function DictionaryPanel() {
                   <ArrowLeft className="h-4 w-4" />
                   Back to results
                 </Button>
-                <WordCard word={selected} />
+                <WordCard key={selected.id} word={selected} autoSpeak={false} />
               </div>
             ) : (
               <ul className="space-y-2">
@@ -716,27 +830,38 @@ export function DeckDetailView() {
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState<(WordDTO & { id: string }) | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; word: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { v, t } = useMotionSafe()
 
+  const loadSeqRef = useRef(0)
   const load = useCallback(async () => {
     if (!deckId) return
+    const seq = ++loadSeqRef.current
     setLoading(true)
     try {
-      setDeck(await api.getDeck(deckId))
+      const detail = await api.getDeck(deckId)
+      if (loadSeqRef.current === seq) setDeck(detail)
     } catch {
-      toast.error('Could not load that deck')
+      if (loadSeqRef.current === seq) toast.error('Could not load that deck')
     } finally {
-      setLoading(false)
+      if (loadSeqRef.current === seq) setLoading(false)
     }
   }, [deckId])
 
-  // Reload only when the deck id actually changes; the ref guard keeps the
-  // fetch (and its setState) out of the synchronous effect body on re-renders.
+  // Reload when the deck id changes. The fetch is deferred past the effect
+  // body so it never sets state synchronously (react-hooks/set-state-in-effect);
+  // the seq guard in load() keeps a slow response for deck A from overwriting
+  // deck B after a fast switch.
   const loadedDeckRef = useRef<string | null>(null)
   useEffect(() => {
     if (loadedDeckRef.current === deckId) return
     loadedDeckRef.current = deckId
-    load()
+    if (!deckId) return
+    const id = window.setTimeout(() => {
+      load()
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [load, deckId])
 
   const words = useMemo(() => {
@@ -746,17 +871,27 @@ export function DeckDetailView() {
     return deck.words.filter(
       (w) =>
         w.word.toLowerCase().includes(term) ||
-        (w.definitions[0]?.text ?? '').toLowerCase().includes(term)
+        (w.definitions[0]?.text ?? '').toLowerCase().includes(term) ||
+        (w.amharic ?? '').toLowerCase().includes(term) ||
+        (w.examples[0] ?? '').toLowerCase().includes(term)
     )
   }, [deck, filter])
 
   const removeWord = async (wordId: string) => {
+    const prev = deck
+    // Optimistic removal keeps filter + scroll position; reload reconciles.
+    if (prev) setDeck({ ...prev, words: prev.words.filter((w) => w.id !== wordId) })
+    setDeleting(true)
     try {
       await api.deleteWord(wordId)
       toast.success('Word removed')
       await load()
     } catch {
+      if (prev) setDeck(prev)
       toast.error('Could not remove that word')
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -789,9 +924,17 @@ export function DeckDetailView() {
       <EmptyState
         icon={Layers}
         title="That deck is not available"
-        hint="It may have been deleted. Your other decks are untouched."
-        actionLabel="Back to library"
-        onAction={() => navigate('library', { libraryTab: 'decks' })}
+        hint="It may have been deleted — or loading failed. Your other decks are untouched."
+        actionLabel="Retry"
+        onAction={() => {
+          loadedDeckRef.current = null
+          void load()
+        }}
+        secondary={
+          <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
+            Back to library
+          </Button>
+        }
       />
     )
   }
@@ -929,30 +1072,14 @@ export function DeckDetailView() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" aria-label={`Delete ${word.word}`}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove “{word.word}”?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Its review history goes with it. Other words in this deck are untouched.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Keep word</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => void removeWord(word.id)}
-                            >
-                              Remove word
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={`Delete ${word.word}`}
+                        onClick={() => setDeleteTarget({ id: word.id, word: word.word })}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </div>
                 </motion.li>
@@ -962,8 +1089,8 @@ export function DeckDetailView() {
 
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <NextStep
-              title="Study this deck"
-              hint="Spaced repetition decides what to show and when."
+              title="Study new words"
+              hint="Learn pulls from all decks — spaced repetition decides what to show."
               actionLabel="Start learning"
               onAction={() => navigate('learn')}
             />
@@ -980,6 +1107,27 @@ export function DeckDetailView() {
         </>
       )}
 
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove “{deleteTarget?.word}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its review history goes with it. Other words in this deck are untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Keep word</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={() => { if (deleteTarget) void removeWord(deleteTarget.id) }}
+            >
+              {deleting ? 'Removing…' : 'Remove word'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <WordFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
@@ -987,6 +1135,7 @@ export function DeckDetailView() {
         deckId={deck.id}
       />
       <WordFormDialog
+        key={editing?.id ?? 'closed'}
         open={!!editing}
         onOpenChange={(open) => {
           if (!open) setEditing(null)

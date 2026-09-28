@@ -27,10 +27,12 @@ export function parseHash(hash: string): RouteState {
   const parts = path.split('/').filter(Boolean)
   const params = new URLSearchParams(query)
   const tab = params.get('tab')
+  const q = params.get('q') ?? ''
   const head = parts[0] ?? 'today'
 
   const libraryTab: LibraryTab = tab === 'dictionary' ? 'dictionary' : 'decks'
   const progressTab: ProgressTab = parts[1] === 'settings' || tab === 'settings' ? 'settings' : 'overview'
+  const searchQuery = q.slice(0, 200)
 
   switch (head) {
     case 'learn':
@@ -38,19 +40,20 @@ export function parseHash(hash: string): RouteState {
     case 'quiz':
     case 'dictation':
     case 'coach':
-      return { view: head, deckId: null, libraryTab, progressTab }
+      return { view: head, deckId: null, libraryTab, progressTab, searchQuery: '' }
     case 'library':
       return {
         view: parts[1] ? 'library-deck' : 'library',
         deckId: parts[1] ? decodeURIComponent(parts[1]) : null,
         libraryTab,
         progressTab,
+        searchQuery: parts[1] ? '' : searchQuery,
       }
     case 'progress':
-      return { view: 'progress', deckId: null, libraryTab, progressTab }
+      return { view: 'progress', deckId: null, libraryTab, progressTab, searchQuery: '' }
     case 'today':
     default:
-      return { view: 'today', deckId: null, libraryTab, progressTab }
+      return { view: 'today', deckId: null, libraryTab, progressTab, searchQuery: '' }
   }
 }
 
@@ -58,7 +61,15 @@ export function routeToHash(route: RouteState): string {
   if (route.view === 'library-deck' && route.deckId) {
     return `#/library/${encodeURIComponent(route.deckId)}`
   }
-  if (route.view === 'library' && route.libraryTab === 'dictionary') return '#/library?tab=dictionary'
+  if (route.view === 'library') {
+    const params = new URLSearchParams()
+    if (route.libraryTab === 'dictionary') params.set('tab', 'dictionary')
+    if (route.libraryTab === 'dictionary' && route.searchQuery.trim()) {
+      params.set('q', route.searchQuery.trim().slice(0, 200))
+    }
+    const qs = params.toString()
+    return qs ? `#/library?${qs}` : '#/library'
+  }
   if (route.view === 'progress' && route.progressTab === 'settings') return '#/progress/settings'
   return `#/${HASH_FOR_VIEW[route.view]}`
 }
@@ -81,7 +92,8 @@ export function useRouteSync() {
         state.view === prev.view &&
         state.deckId === prev.deckId &&
         state.libraryTab === prev.libraryTab &&
-        state.progressTab === prev.progressTab
+        state.progressTab === prev.progressTab &&
+        state.searchQuery === prev.searchQuery
       ) {
         return
       }
@@ -91,8 +103,22 @@ export function useRouteSync() {
         deckId: state.deckId,
         libraryTab: state.libraryTab,
         progressTab: state.progressTab,
+        searchQuery: state.searchQuery,
       })
-      if (window.location.hash !== hash) window.location.hash = hash
+      if (window.location.hash !== hash) {
+        // Query-only keystrokes replace history so typing doesn't spam
+        // the back button with one entry per character.
+        const routeOnly =
+          state.view === prev.view &&
+          state.deckId === prev.deckId &&
+          state.libraryTab === prev.libraryTab &&
+          state.progressTab === prev.progressTab
+        if (routeOnly) {
+          window.history.replaceState(null, '', hash)
+        } else {
+          window.location.hash = hash
+        }
+      }
     })
 
     const onUrlChange = () => apply(window.location.hash)
