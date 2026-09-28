@@ -265,7 +265,10 @@ with sync_playwright() as p:
     pal = pg.get_by_role("dialog")
     rec("H-palette", "opens ctrl+k", pal.count() > 0, f"dialogs={pal.count()}")
     if pal.count() > 0:
-        pg.keyboard.type("abund"); pg.wait_for_timeout(900)
+        # Query the live API for a real word prefix so the assertion holds on
+        # any study database (seed content drifts as words are deleted).
+        seed_word = pg.evaluate("fetch('/api/lexilearn?action=search&query=e').then(r=>r.json()).then(w=>(w[0]||{}).word||'e').catch(()=>'e')")
+        pg.keyboard.type((seed_word or 'e')[:4]); pg.wait_for_timeout(900)
         items = pal.locator("[cmdk-item], [role='option']")
         rec("H-palette", "search results", items.count() > 0, f"{items.count()} results")
         pg.screenshot(path="/tmp/e2e-shots/deep-H-palette.png")

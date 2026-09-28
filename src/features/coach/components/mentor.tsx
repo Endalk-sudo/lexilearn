@@ -409,7 +409,7 @@ export function MentorView() {
       {/* Welcome-back hook: only when there is something to repair. */}
       {!feedback && !node && dueWarmup && (
         <motion.button
-          onClick={()=>{ playSound('tap'); buzz('light'); setBranchId(prev=>prev) }}
+          onClick={() => { playSound('tap'); buzz('light'); void nextQuestion() }}
           variants={v(fadeUp)} initial="hidden" animate="show"
           className="flex w-full items-center gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3 text-left text-sm transition-colors hover:border-warning/50 cursor-pointer"
         >

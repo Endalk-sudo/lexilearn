@@ -76,6 +76,8 @@ type ReviewHistoryItem = {
   grade: Grade
   xp: number
   passed: boolean
+  /** Matches the pending-submit queue entry so Undo can cancel the write. */
+  key: string
 }
 
 export function ReviewView() {
@@ -114,20 +116,48 @@ export function ReviewView() {
   const { v, t } = useMotionSafe()
   const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
   const lastSpokenWordIdRef = useRef<string | null>(null)
+  // Pending review writes: grading a card queues its submit instead of
+  // posting immediately, so Undo can cancel it before anything reaches the
+  // server. The queue flushes on session finish (awaited, so the closing
+  // stats read includes every card) and best-effort on unmount.
+  const pendingSubmits = useRef<{ key: string; wordId: string; grade: Grade }[]>([])
+  // Synchronous double-grade guard: state updates don't land before a
+  // same-tick second click/keypress, so a ref blocks the re-entry.
+  const gradingRef = useRef(false)
+
+  const flushPending = useCallback(async () => {
+    const batch = pendingSubmits.current
+    pendingSubmits.current = []
+    await Promise.allSettled(batch.map((p) => api.submitReview(p.wordId, p.grade, 'review')))
+  }, [])
 
   useEffect(() => {
+    const pending = pendingSubmits
+    return () => {
+      const batch = pending.current
+      pending.current = []
+      for (const p of batch) void api.submitReview(p.wordId, p.grade, 'review').catch(() => {})
+    }
+  }, [])
+
+  // Re-sync when the card changes. Deferred past the effect body so it never
+  // sets state synchronously (react-hooks/set-state-in-effect).
+  useEffect(() => {
     if (!cards[idx]) return
-    try {
-      const raw = localStorage.getItem('lexilearn-bookmarked-words')
-      if (raw) {
-        const list: string[] = JSON.parse(raw)
-        setBookmarked(Array.isArray(list) && list.includes(cards[idx].word.word.toLowerCase()))
-      } else {
+    const id = window.setTimeout(() => {
+      try {
+        const raw = localStorage.getItem('lexilearn-bookmarked-words')
+        if (raw) {
+          const list: string[] = JSON.parse(raw)
+          setBookmarked(Array.isArray(list) && list.includes(cards[idx].word.word.toLowerCase()))
+        } else {
+          setBookmarked(false)
+        }
+      } catch {
         setBookmarked(false)
       }
-    } catch {
-      setBookmarked(false)
-    }
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [cards, idx])
 
   const load = useCallback(async () => {
@@ -231,9 +261,11 @@ export function ReviewView() {
   }, [current])
 
   const undoGrade = useCallback(() => {
-    if (history.length === 0) return
+    if (done || history.length === 0) return
     const prev = history[history.length - 1]
     setHistory((h) => h.slice(0, -1))
+    // Cancel the queued server write for this card, if it hasn't flushed.
+    pendingSubmits.current = pendingSubmits.current.filter((p) => p.key !== prev.key)
     setIdx(prev.index)
     setRevealed(true)
     if (prev.passed) setCorrectCount((c) => Math.max(0, c - 1))
@@ -241,11 +273,12 @@ export function ReviewView() {
     setCombo((c) => Math.max(0, c - 1))
     toast.info(`Restored "${prev.card.word.word}" for re-grading`)
     playSound('tap')
-  }, [history])
+  }, [done, history])
 
   const grade = useCallback(
     async (g: Grade, e?: { clientX: number; clientY: number }, buttonIndex?: number) => {
-      if (!current || !revealed) return
+      if (!current || !revealed || gradingRef.current) return
+      gradingRef.current = true
       setLastGrade(g)
       const passed = g >= 3
 
@@ -283,11 +316,15 @@ export function ReviewView() {
 
       if (passed) setCorrectCount((c) => c + 1)
       setXpEarned((x) => x + xp)
-      setHistory((h) => [...h, { card: current, index: idx, grade: g, xp, passed }])
-      void api.submitReview(current.word.id, g, 'review').catch(() => {})
+      const key = `${idx}:${current.word.id}`
+      setHistory((h) => [...h, { card: current, index: idx, grade: g, xp, passed, key }])
+      // Queue the write; it flushes on finish (or unmount) so Undo can
+      // still cancel it. Nothing has reached the server at this point.
+      pendingSubmits.current.push({ key, wordId: current.word.id, grade: g })
 
       const last = idx + 1 >= cards.length
       if (last) {
+        await flushPending()
         try {
           const stats = await api.getDashboardStats()
           setLevelAfter(stats.level.name)
@@ -297,9 +334,11 @@ export function ReviewView() {
           /* offline */
         }
         setDone(true)
+        gradingRef.current = false
         return
       }
       const nextIdx = idx + 1
+      gradingRef.current = false
       setIdx(nextIdx)
       setRevealed(false)
       saveResume({
@@ -310,7 +349,7 @@ export function ReviewView() {
         total: cards.length,
       })
     },
-    [cards.length, combo, current, idx, pop, revealed]
+    [cards.length, combo, current, flushPending, idx, pop, revealed]
   )
 
   useEffect(() => {

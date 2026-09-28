@@ -141,6 +141,10 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const { v, t } = useMotionSafe()
   const finishedRef = useRef(false)
   const lastSpokenQuestionIdRef = useRef<string | null>(null)
+  // Synchronous double-answer guard: grading state doesn't land before a
+  // same-tick second click/keypress, which would double-count XP/reviews
+  // and stack two advance timers (skipping a question).
+  const gradedRef = useRef(false)
   /**
    * Session totals live in a ref as well as state: the speed-round timer and the
    * deferred auto-advance fire outside the render that produced them, so reading
@@ -216,6 +220,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   }, [finish, finished, loading, mode, timeLeft])
 
   const advance = useCallback(() => {
+    gradedRef.current = false
     setSelected(null)
     setGraded(null)
     setAnswer('')
@@ -228,6 +233,8 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
 
   const gradeAnswer = useCallback(
     (isCorrect: boolean, e?: { clientX: number; clientY: number }) => {
+      if (gradedRef.current) return
+      gradedRef.current = true
       setGraded(isCorrect)
       const xp = isCorrect ? XP_PER_CORRECT : GRADE_XP[0]
       if (isCorrect) {

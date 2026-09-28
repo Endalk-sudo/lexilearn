@@ -95,7 +95,9 @@ with sync_playwright() as p:
     for sel in [pg.get_by_text("Common 500"), pg.locator("main").locator("a,button").first]:
         try:
             if sel.count()>0: sel.first.click(timeout=5000); pg.wait_for_timeout(1500); txtd=pg.locator("main").inner_text()[:2000]
-            if "abundant" in txtd.lower() or "filter this deck" in txtd.lower(): deck_opened=True; break
+            # Content-independent: the deck-detail filter box only exists there
+            # (word rows vary with the study database; placeholders aren't in inner_text).
+            if "abundant" in txtd.lower() or "filter this deck" in txtd.lower() or pg.get_by_placeholder("Filter this deck").count() > 0: deck_opened=True; break
         except Exception as e: pass
     rec("P6-library","deck detail opens", deck_opened, pg.locator("main").inner_text()[:120].replace(chr(10)," | "))
     pg.screenshot(path=f"{shots}/final-P6-deck.png")

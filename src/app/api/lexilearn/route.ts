@@ -600,7 +600,7 @@ const MentorBranchBody = z.object({
   projectId: z.string().min(1),
   title: z.string().min(1).max(300),
   focusTag: z.string().min(1).max(100),
-  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question']).optional(),
+  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question', 'exam']).optional(),
   difficultyCeiling: z.number().int().min(1).max(5).optional(),
   locked: z.boolean().optional(),
 })
@@ -631,7 +631,7 @@ const MentorForkBody = z.object({
   nodeId: z.string().min(1),
   title: z.string().max(300).optional(),
   focusTag: z.string().max(100).optional(),
-  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question']).optional(),
+  mode: z.enum(['drill', 'scenario', 'challenge', 'review', 'question', 'exam']).optional(),
   difficultyCeiling: z.number().int().min(1).max(5).optional(),
 })
 

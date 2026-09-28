@@ -28,6 +28,16 @@ export type MatchPair = { id: string; word: string; definition: string }
 /** Per-pair outcome reported back when the game completes (id = word id). */
 export type MatchResult = { wordId: string; firstTry: boolean }
 
+/** Fisher-Yates shuffle returning a new array. */
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
 export function MatchGame({
   pairs,
   onComplete,
@@ -52,6 +62,11 @@ export function MatchGame({
     matchedWords.forEach((wordId) => map.set(slotFor(wordId), wordId))
     return map
   }, [matchedWords])
+
+  // Shuffle slots and chips independently (stable per round): rendering both
+  // in `pairs` order leaked the answers by position.
+  const slotOrder = useMemo(() => shuffle([...pairs]), [pairs])
+  const chipOrder = useMemo(() => shuffle([...pairs]), [pairs])
 
   const attempt = (wordId: string, slotId: string) => {
     if (matchedWords.includes(wordId)) return
@@ -96,7 +111,7 @@ export function MatchGame({
         </p>
 
         <ul className="space-y-2" aria-label="Meanings">
-          {pairs.map((pair) => {
+          {slotOrder.map((pair) => {
             const filledWordId = filledSlots.get(slotFor(pair.id)) ?? null
             return (
               <Slot
@@ -116,7 +131,7 @@ export function MatchGame({
         </ul>
 
         <ul className="flex flex-wrap gap-2" aria-label="Words">
-          {pairs.map((pair) => (
+          {chipOrder.map((pair) => (
             <WordChip
               key={pair.id}
               id={pair.id}
