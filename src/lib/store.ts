@@ -83,6 +83,7 @@ type AppState = RouteState & {
   studyCategory: StudyCategory
   searchQuery: string
   paletteOpen: boolean
+  shortcutsOpen: boolean
   accentHue: number
   autoSpeak: boolean
   sidebarCollapsed: boolean
@@ -96,6 +97,7 @@ type AppState = RouteState & {
   setStudyCategory: (studyCategory: StudyCategory) => void
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
+  setShortcutsOpen: (open: boolean) => void
   setAccentHue: (hue: number) => void
   setAutoSpeak: (autoSpeak: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -113,6 +115,7 @@ export const useAppStore = create<AppState>((set) => ({
   studyCategory: null,
   searchQuery: '',
   paletteOpen: false,
+  shortcutsOpen: false,
   accentHue: 259,
   autoSpeak: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-auto-speak') === 'true' : false,
   sidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-sidebar-collapsed') === 'true' : false,
@@ -136,6 +139,7 @@ export const useAppStore = create<AppState>((set) => ({
   setStudyCategory: (studyCategory) => set({ studyCategory }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
   setAccentHue: (accentHue) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('lexilearn-accent-hue', String(accentHue))

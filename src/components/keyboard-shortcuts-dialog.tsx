@@ -1,0 +1,169 @@
+'use client'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { isMac } from '@/features/coach/lib/keys'
+import { Keyboard, Sparkles } from 'lucide-react'
+
+interface ShortcutGroup {
+  category: string
+  items: {
+    keys: string[]
+    description: string
+    note?: string
+  }[]
+}
+
+export function KeyboardShortcutsDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const mac = typeof window !== 'undefined' ? isMac() : false
+  const modKey = mac ? '⌘' : 'Ctrl'
+  const altKey = mac ? '⌥' : 'Alt'
+
+  const GROUPS: ShortcutGroup[] = [
+    {
+      category: 'Global & Navigation',
+      items: [
+        { keys: ['?'], description: 'Show keyboard shortcuts' },
+        { keys: [modKey, 'K'], description: 'Open search palette' },
+        { keys: ['['], description: 'Toggle navigation sidebar' },
+        { keys: ['m'], description: 'Toggle sound mute' },
+        { keys: ['g', 'then', 't'], description: 'Go to Today (Dashboard)' },
+        { keys: ['g', 'then', 'r'], description: 'Go to Review (SRS)' },
+        { keys: ['g', 'then', 'l'], description: 'Go to Learn' },
+        { keys: ['g', 'then', 'q'], description: 'Go to Quiz' },
+        { keys: ['g', 'then', 'd'], description: 'Go to Dictation' },
+        { keys: ['g', 'then', 'b'], description: 'Go to Library' },
+        { keys: ['g', 'then', 'p'], description: 'Go to Progress' },
+        { keys: ['g', 'then', 'c'], description: 'Go to AI Coach' },
+      ],
+    },
+    {
+      category: 'Review (SRS Flashcards)',
+      items: [
+        { keys: ['Space', 'or', 'Enter'], description: 'Reveal card / Quick "Good" grade' },
+        { keys: ['1'], description: 'Grade: Again (Failed recall)' },
+        { keys: ['2'], description: 'Grade: Hard (Tough recall)' },
+        { keys: ['3'], description: 'Grade: Good (Clean recall)' },
+        { keys: ['4'], description: 'Grade: Easy (Instant recall)' },
+        { keys: ['r'], description: 'Replay audio (normal speed)' },
+        { keys: ['s'], description: 'Replay audio (slow speed)' },
+        { keys: [modKey, 'Z'], description: 'Undo last review' },
+      ],
+    },
+    {
+      category: 'Learn Mode',
+      items: [
+        { keys: ['Space', 'or', 'Enter'], description: 'Reveal card & hear word' },
+        { keys: ['r'], description: 'Replay audio in Recall stage' },
+        { keys: [altKey, 'R'], description: 'Replay audio while typing spelling', note: `or Ctrl+Space` },
+        { keys: [altKey, 'H'], description: 'Get a hint while spelling', note: `or Ctrl+H` },
+        { keys: ['Enter'], description: 'Submit spelling / Next word' },
+      ],
+    },
+    {
+      category: 'Dictation Mode',
+      items: [
+        { keys: [altKey, 'R'], description: 'Replay audio while typing', note: `or Ctrl+Space` },
+        { keys: [altKey, 'S'], description: 'Replay slow audio while typing' },
+        { keys: [altKey, 'H'], description: 'Show hint / give up', note: `or Ctrl+H` },
+        { keys: ['Enter'], description: 'Submit what you typed' },
+        { keys: ['Space', 'or', 'Enter'], description: 'Advance to next dictation item' },
+        { keys: ['1', '–', '4'], description: 'Select dictation difficulty rung' },
+      ],
+    },
+    {
+      category: 'Quiz & Match Game',
+      items: [
+        { keys: ['1', '–', '4'], description: 'Select multiple choice option', note: 'or A–D' },
+        { keys: ['Enter'], description: 'Submit typed or spelling bee answer' },
+        { keys: ['1', '–', '5', 'then', 'A', '–', 'E'], description: 'Match Game direct pairing', note: 'Pick number then letter' },
+      ],
+    },
+    {
+      category: 'Session Complete & Library',
+      items: [
+        { keys: ['Enter', 'or', 'Space'], description: 'Continue to next step on completion screen' },
+        { keys: ['r'], description: 'Study again from completion screen' },
+        { keys: ['/'], description: 'Focus search input in Library / Dictionary' },
+        { keys: ['Esc'], description: 'Clear search / close modals / go back' },
+      ],
+    },
+  ]
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-4 border-b border-border/80">
+          <div className="flex items-center gap-2 text-primary mb-1">
+            <Keyboard className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Keyboard Navigation</span>
+          </div>
+          <DialogTitle className="text-xl">Keyboard Shortcuts</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Complete study sessions touch-free. Practice and navigate without reaching for the touchpad.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="overflow-y-auto px-6 py-4 space-y-6">
+          {GROUPS.map((group) => (
+            <div key={group.category} className="space-y-2.5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-primary" />
+                {group.category}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {group.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground truncate">{item.description}</div>
+                      {item.note ? (
+                        <div className="text-[10px] text-muted-foreground truncate">{item.note}</div>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {item.keys.map((k, kIdx) =>
+                        k === 'then' || k === 'or' || k === '–' ? (
+                          <span key={kIdx} className="text-[10px] text-muted-foreground/70 px-0.5">
+                            {k}
+                          </span>
+                        ) : (
+                          <kbd
+                            key={kIdx}
+                            className="inline-flex min-w-5 h-5 items-center justify-center rounded border border-border bg-card px-1.5 font-mono text-[11px] font-semibold text-foreground shadow-2xs"
+                          >
+                            {k}
+                          </kbd>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border/80 bg-muted/30 px-6 py-3 text-xs text-muted-foreground flex items-center justify-between">
+          <span>
+            Press <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px]">?</kbd> anywhere to open this guide.
+          </span>
+          <span className="text-[11px] font-medium">LexiLearn Touch-Free</span>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

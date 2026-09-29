@@ -190,6 +190,48 @@ function DictationStart({
   const { v, t } = useMotionSafe()
   const available = readiness.status !== 'unavailable'
 
+  useEffect(() => {
+    if (!available) return
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onStart()
+        return
+      }
+
+      if (e.key === '1') {
+        e.preventDefault()
+        onRungOverride(null)
+        playSound('tap')
+        return
+      }
+      if (e.key === '2') {
+        e.preventDefault()
+        onRungOverride(0)
+        playSound('tap')
+        return
+      }
+      if (e.key === '3') {
+        e.preventDefault()
+        onRungOverride(1)
+        playSound('tap')
+        return
+      }
+      if (e.key === '4') {
+        e.preventDefault()
+        onRungOverride(2)
+        playSound('tap')
+        return
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [available, onRungOverride, onStart])
+
   return (
     <motion.div variants={v(stagger(0.05))} initial="hidden" animate="show" className="space-y-4">
       <motion.div variants={v(listItem)} transition={t()} className="surface p-5">
@@ -299,10 +341,13 @@ function DictationStart({
         </div>
 
         {available ? (
-          <Button size="lg" onClick={onStart} data-testid="dictation-start" className="mt-2 w-full shadow-sm cursor-pointer active:scale-[.98] font-medium">
-            <Ear className="h-4 w-4 mr-1" />
-            Start dictation
-            <ArrowRight className="h-4 w-4 ml-1" />
+          <Button size="lg" onClick={onStart} data-testid="dictation-start" className="mt-2 w-full shadow-sm cursor-pointer active:scale-[.98] font-medium gap-2">
+            <Ear className="h-4 w-4" />
+            <span>Start dictation</span>
+            <kbd className="hidden sm:inline-flex rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
+              Enter
+            </kbd>
+            <ArrowRight className="h-4 w-4 ml-0.5" />
           </Button>
         ) : (
           <>
@@ -456,19 +501,32 @@ function DictationSession({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
-      if (e.key === ' ' && !result) {
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+
+      // In typing mode, DictationItemAnswer handles in-input combos
+      if (isTyping) return
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if ((e.key === ' ' || e.key.toLowerCase() === 'r') && !result) {
         e.preventDefault()
         replay()
+        return
       }
-      if (e.key === 'Enter' && result) {
+      if (e.key.toLowerCase() === 's' && !result) {
+        e.preventDefault()
+        void speakNow(item.text, true)
+        return
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && result) {
         e.preventDefault()
         void next()
+        return
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [next, replay, result])
+  }, [item.text, next, replay, result, speakNow])
 
   const progressPct = ((idx + (result ? 1 : 0)) / items.length) * 100
   const segments: DiffSegment[] = result ? groupDiff(result.tokens) : []
@@ -613,18 +671,41 @@ function DictationSession({
       {/* Laptop Keyboard HUD Bar */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
         <div className="flex items-center gap-3.5 flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              Space
-            </kbd>
-            <span>{result ? 'Next' : 'Replay audio'}</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              Enter
-            </kbd>
-            <span>{result ? 'Next item' : 'Submit'}</span>
-          </span>
+          {result ? (
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                Enter / Space
+              </kbd>
+              <span>Next item</span>
+            </span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Enter
+                </kbd>
+                <span>Submit</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Alt+R / ⌃Space
+                </kbd>
+                <span>Replay</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Alt+S
+                </kbd>
+                <span>Slow</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Alt+H
+                </kbd>
+                <span>Hint</span>
+              </span>
+            </>
+          )}
         </div>
         <span className="text-[11px] font-medium text-muted-foreground">
           {RUNG_LABELS[rungUsed]} · {item.kind}
@@ -713,6 +794,34 @@ function DictationItemAnswer({
     setHintStage((s) => s + 1)
     playSound('tap')
   }, [hintStage, item, onPerfect, targetWords, typed])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Replay audio: Alt+R or Ctrl+Space
+      if ((e.altKey && e.key.toLowerCase() === 'r') || (e.ctrlKey && e.code === 'Space')) {
+        e.preventDefault()
+        void speakNow(item.text, false)
+        return
+      }
+
+      // Replay slow audio: Alt+S or Ctrl+Shift+Space
+      if ((e.altKey && e.key.toLowerCase() === 's') || (e.ctrlKey && e.shiftKey && e.code === 'Space')) {
+        e.preventDefault()
+        void speakNow(item.text, true)
+        return
+      }
+
+      // Hint: Alt+H or Ctrl+H
+      if ((e.altKey && e.key.toLowerCase() === 'h') || (e.ctrlKey && e.key.toLowerCase() === 'h')) {
+        e.preventDefault()
+        handleHint()
+        return
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleHint, item.text, speakNow])
 
   return (
     <div className="surface p-5 sm:p-6">

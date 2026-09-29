@@ -631,6 +631,7 @@ function DictionaryPanel() {
   const [onlyStarred, setOnlyStarred] = useState(false)
   const [bookmarkedList, setBookmarkedList] = useState<string[]>([])
   const listRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     void api.getCategories().then(setCategories).catch(() => {})
@@ -705,12 +706,31 @@ function DictionaryPanel() {
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeWord])
 
+  // '/' hotkey to focus search bar from anywhere in dictionary panel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+      if (isTyping) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === '/') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       if (query) {
         e.preventDefault()
         setSearchQuery('')
         setSelected(null)
+      } else {
+        searchInputRef.current?.blur()
       }
       return
     }
@@ -740,19 +760,24 @@ function DictionaryPanel() {
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
+          ref={searchInputRef}
           value={query}
           onChange={(e) => {
             setSearchQuery(e.target.value)
             setSelected(null)
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search your dictionary… (↑/↓ to navigate)"
+          placeholder="Search your dictionary… (press / to search, ↑/↓ to navigate)"
           aria-label="Search your dictionary"
           autoComplete="off"
           spellCheck={false}
           className="h-11 pl-9 pr-9 shadow-2xs"
         />
-        {query ? (
+        {!query ? (
+          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 items-center justify-center rounded border border-border bg-muted/60 px-1.5 font-mono text-[11px] text-muted-foreground">
+            /
+          </kbd>
+        ) : (
           <button
             type="button"
             onClick={() => {
@@ -760,11 +785,11 @@ function DictionaryPanel() {
               setSelected(null)
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-            title="Clear search"
+            title="Clear search (Esc)"
           >
             <X className="h-4 w-4" />
           </button>
-        ) : null}
+        )}
       </div>
 
       {/* Filter Chips Bar */}

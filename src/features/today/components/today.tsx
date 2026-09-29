@@ -67,25 +67,23 @@ export function TodayView() {
     }
   }, [])
 
-  if (loading || !stats) return <TodaySkeleton />
-
-  const goal = Math.max(1, stats.dailyGoal)
-  const goalPct = Math.min(100, Math.round((stats.learnedToday / goal) * 100))
-  const goalDone = stats.learnedToday >= goal
-  const challenge = getDailyChallenge(stats)
-  const challengeDone = challenge.progress >= challenge.target
-  const challengeClaimed = stats.challengeClaimedDate === dayKey(new Date())
-  const levelPct = stats.nextLevel ? Math.round(stats.levelPct) : 100
+  const goal = stats ? Math.max(1, stats.dailyGoal) : 1
+  const goalPct = stats ? Math.min(100, Math.round((stats.learnedToday / goal) * 100)) : 0
+  const goalDone = stats ? stats.learnedToday >= goal : false
+  const challenge = stats ? getDailyChallenge(stats) : null
+  const challengeDone = challenge ? challenge.progress >= challenge.target : false
+  const challengeClaimed = stats ? stats.challengeClaimedDate === dayKey(new Date()) : false
+  const levelPct = stats ? (stats.nextLevel ? Math.round(stats.levelPct) : 100) : 100
 
   const mission =
-    stats.dueCount > 0
+    stats && stats.dueCount > 0
       ? {
           view: 'review' as const,
           label: `Clear ${stats.dueCount} due card${stats.dueCount === 1 ? '' : 's'}`,
           cta: `Review ${stats.dueCount}`,
           hint: 'These are on the edge of forgetting. Clearing them is the highest-value five minutes you have.',
         }
-      : stats.newCount > 0
+      : stats && stats.newCount > 0
         ? {
             view: 'learn' as const,
             label: `Learn ${Math.min(goal, stats.newCount)} new words`,
@@ -100,6 +98,7 @@ export function TodayView() {
           }
 
   const claimChallenge = async () => {
+    if (!challenge) return
     try {
       const result = await api.claimChallenge(challenge.key)
       if (result.xpAwarded) {
@@ -126,18 +125,44 @@ export function TodayView() {
     }
   }
 
-  const startMission = () => {
+  const startMission = useCallback(() => {
     playSound('tap')
     buzz('light')
     if (resume && resume.view !== mission.view) clearResume()
     navigate(mission.view)
-  }
+  }, [mission.view, navigate, resume])
 
-  const goResume = () => {
+  const goResume = useCallback(() => {
     if (!resume) return
     playSound('tap')
     navigate(resume.view)
-  }
+  }, [navigate, resume])
+
+  useEffect(() => {
+    if (loading || !stats) return
+
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        startMission()
+        return
+      }
+
+      if (e.key.toLowerCase() === 'r' && resume) {
+        e.preventDefault()
+        goResume()
+        return
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [goResume, loading, resume, startMission, stats])
+
+  if (loading || !stats || !challenge) return <TodaySkeleton />
 
   return (
     <motion.div
@@ -176,10 +201,13 @@ export function TodayView() {
               <Button
                 size="lg"
                 onClick={startMission}
-                className="w-full shrink-0 sm:w-auto shadow-sm active:scale-95 transition-all duration-150 font-medium cursor-pointer"
+                className="w-full shrink-0 sm:w-auto shadow-sm active:scale-95 transition-all duration-150 font-medium cursor-pointer gap-2"
               >
-                {mission.cta}
-                <ChevronRight className="h-4 w-4 ml-1 transition-transform group-hover:translate-x-0.5" />
+                <span>{mission.cta}</span>
+                <kbd className="hidden sm:inline-flex rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
+                  Space
+                </kbd>
+                <ChevronRight className="h-4 w-4 ml-0.5 transition-transform group-hover:translate-x-0.5" />
               </Button>
             </div>
             <div className="grid grid-cols-3 gap-2 border-t border-border bg-muted/30 p-3">
@@ -227,6 +255,9 @@ export function TodayView() {
                       {resume.label} · {resume.detail}
                     </span>
                   </span>
+                  <kbd className="hidden sm:inline-flex rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground mr-1">
+                    R
+                  </kbd>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 </span>
               </Pressable>

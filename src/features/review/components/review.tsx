@@ -386,6 +386,13 @@ export function ReviewView() {
         return
       }
       if (revealed) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          const goodMatch = GRADES.find((g) => g.grade === 4)
+          const buttonIndex = goodMatch ? GRADES.indexOf(goodMatch) : 2
+          void grade(4, undefined, buttonIndex)
+          return
+        }
         const match = GRADES.find((g) => g.key === e.key)
         if (match) {
           e.preventDefault()
@@ -732,9 +739,9 @@ export function ReviewView() {
         <div className="flex items-center gap-3.5 flex-wrap">
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              Space
+              Space / Enter
             </kbd>
-            <span>{revealed ? 'Next' : 'Reveal'}</span>
+            <span>{revealed ? 'Good (Pass)' : 'Reveal'}</span>
           </span>
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">

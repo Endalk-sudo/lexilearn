@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SearchPalette } from '@/components/search-palette'
+import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog'
 import { ACCENT_THEMES, syncAccentHue, useAppStore, type ViewName } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -109,16 +110,23 @@ export function AppSidebar() {
         return
       }
 
+      // Cheat sheet dialog: '?' or Shift+'/'
+      if ((e.key === '?' || (e.shiftKey && e.key === '/')) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        useAppStore.getState().setShortcutsOpen(true)
+        return
+      }
+
       // Sidebar collapse hotkey: '[' or Ctrl+\ / Cmd+\
       if ((e.key === '[' && !e.metaKey && !e.ctrlKey) || ((e.metaKey || e.ctrlKey) && e.key === '\\')) {
         e.preventDefault()
-        toggleSidebar()
+        useAppStore.getState().toggleSidebar()
         return
       }
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        setPaletteOpen(true)
+        useAppStore.getState().setPaletteOpen(true)
         return
       }
 
@@ -138,14 +146,16 @@ export function AppSidebar() {
       if (gPressed) {
         gPressed = false
         if (gTimer) window.clearTimeout(gTimer)
+        const nav = useAppStore.getState().navigate
         switch (e.key.toLowerCase()) {
-          case 't': navigate('today'); break
-          case 'r': navigate('review'); break
-          case 'l': navigate('learn'); break
-          case 'q': navigate('quiz'); break
-          case 'b': navigate('library'); break
-          case 'p': navigate('progress'); break
-          case 'c': navigate('coach'); break
+          case 't': nav('today'); break
+          case 'r': nav('review'); break
+          case 'l': nav('learn'); break
+          case 'q': nav('quiz'); break
+          case 'd': nav('dictation'); break
+          case 'b': nav('library'); break
+          case 'p': nav('progress'); break
+          case 'c': nav('coach'); break
         }
       }
     }
@@ -155,7 +165,7 @@ export function AppSidebar() {
       window.removeEventListener('keydown', onKey)
       if (gTimer) window.clearTimeout(gTimer)
     }
-  }, [navigate, setPaletteOpen, toggleSidebar])
+  }, [])
 
   return (
     <aside
@@ -600,5 +610,12 @@ export function MobileTabs() {
 export function ShellOverlays() {
   const paletteOpen = useAppStore((s) => s.paletteOpen)
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen)
-  return <SearchPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+  const shortcutsOpen = useAppStore((s) => s.shortcutsOpen)
+  const setShortcutsOpen = useAppStore((s) => s.setShortcutsOpen)
+  return (
+    <>
+      <SearchPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+    </>
+  )
 }

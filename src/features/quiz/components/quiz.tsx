@@ -661,9 +661,9 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
           ) : mode === 'match' ? (
             <span className="flex items-center gap-1.5">
               <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-                Click / Drag
+                1–5 then A–E
               </kbd>
-              <span>Pair word with definition</span>
+              <span>Pair word with meaning</span>
             </span>
           ) : (
             <span className="flex items-center gap-1.5">

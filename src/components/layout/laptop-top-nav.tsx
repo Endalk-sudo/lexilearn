@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, BrainCircuit, ChevronRight, Compass,
-  Ear, Flame, GraduationCap, HelpCircle, PanelLeftClose, PanelLeftOpen, Search,
+  Ear, Flame, GraduationCap, HelpCircle, Keyboard, PanelLeftClose, PanelLeftOpen, Search,
   Sparkles, Volume2, VolumeX,
 } from 'lucide-react'
 import { useAppStore, VIEW_TITLES, type ViewName } from '@/lib/store'
@@ -15,6 +15,7 @@ export function LaptopTopNav() {
   const view = useAppStore((s) => s.view)
   const navigate = useAppStore((s) => s.navigate)
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen)
+  const setShortcutsOpen = useAppStore((s) => s.setShortcutsOpen)
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -164,6 +165,18 @@ export function LaptopTopNav() {
         >
           <Search className="h-3.5 w-3.5" />
           <kbd className="font-mono text-[10px]">⌘K</kbd>
+        </button>
+
+        {/* Keyboard Shortcuts cheat sheet button */}
+        <button
+          type="button"
+          onClick={() => setShortcutsOpen(true)}
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-border/70 bg-card/60 px-2 text-xs text-muted-foreground hover:border-primary-line hover:text-foreground transition-colors cursor-pointer shadow-2xs"
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+        >
+          <Keyboard className="h-3.5 w-3.5" />
+          <kbd className="font-mono text-[10px]">?</kbd>
         </button>
 
         {/* Live Streak indicator */}

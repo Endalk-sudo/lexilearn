@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Keyboard, Tag, Volume2, X } from 'lucide-react'
+import { ArrowRight, Keyboard, Volume2 } from 'lucide-react'
 import { api, type CardWithWord } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { StudyScopeBanner } from '@/components/study-scope-banner'
@@ -192,24 +192,66 @@ export function LearnView() {
     })
   }, [cards.length, idx])
 
-  // Keyboard: Space/Enter drives the whole loop.
+  // Keyboard navigation & study shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+
+      // In typing mode (spelling step), support modifier shortcuts:
+      if (typing && stage === 'spell') {
+        const isReplay = (e.altKey && e.key.toLowerCase() === 'r') || (e.ctrlKey && e.code === 'Space')
+        if (isReplay) {
+          e.preventDefault()
+          if (current) speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+          return
+        }
+
+        const isHint = (e.altKey && e.key.toLowerCase() === 'h') || (e.ctrlKey && e.key.toLowerCase() === 'h')
+        if (isHint) {
+          e.preventDefault()
+          if (attempts === 0) {
+            setAttempts(1)
+            playSound('tap')
+          } else {
+            void finishCard(false)
+          }
+          return
+        }
+
+        return
+      }
+
       if (typing) return
-      if ((e.key === ' ' || e.key === 'Enter') && stage === 'recall') {
-        e.preventDefault()
-        reveal()
-      } else if ((e.key === ' ' || e.key === 'Enter') && stage === 'result') {
-        e.preventDefault()
-        if (idx + 1 >= cards.length) void next()
-        else void next()
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      // Stage recall
+      if (stage === 'recall') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          reveal()
+          return
+        }
+        if (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'p') {
+          e.preventDefault()
+          if (current) speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+          return
+        }
+      }
+
+      // Stage result
+      if (stage === 'result') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          void next()
+          return
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cards.length, idx, next, reveal, stage])
+  }, [attempts, cards.length, current, finishCard, idx, next, reveal, stage, ttsRate, ttsVoice])
 
   const levelUp = useMemo(() => !!levelAfter && levelBefore !== levelAfter, [levelAfter, levelBefore])
 
@@ -473,17 +515,32 @@ export function LearnView() {
         <div className="flex items-center gap-3.5 flex-wrap">
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              Space / Enter
+              {stage === 'spell' ? 'Enter' : 'Space / Enter'}
             </kbd>
-            <span>{stage === 'recall' ? 'Reveal & Hear' : stage === 'spell' ? 'Check' : 'Next Word'}</span>
+            <span>{stage === 'recall' ? 'Reveal & Hear' : stage === 'spell' ? 'Check answer' : 'Next Word'}</span>
           </span>
-          {stage === 'spell' ? (
+          {stage === 'recall' ? (
             <span className="flex items-center gap-1.5">
               <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-                Type
+                R
               </kbd>
-              <span>Letters into slots</span>
+              <span>Hear again</span>
             </span>
+          ) : stage === 'spell' ? (
+            <>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Alt+R / ⌃Space
+                </kbd>
+                <span>Replay audio</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  Alt+H
+                </kbd>
+                <span>Hint / Skip</span>
+              </span>
+            </>
           ) : null}
         </div>
         <span className="text-[11px] font-medium text-muted-foreground">

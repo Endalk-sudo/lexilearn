@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -68,7 +68,7 @@ export function MatchGame({
   const slotOrder = useMemo(() => shuffle([...pairs]), [pairs])
   const chipOrder = useMemo(() => shuffle([...pairs]), [pairs])
 
-  const attempt = (wordId: string, slotId: string) => {
+  const attempt = useCallback((wordId: string, slotId: string) => {
     if (matchedWords.includes(wordId)) return
     if (filledSlots.has(slotId)) return
     if (slotFor(wordId) === slotId) {
@@ -94,7 +94,53 @@ export function MatchGame({
         setWrongSlot(null)
       }, 420)
     }
-  }
+  }, [filledSlots, matchedWords, misMatched, onComplete, pairs])
+
+  // Keyboard navigation: 1-9 for words, A-Z for meanings, Esc to cancel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setSelectedWord(null)
+        return
+      }
+
+      // Check numbers 1-9 for selecting word chips
+      const num = parseInt(e.key, 10)
+      if (!Number.isNaN(num) && num >= 1 && num <= chipOrder.length) {
+        e.preventDefault()
+        const chip = chipOrder[num - 1]
+        if (chip && !matchedWords.includes(chip.id)) {
+          playSound('tap')
+          buzz('light')
+          setSelectedWord((curr) => (curr === chip.id ? null : chip.id))
+        }
+        return
+      }
+
+      // Check letters A-Z for slot selection
+      const letter = e.key.toUpperCase()
+      if (/^[A-Z]$/.test(letter)) {
+        const slotIdx = letter.charCodeAt(0) - 65
+        if (slotIdx >= 0 && slotIdx < slotOrder.length) {
+          const slotPair = slotOrder[slotIdx]
+          if (slotPair && !filledSlots.has(slotFor(slotPair.id))) {
+            if (selectedWord) {
+              e.preventDefault()
+              attempt(selectedWord, slotFor(slotPair.id))
+            }
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [attempt, chipOrder, filledSlots, matchedWords, selectedWord, slotOrder])
 
   const onDragEnd = (event: DragEndEvent) => {
     const wordId = String(event.active.id)
@@ -107,16 +153,18 @@ export function MatchGame({
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Drag a word onto its meaning — or tap a word, then tap a meaning.
+          Drag a word onto its meaning — or press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">1–{chipOrder.length}</kbd> then <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">A–{String.fromCharCode(64 + slotOrder.length)}</kbd> to pair.
         </p>
 
         <ul className="space-y-2" aria-label="Meanings">
-          {slotOrder.map((pair) => {
+          {slotOrder.map((pair, idx) => {
             const filledWordId = filledSlots.get(slotFor(pair.id)) ?? null
+            const letterLabel = String.fromCharCode(65 + idx)
             return (
               <Slot
                 key={pair.id}
                 id={slotFor(pair.id)}
+                keyLabel={letterLabel}
                 definition={pair.definition}
                 filledWordId={filledWordId}
                 wordLabel={pairs.find((p) => p.id === filledWordId)?.word ?? ''}
@@ -131,10 +179,11 @@ export function MatchGame({
         </ul>
 
         <ul className="flex flex-wrap gap-2" aria-label="Words">
-          {chipOrder.map((pair) => (
+          {chipOrder.map((pair, idx) => (
             <WordChip
               key={pair.id}
               id={pair.id}
+              keyLabel={String(idx + 1)}
               word={pair.word}
               matched={matchedWords.includes(pair.id)}
               selected={selectedWord === pair.id}
@@ -150,10 +199,12 @@ export function MatchGame({
         </ul>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="num">
+          <span className="num font-medium">
             {matchedWords.length} / {pairs.length} matched
           </span>
-          <span className="hidden sm:inline">Tab to a word, then Enter to pick it up</span>
+          <span className="hidden sm:inline">
+            Press <kbd className="font-mono">1–{chipOrder.length}</kbd> to pick word, <kbd className="font-mono">A–{String.fromCharCode(64 + slotOrder.length)}</kbd> to match, or <kbd className="font-mono">Esc</kbd> to cancel
+          </span>
         </div>
       </div>
     </DndContext>
@@ -162,6 +213,7 @@ export function MatchGame({
 
 function WordChip({
   id,
+  keyLabel,
   word,
   matched,
   selected,
@@ -169,6 +221,7 @@ function WordChip({
   onSelect,
 }: {
   id: string
+  keyLabel?: string
   word: string
   matched: boolean
   selected: boolean
@@ -188,17 +241,29 @@ function WordChip({
         aria-disabled={matched}
         style={transform ? { transform: CSS.Translate.toString(transform), zIndex: 40 } : undefined}
         className={cn(
-          'flex min-h-11 touch-manipulation items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium shadow-xs transition-colors duration-150',
+          'flex min-h-11 touch-manipulation items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium shadow-xs transition-colors duration-150 cursor-pointer',
           matched
             ? 'border-transparent bg-success-soft text-success'
             : selected
-              ? 'border-primary-line bg-primary-soft text-primary'
+              ? 'border-primary-line bg-primary-soft text-primary ring-2 ring-primary/30'
               : 'border-border bg-card hover:border-primary-line',
           isWrong && 'shake border-destructive/50 bg-destructive-soft text-destructive',
           isDragging && 'opacity-90 shadow-lg'
         )}
       >
         <GripVertical className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
+        {keyLabel && !matched ? (
+          <kbd
+            className={cn(
+              'flex h-4 min-w-4 items-center justify-center rounded border px-1 font-mono text-[10px] font-semibold',
+              selected
+                ? 'border-primary/50 bg-primary/20 text-primary'
+                : 'border-border/80 bg-muted/60 text-muted-foreground'
+            )}
+          >
+            {keyLabel}
+          </kbd>
+        ) : null}
         {word}
       </button>
     </li>
@@ -207,6 +272,7 @@ function WordChip({
 
 function Slot({
   id,
+  keyLabel,
   definition,
   filledWordId,
   wordLabel,
@@ -215,6 +281,7 @@ function Slot({
   onActivate,
 }: {
   id: string
+  keyLabel?: string
   definition: string
   filledWordId: string | null
   wordLabel: string
@@ -236,9 +303,21 @@ function Slot({
         isWrong && 'border-destructive/50 bg-destructive-soft'
       )}
     >
+      {keyLabel ? (
+        <span
+          className={cn(
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded border font-mono text-[11px] font-semibold',
+            filled
+              ? 'border-success/30 bg-success-soft text-success'
+              : 'border-border bg-muted/70 text-muted-foreground'
+          )}
+        >
+          {keyLabel}
+        </span>
+      ) : null}
       <span className="min-w-0 flex-1 text-sm leading-relaxed">{definition}</span>
       {filled ? (
-        <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-card px-2 py-1 text-xs font-semibold text-success">
+        <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-card px-2 py-1 text-xs font-semibold text-success shadow-2xs">
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
           {wordLabel}
         </span>
@@ -246,7 +325,7 @@ function Slot({
         <X className="h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
       ) : (
         <span className="shrink-0 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
-          Drop here
+          Drop or {keyLabel}
         </span>
       )}
     </li>

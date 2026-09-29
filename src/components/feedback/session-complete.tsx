@@ -55,6 +55,28 @@ export function SessionComplete({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onDone()
+        return
+      }
+
+      if (e.key.toLowerCase() === 'r' && onAgain) {
+        e.preventDefault()
+        onAgain()
+        return
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onAgain, onDone])
+
   return (
     <motion.div variants={v(stagger(0.06))} initial="hidden" animate="show" transition={t()}>
       <div className="surface p-6 text-center sm:p-8">
@@ -106,15 +128,17 @@ export function SessionComplete({
           </motion.div>
         ) : null}
 
-        <motion.div variants={v(listItem)} transition={t()} className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+        <motion.div variants={v(listItem)} transition={t()} className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center items-center">
           {onAgain ? (
-            <Button variant="outline" onClick={onAgain}>
+            <Button variant="outline" onClick={onAgain} className="gap-2">
               <RotateCcw className="h-4 w-4" />
-              Go again
+              <span>Go again</span>
+              <kbd className="ml-1 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">R</kbd>
             </Button>
           ) : null}
-          <Button onClick={onDone}>
-            Continue
+          <Button onClick={onDone} className="gap-2">
+            <span>Continue</span>
+            <kbd className="ml-1 rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">Enter</kbd>
             <ArrowRight className="h-4 w-4" />
           </Button>
         </motion.div>
