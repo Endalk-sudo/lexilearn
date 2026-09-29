@@ -117,7 +117,8 @@ function DecksPanel() {
     setLoading(true)
     setLoadError(false)
     try {
-      setDecks(await api.getDecks())
+      const data = await api.getDecks()
+      setDecks(data)
     } catch {
       setLoadError(true)
     } finally {
@@ -125,13 +126,27 @@ function DecksPanel() {
     }
   }, [])
 
-  const didInitRef = useRef(false)
   useEffect(() => {
-    if (didInitRef.current) return
-    didInitRef.current = true
-    const id = window.setTimeout(() => { load() }, 0)
-    return () => window.clearTimeout(id)
-  }, [load])
+    let active = true
+    setLoading(true)
+    setLoadError(false)
+    api.getDecks()
+      .then((data) => {
+        if (active) {
+          setDecks(data)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLoadError(true)
+          setLoading(false)
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const removeDeck = async (id: string) => {
     try {
@@ -1050,8 +1065,7 @@ export function DeckDetailView() {
   }, [])
 
   useEffect(() => {
-    const id = window.setTimeout(() => { void refreshCategories() }, 0)
-    return () => window.clearTimeout(id)
+    void refreshCategories()
   }, [refreshCategories])
 
   const loadSeqRef = useRef(0)
@@ -1069,19 +1083,9 @@ export function DeckDetailView() {
     }
   }, [deckId])
 
-  // Reload when the deck id changes. The fetch is deferred past the effect
-  // body so it never sets state synchronously (react-hooks/set-state-in-effect);
-  // the seq guard in load() keeps a slow response for deck A from overwriting
-  // deck B after a fast switch.
-  const loadedDeckRef = useRef<string | null>(null)
   useEffect(() => {
-    if (loadedDeckRef.current === deckId) return
-    loadedDeckRef.current = deckId
     if (!deckId) return
-    const id = window.setTimeout(() => {
-      load()
-    }, 0)
-    return () => window.clearTimeout(id)
+    void load()
   }, [load, deckId])
 
   const words = useMemo(() => {
@@ -1153,7 +1157,6 @@ export function DeckDetailView() {
         hint="It may have been deleted — or loading failed. Your other decks are untouched."
         actionLabel="Retry"
         onAction={() => {
-          loadedDeckRef.current = null
           void load()
         }}
         secondary={
