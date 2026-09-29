@@ -176,8 +176,23 @@ export type DeckSummary = {
   name: string
   description: string | null
   isCustom: boolean
+  parentId: string | null
   wordCount: number
+  directWordCount?: number
+  subDeckCount?: number
   createdAt: string
+}
+
+export type SubDeckSummary = {
+  id: string
+  name: string
+  wordCount: number
+  isCustom?: boolean
+}
+
+export type DeckAncestor = {
+  id: string
+  name: string
 }
 
 export type DeckDetail = {
@@ -185,6 +200,10 @@ export type DeckDetail = {
   name: string
   description: string | null
   isCustom: boolean
+  parentId: string | null
+  parent?: { id: string; name: string } | null
+  ancestors?: DeckAncestor[]
+  subDecks: SubDeckSummary[]
   words: (WordDTO & { srs: SrsCardDTO | null })[]
 }
 
@@ -196,8 +215,9 @@ export const api = {
     withRetry(() => postJSON<{ ok: boolean }>('review', { wordId, grade, mode })),
   getDecks: () => getJSON<DeckSummary[]>('decks'),
   getDeck: (deckId: string) => getJSON<DeckDetail>('deck', { deckId }),
-  createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categories?: string[] }[]) =>
-    postJSON<{ id: string; count: number; skipped?: number }>('createDeck', { name, description, words }),
+  createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categories?: string[] }[], parentId?: string | null) =>
+    postJSON<{ id: string; count: number; skipped?: number }>('createDeck', { name, description, words, parentId }),
+  setDeckParent: (deckId: string, parentId: string | null) => postJSON<{ ok: boolean }>('setDeckParent', { deckId, parentId }),
   addWordsToDeck: (deckId: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categories?: string[] }[]) =>
     postJSON<{ count: number; skipped?: number; duplicates?: string[] }>('addWords', { deckId, words }),
   addWord: (deckId: string, fields: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categoryIds?: string[] }) =>

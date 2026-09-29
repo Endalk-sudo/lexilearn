@@ -49,9 +49,9 @@ export function ManageCategoriesDialog({
   }, [])
 
   useEffect(() => {
-    if (open) {
-      void load()
-    }
+    if (!open) return
+    const id = window.setTimeout(() => { void load() }, 0)
+    return () => window.clearTimeout(id)
   }, [open, load])
 
   const handleCreate = async () => {

@@ -59,11 +59,16 @@ export function LearnView() {
   const primaryRef = useRef<HTMLButtonElement>(null)
   const lastSpokenWordIdRef = useRef<string | null>(null)
 
+  const studyCategoryRef = useRef(studyCategory)
+  useEffect(() => {
+    studyCategoryRef.current = studyCategory
+  }, [studyCategory])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const [list, settings, stats] = await Promise.all([
-        api.getNewCards(null, 10, studyCategory?.id),
+        api.getNewCards(null, 10, studyCategoryRef.current?.id),
         api.getSettings(),
         api.getDashboardStats(),
       ])
@@ -92,10 +97,11 @@ export function LearnView() {
     } finally {
       setLoading(false)
     }
-  }, [studyCategory?.id])
+  }, [])
 
   useEffect(() => {
-    void load()
+    const id = window.setTimeout(() => { void load() }, 0)
+    return () => window.clearTimeout(id)
   }, [load])
 
   const current = cards[idx]

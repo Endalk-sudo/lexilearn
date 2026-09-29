@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, BookOpen, Ear, Layers, Library as LibraryIcon, Pencil, Plus,
-  Search as SearchIcon, Star, Tag, Trash2, Upload, Volume2, X,
+  ArrowLeft, BookOpen, ChevronDown, ChevronRight, Ear, FolderPlus, FolderTree,
+  Layers, Library as LibraryIcon, Pencil, Plus, Search as SearchIcon, Star, Tag,
+  Trash2, Upload, Volume2, X,
 } from 'lucide-react'
 import {
   api, type DeckDetail, type DeckSummary, type WordDTO, type CategorySummary,
@@ -79,10 +80,38 @@ function DecksPanel() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [createParentId, setCreateParentId] = useState<string | null>(null)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [expandedDeckIds, setExpandedDeckIds] = useState<Set<string>>(new Set())
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const { v, t } = useMotionSafe()
+
+  const deckIdSet = useMemo(() => new Set(decks.map((d) => d.id)), [decks])
+  const rootDecks = useMemo(
+    () => decks.filter((d) => !d.parentId || !deckIdSet.has(d.parentId)),
+    [decks, deckIdSet]
+  )
+  const subDecksByParent = useMemo(() => {
+    const map = new Map<string, DeckSummary[]>()
+    for (const d of decks) {
+      if (d.parentId && deckIdSet.has(d.parentId)) {
+        const list = map.get(d.parentId) ?? []
+        list.push(d)
+        map.set(d.parentId, list)
+      }
+    }
+    return map
+  }, [decks, deckIdSet])
+
+  const toggleExpand = (id: string) => {
+    setExpandedDeckIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -100,7 +129,8 @@ function DecksPanel() {
   useEffect(() => {
     if (didInitRef.current) return
     didInitRef.current = true
-    load()
+    const id = window.setTimeout(() => { load() }, 0)
+    return () => window.clearTimeout(id)
   }, [load])
 
   const removeDeck = async (id: string) => {
@@ -136,7 +166,12 @@ function DecksPanel() {
         />
         <CreateDeckDialog
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(v) => {
+            setCreateOpen(v)
+            if (!v) setCreateParentId(null)
+          }}
+          initialParentId={createParentId}
+          parentDecks={decks.map((d) => ({ id: d.id, name: d.name }))}
           onCreated={async (id) => {
             await load()
             if (id) navigate('library-deck', { deckId: id })
@@ -155,121 +190,211 @@ function DecksPanel() {
             <Tag className="h-4 w-4 mr-1 text-primary" />
             Categories
           </Button>
-          <Button variant="soft" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="soft"
+            size="sm"
+            onClick={() => {
+              setCreateParentId(null)
+              setCreateOpen(true)
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" />
             New deck
           </Button>
         </div>
       </div>
 
-      {decks.length === 0 ? (
+      {rootDecks.length === 0 ? (
         <EmptyState
           icon={Layers}
           title="No decks yet"
           hint="A deck is just a group of words. Create one for whatever you are reading this week."
           actionLabel="Create your first deck"
-          onAction={() => setCreateOpen(true)}
+          onAction={() => {
+            setCreateParentId(null)
+            setCreateOpen(true)
+          }}
         />
       ) : (
         <motion.ul variants={v(stagger(0.03))} initial="hidden" animate="show" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {decks.map((deck) => (
-            <motion.li key={deck.id} variants={v(listItem)} transition={t()}>
-              <div className="surface lift group flex h-full flex-col justify-between p-4.5 rounded-xl border border-border/80 bg-card hover:border-primary-line hover:shadow-md transition-all duration-200">
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      data-testid={`deck-card-${deck.id}`}
-                      onClick={() => navigate('library-deck', { deckId: deck.id })}
-                      className="min-w-0 flex-1 text-left cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="block truncate text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-                          {deck.name}
+          {rootDecks.map((deck) => {
+            const children = subDecksByParent.get(deck.id) ?? []
+            const isExpanded = expandedDeckIds.has(deck.id)
+            return (
+              <motion.li key={deck.id} variants={v(listItem)} transition={t()}>
+                <div className="surface lift group flex h-full flex-col justify-between p-4.5 rounded-xl border border-border/80 bg-card hover:border-primary-line hover:shadow-md transition-all duration-200">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        data-testid={`deck-card-${deck.id}`}
+                        onClick={() => navigate('library-deck', { deckId: deck.id })}
+                        className="min-w-0 flex-1 text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="block truncate text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                            {deck.name}
+                          </span>
+                          {deck.isCustom ? (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 shrink-0 text-muted-foreground border-border/60">
+                              Custom
+                            </Badge>
+                          ) : (
+                            <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary-soft text-primary font-semibold">
+                              Curated
+                            </Badge>
+                          )}
+                          {children.length > 0 ? (
+                            <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary/10 text-primary font-medium flex items-center gap-1">
+                              <FolderTree className="h-3 w-3" />
+                              {children.length} sub-deck{children.length === 1 ? '' : 's'}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <span className="mt-1.5 block text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {deck.description || (deck.isCustom ? 'Personal study collection.' : 'Standard vocabulary deck.')}
                         </span>
-                        {deck.isCustom ? (
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 shrink-0 text-muted-foreground border-border/60">
-                            Custom
-                          </Badge>
-                        ) : (
-                          <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary-soft text-primary font-semibold">
-                            Curated
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="mt-1.5 block text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {deck.description || (deck.isCustom ? 'Personal study collection.' : 'Standard vocabulary deck.')}
-                      </span>
-                    </button>
-                    {deck.isCustom ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive-soft transition-colors cursor-pointer" aria-label={`Delete ${deck.name}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete “{deck.name}”?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This removes the deck and its {deck.wordCount} words. Progress on those words is
-                              removed too, and this cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Keep deck</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => void removeDeck(deck.id)}
-                            >
-                              Delete deck
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : null}
+                      </button>
+                      {deck.isCustom ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive-soft transition-colors cursor-pointer" aria-label={`Delete ${deck.name}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete “{deck.name}”?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This removes the deck and its words{children.length > 0 ? ` plus its ${children.length} sub-deck(s)` : ''}. Progress on those words is
+                                removed too, and this cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Keep deck</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => void removeDeck(deck.id)}
+                              >
+                                Delete deck
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground num flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-primary/70" />
-                    {deck.wordCount} words
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDictationDeckId(deck.id)
-                        navigate('dictation')
-                      }}
-                      className="h-8 px-2.5 text-xs font-medium cursor-pointer"
-                      title={`Practice listening on ${deck.name}`}
-                    >
-                      <Ear className="h-3.5 w-3.5 mr-1 text-primary" />
-                      Dictate
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => navigate('library-deck', { deckId: deck.id })}
-                      className="h-8 px-3 text-xs font-medium cursor-pointer"
-                    >
-                      Open deck
-                    </Button>
+                  <div>
+                    {isExpanded && children.length > 0 ? (
+                      <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                          Sub-decks ({children.length})
+                        </span>
+                        <div className="space-y-1">
+                          {children.map((sub) => (
+                            <div
+                              key={sub.id}
+                              onClick={() => navigate('library-deck', { deckId: sub.id })}
+                              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/40 hover:bg-muted/80 hover:border-primary-line border border-transparent transition-all cursor-pointer group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                                  {sub.name}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground num">
+                                  {sub.wordCount} words
+                                </span>
+                              </div>
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-muted-foreground num flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5 text-primary/70" />
+                        {deck.wordCount} words
+                        {children.length > 0 && deck.directWordCount !== undefined && deck.directWordCount !== deck.wordCount ? (
+                          <span className="font-normal text-muted-foreground/70">({deck.directWordCount} direct)</span>
+                        ) : null}
+                      </span>
+                      <div className="flex items-center gap-1 flex-wrap justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setCreateParentId(deck.id)
+                            setCreateOpen(true)
+                          }}
+                          className="h-8 px-2 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                          title="Create a sub-deck under this deck"
+                        >
+                          <FolderPlus className="h-3.5 w-3.5 mr-1 text-primary" />
+                          Sub-deck
+                        </Button>
+                        {children.length > 0 ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleExpand(deck.id)
+                            }}
+                            className="h-8 px-2 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                            title={isExpanded ? 'Hide sub-decks' : 'Show sub-decks'}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                            )}
+                            {children.length}
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDictationDeckId(deck.id)
+                            navigate('dictation')
+                          }}
+                          className="h-8 px-2 text-xs font-medium cursor-pointer"
+                          title={`Practice listening on ${deck.name}`}
+                        >
+                          <Ear className="h-3.5 w-3.5 mr-1 text-primary" />
+                          Dictate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          onClick={() => navigate('library-deck', { deckId: deck.id })}
+                          className="h-8 px-2.5 text-xs font-medium cursor-pointer"
+                        >
+                          Open deck
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.li>
-          ))}
+              </motion.li>
+            )
+          })}
         </motion.ul>
       )}
 
       <CreateDeckDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(v) => {
+          setCreateOpen(v)
+          if (!v) setCreateParentId(null)
+        }}
+        initialParentId={createParentId}
+        parentDecks={decks.map((d) => ({ id: d.id, name: d.name }))}
         onCreated={async (id) => {
           await load()
           if (id) navigate('library-deck', { deckId: id })
@@ -289,17 +414,30 @@ function CreateDeckDialog({
   open,
   onOpenChange,
   onCreated,
+  initialParentId = null,
+  parentDecks = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated: (id?: string) => void
+  initialParentId?: string | null
+  parentDecks?: { id: string; name: string }[]
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [csv, setCsv] = useState('')
+  const [parentId, setParentId] = useState<string>(initialParentId ?? '')
   const [creating, setCreating] = useState(false)
   const [fileError, setFileError] = useState('')
   const parsed = useMemo(() => (csv.trim() ? parseCsv(csv) : []), [csv])
+
+  useEffect(() => {
+    if (open) {
+      const id = window.setTimeout(() => { setParentId(initialParentId ?? '') }, 0)
+      return () => window.clearTimeout(id)
+    }
+  }, [open, initialParentId])
+
   const nameError =
     name.trim().length > 0 && name.trim().length < 2
       ? 'Use at least 2 characters.'
@@ -312,6 +450,7 @@ function CreateDeckDialog({
     setDescription('')
     setCsv('')
     setFileError('')
+    setParentId(initialParentId ?? '')
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,7 +481,7 @@ function CreateDeckDialog({
     setCreating(true)
     try {
       const words = parsed.map((w) => ({ ...w, categories: splitCategoryNames(w.categories) }))
-      const result = await api.createCustomDeck(name.trim(), description.trim(), words)
+      const result = await api.createCustomDeck(name.trim(), description.trim(), words, parentId || undefined)
       if (result.skipped && result.skipped > 0) {
         toast.success(`Deck created with ${result.count} words, ${result.skipped} duplicate rows skipped`)
       } else {
@@ -385,6 +524,24 @@ function CreateDeckDialog({
               </p>
             ) : null}
           </div>
+          {parentDecks.length > 0 && (
+            <div>
+              <Label htmlFor="deck-parent">Parent deck (optional)</Label>
+              <select
+                id="deck-parent"
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+                className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">None (top-level deck)</option>
+                {parentDecks.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <Label htmlFor="deck-description">Description (optional)</Label>
             <Input
@@ -880,6 +1037,7 @@ export function DeckDetailView() {
   const [categories, setCategories] = useState<CategorySummary[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [subDeckCreateOpen, setSubDeckCreateOpen] = useState(false)
   const [editing, setEditing] = useState<(WordDTO & { id: string }) | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; word: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -892,7 +1050,8 @@ export function DeckDetailView() {
   }, [])
 
   useEffect(() => {
-    void refreshCategories()
+    const id = window.setTimeout(() => { void refreshCategories() }, 0)
+    return () => window.clearTimeout(id)
   }, [refreshCategories])
 
   const loadSeqRef = useRef(0)
@@ -1010,10 +1169,30 @@ export function DeckDetailView() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
-        <ArrowLeft className="h-4 w-4" />
-        Library
-      </Button>
+      <nav aria-label="Deck hierarchy" className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+        <button
+          type="button"
+          onClick={() => navigate('library', { libraryTab: 'decks' })}
+          className="hover:text-foreground transition-colors inline-flex items-center gap-1 cursor-pointer font-medium"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Decks
+        </button>
+        {deck.ancestors?.map((anc) => (
+          <span key={anc.id} className="inline-flex items-center gap-1.5">
+            <span className="opacity-40">/</span>
+            <button
+              type="button"
+              onClick={() => navigate('library-deck', { deckId: anc.id })}
+              className="hover:text-foreground transition-colors truncate max-w-40 cursor-pointer"
+            >
+              {anc.name}
+            </button>
+          </span>
+        ))}
+        <span className="opacity-40">/</span>
+        <span className="text-foreground font-semibold truncate max-w-48">{deck.name}</span>
+      </nav>
 
       <PageHeader
         eyebrow={deck.isCustom ? 'Custom deck' : 'Curated deck'}
@@ -1021,10 +1200,14 @@ export function DeckDetailView() {
         title={deck.name}
         description={
           deck.description ||
-          `${deck.words.length} words · ${mastered} mastered`
+          `${deck.words.length} direct words · ${mastered} mastered${deck.subDecks && deck.subDecks.length > 0 ? ` · ${deck.subDecks.length} sub-deck${deck.subDecks.length === 1 ? '' : 's'}` : ''}`
         }
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={() => setSubDeckCreateOpen(true)}>
+              <FolderPlus className="h-4 w-4" />
+              Sub-deck
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" />
               Import
@@ -1048,17 +1231,68 @@ export function DeckDetailView() {
         }
       />
 
+      {deck.subDecks && deck.subDecks.length > 0 && (
+        <div className="space-y-2.5 rounded-lg border border-border/70 bg-card/60 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderTree className="h-4 w-4 text-primary" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sub-decks ({deck.subDecks.length})
+              </h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+              onClick={() => setSubDeckCreateOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add sub-deck
+            </Button>
+          </div>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {deck.subDecks.map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => navigate('library-deck', { deckId: sub.id })}
+                className="group flex flex-col text-left rounded-md border border-border bg-card p-3 shadow-xs transition-all hover:border-primary-line hover:shadow-sm cursor-pointer"
+              >
+                <div className="flex w-full items-start justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                    {sub.name}
+                  </span>
+                  <Badge variant="soft" className="shrink-0 text-xs">
+                    {sub.wordCount} {sub.wordCount === 1 ? 'word' : 'words'}
+                  </Badge>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {deck.words.length === 0 ? (
         <EmptyState
           icon={Plus}
-          title="This deck is empty"
-          hint="Add words one at a time, or paste a whole list and import them in one go."
-          actionLabel="Add your first word"
+          title={deck.subDecks && deck.subDecks.length > 0 ? "No direct words in this deck" : "This deck is empty"}
+          hint={
+            deck.subDecks && deck.subDecks.length > 0
+              ? "Words in sub-decks are included automatically during study sessions. You can also add words directly to this deck."
+              : "Add words one at a time, paste a whole list to import, or add sub-decks to organize topics."
+          }
+          actionLabel="Add direct word"
           onAction={() => setAddOpen(true)}
           secondary={
-            <Button variant="ghost" size="sm" onClick={() => setBulkOpen(true)}>
-              Import a list instead
-            </Button>
+            deck.subDecks && deck.subDecks.length > 0 ? (
+              <Button variant="ghost" size="sm" onClick={() => setBulkOpen(true)}>
+                Import a list instead
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setSubDeckCreateOpen(true)}>
+                Create a sub-deck
+              </Button>
+            )
           }
         />
       ) : (
@@ -1264,6 +1498,16 @@ export function DeckDetailView() {
         onImported={async () => {
           await load()
           void refreshCategories()
+        }}
+      />
+      <CreateDeckDialog
+        open={subDeckCreateOpen}
+        onOpenChange={setSubDeckCreateOpen}
+        initialParentId={deck.id}
+        parentDecks={[{ id: deck.id, name: deck.name }]}
+        onCreated={async (id) => {
+          await load()
+          if (id) navigate('library-deck', { deckId: id })
         }}
       />
     </div>

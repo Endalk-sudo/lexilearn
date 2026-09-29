@@ -22,8 +22,11 @@ export const deck = sqliteTable('Deck', {
   name: text('name').notNull(),
   description: text('description'),
   isCustom: integer('isCustom', { mode: 'boolean' }).notNull().default(false),
+  parentId: text('parentId').references((): AnySQLiteColumn => deck.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
-})
+}, (t) => [
+  index('Deck_parentId_idx').on(t.parentId),
+])
 
 export const category = sqliteTable('Category', {
   id: idPk(),
@@ -335,6 +338,8 @@ export const naturalnessAttempt = sqliteTable('NaturalnessAttempt', {
 
 // ---------- Relations (Prisma `include` equivalents for RQB `with`) ----------
 export const deckRelations = relations(deck, ({ many, one }) => ({
+  parent: one(deck, { relationName: 'deckHierarchy', fields: [deck.parentId], references: [deck.id] }),
+  subDecks: many(deck, { relationName: 'deckHierarchy' }),
   words: many(word),
 }))
 

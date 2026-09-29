@@ -38,6 +38,27 @@ async function fetchCategoriesForWords(wordIds: string[]): Promise<Map<string, C
   return map
 }
 
+async function getDeckAndDescendantIds(targetDeckId: string): Promise<string[]> {
+  const allDecks = await db.select({ id: deck.id, parentId: deck.parentId }).from(deck)
+  const childMap = new Map<string, string[]>()
+  for (const d of allDecks) {
+    if (d.parentId) {
+      const list = childMap.get(d.parentId) ?? []
+      list.push(d.id)
+      childMap.set(d.parentId, list)
+    }
+  }
+  const result: string[] = []
+  const queue = [targetDeckId]
+  while (queue.length > 0) {
+    const curr = queue.shift()!
+    result.push(curr)
+    const children = childMap.get(curr)
+    if (children) queue.push(...children)
+  }
+  return result
+}
+
 function parseWord(w: typeof word.$inferSelect, categories: CategoryDTO[] = []): WordDTO {
   return {
     id: w.id,
@@ -253,7 +274,7 @@ function toWordRow(w: BulkWord, deckId: string) {
   }
 }
 
-async function createCustomDeck(name: string, description: string, words: BulkWord[]) {
+async function createCustomDeck(name: string, description: string, words: BulkWord[], parentId?: string | null) {
   const deckId = createId()
   const validWords = words.filter((w) => w.word && w.word.trim())
 
@@ -272,7 +293,7 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
   // One transaction for the deck and all of its words: a failure part-way
   // through used to leave an empty deck behind with no way to tell.
   db.transaction((tx) => {
-    tx.insert(deck).values({ id: deckId, name, description, isCustom: true }).run()
+    tx.insert(deck).values({ id: deckId, name, description, isCustom: true, parentId: parentId ?? null }).run()
     if (rows.length) {
       tx.insert(word).values(rows.map((r) => r.row)).run()
       for (const r of rows) {
@@ -342,10 +363,13 @@ async function generateQuiz(deckId: string | null, mode: QuizMode, count: number
       )
     : undefined
 
+  const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
+  const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
+
   const wordRows = await db.select({ w: word, srs: srsCard })
     .from(word)
     .leftJoin(srsCard, eq(srsCard.wordId, word.id))
-    .where(and(deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
+    .where(and(deckCondition, categoryCondition))
   const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
   if (words.length < 4) return []
 
@@ -471,9 +495,11 @@ export async function GET(req: NextRequest) {
                 .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
             )
           : undefined
+        const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
+        const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
         const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
           .innerJoin(word, eq(srsCard.wordId, word.id))
-          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
+          .where(and(lte(srsCard.nextReview, now), deckCondition, categoryCondition))
           .orderBy(asc(srsCard.nextReview))
           .limit(limit)
         const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
@@ -491,8 +517,10 @@ export async function GET(req: NextRequest) {
                 .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
             )
           : undefined
+        const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
+        const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
         const rows = await db.select({ w: word }).from(word)
-          .where(and(wordHasNoSrsCard(), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
+          .where(and(wordHasNoSrsCard(), deckCondition, categoryCondition))
           .orderBy(asc(word.createdAt))
           .limit(limit)
         const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
@@ -511,9 +539,11 @@ export async function GET(req: NextRequest) {
                 .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
             )
           : undefined
+        const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
+        const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
         const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
           .innerJoin(word, eq(srsCard.wordId, word.id))
-          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
+          .where(and(lte(srsCard.nextReview, now), deckCondition, categoryCondition))
           .orderBy(asc(srsCard.nextReview))
           .limit(limit)
         const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
@@ -522,27 +552,104 @@ export async function GET(req: NextRequest) {
 
       case 'decks': {
         const deckRows = await db.select().from(deck).orderBy(asc(deck.createdAt))
-        // Single GROUP BY instead of fetching every word row into JS (W7).
         const counts = await db.select({ deckId: word.deckId, total: sql<number>`count(*)` }).from(word).groupBy(word.deckId)
         const countByDeck = new Map(counts.map((c) => [c.deckId, c.total]))
+
+        // Build child map for tree hierarchy & recursive counts
+        const childMap = new Map<string, string[]>()
+        for (const d of deckRows) {
+          if (d.parentId) {
+            const list = childMap.get(d.parentId) ?? []
+            list.push(d.id)
+            childMap.set(d.parentId, list)
+          }
+        }
+
+        const getDescendantWordCount = (dId: string): number => {
+          let total = countByDeck.get(dId) ?? 0
+          const children = childMap.get(dId)
+          if (children) {
+            for (const childId of children) total += getDescendantWordCount(childId)
+          }
+          return total
+        }
+
         return NextResponse.json(deckRows.map((d) => ({
-          id: d.id, name: d.name, description: d.description,
-          isCustom: d.isCustom, wordCount: countByDeck.get(d.id) ?? 0, createdAt: d.createdAt,
-        })), { headers: { 'Cache-Control': 'private, max-age=30' } })
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          isCustom: d.isCustom,
+          parentId: d.parentId,
+          wordCount: getDescendantWordCount(d.id),
+          directWordCount: countByDeck.get(d.id) ?? 0,
+          subDeckCount: childMap.get(d.id)?.length ?? 0,
+          createdAt: d.createdAt,
+        })), { headers: { 'Cache-Control': 'private, max-age=15' } })
       }
 
       case 'deck': {
         if (!deckId) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
         const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'not found' }, { status: 404 })
+
         const wordRows = await db.select({ w: word, srs: srsCard }).from(word)
           .leftJoin(srsCard, eq(srsCard.wordId, word.id))
           .where(eq(word.deckId, deckId))
           .orderBy(asc(word.createdAt))
         const catMap = await fetchCategoriesForWords(wordRows.map((r) => r.w.id))
+
+        const allDecks = await db.select({ id: deck.id, name: deck.name, parentId: deck.parentId, isCustom: deck.isCustom }).from(deck)
+        const deckById = new Map(allDecks.map((d) => [d.id, d]))
+
+        // Ancestors chain (root down to parent)
+        const ancestors: { id: string; name: string }[] = []
+        let currP = deckRow.parentId
+        const visited = new Set<string>()
+        while (currP && deckById.has(currP) && !visited.has(currP)) {
+          visited.add(currP)
+          const p = deckById.get(currP)!
+          ancestors.unshift({ id: p.id, name: p.name })
+          currP = p.parentId
+        }
+
+        // Sub-decks with recursive word counts
+        const childDecks = allDecks.filter((d) => d.parentId === deckId)
+        const wordCounts = await db.select({ deckId: word.deckId, total: sql<number>`count(*)` }).from(word).groupBy(word.deckId)
+        const countMap = new Map(wordCounts.map((c) => [c.deckId, c.total]))
+
+        const childMap = new Map<string, string[]>()
+        for (const d of allDecks) {
+          if (d.parentId) {
+            const list = childMap.get(d.parentId) ?? []
+            list.push(d.id)
+            childMap.set(d.parentId, list)
+          }
+        }
+        const getSubDeckTotalWords = (dId: string): number => {
+          let total = countMap.get(dId) ?? 0
+          const ch = childMap.get(dId)
+          if (ch) {
+            for (const c of ch) total += getSubDeckTotalWords(c)
+          }
+          return total
+        }
+
+        const subDecks = childDecks.map((cd) => ({
+          id: cd.id,
+          name: cd.name,
+          isCustom: cd.isCustom,
+          wordCount: getSubDeckTotalWords(cd.id),
+        }))
+
         return NextResponse.json({
-          id: deckRow.id, name: deckRow.name, description: deckRow.description,
+          id: deckRow.id,
+          name: deckRow.name,
+          description: deckRow.description,
           isCustom: deckRow.isCustom,
+          parentId: deckRow.parentId,
+          parent: deckRow.parentId && deckById.has(deckRow.parentId) ? { id: deckRow.parentId, name: deckById.get(deckRow.parentId)!.name } : null,
+          ancestors,
+          subDecks,
           words: wordRows.map((r) => ({ ...parseWord(r.w, catMap.get(r.w.id) ?? []), srs: r.srs ? toSrsDto(r.srs) : null })),
         })
       }
@@ -699,7 +806,13 @@ const BulkWordSchema = z.object({
 const CreateDeckBody = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
+  parentId: z.string().min(1).nullable().optional(),
   words: z.array(BulkWordSchema).max(MAX_BULK_WORDS),
+})
+
+const SetDeckParentBody = z.object({
+  deckId: z.string().min(1),
+  parentId: z.string().min(1).nullable(),
 })
 
 const AddWordsBody = z.object({
@@ -870,8 +983,29 @@ export async function POST(req: NextRequest) {
       case 'createDeck': {
         const parsed = CreateDeckBody.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: 'name and words required' }, { status: 400 })
-        const result = await createCustomDeck(parsed.data.name, parsed.data.description ?? '', parsed.data.words)
+        const result = await createCustomDeck(parsed.data.name, parsed.data.description ?? '', parsed.data.words, parsed.data.parentId)
         return NextResponse.json(result)
+      }
+
+      case 'setDeckParent': {
+        const parsed = SetDeckParentBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'deckId and parentId required' }, { status: 400 })
+        const { deckId: dId, parentId: pId } = parsed.data
+        const targetDeck = await db.select().from(deck).where(eq(deck.id, dId)).get()
+        if (!targetDeck) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
+        if (!targetDeck.isCustom) return NextResponse.json({ error: 'Cannot move bundled decks' }, { status: 403 })
+
+        if (pId) {
+          if (pId === dId) return NextResponse.json({ error: 'A deck cannot be its own parent' }, { status: 400 })
+          const parentDeck = await db.select().from(deck).where(eq(deck.id, pId)).get()
+          if (!parentDeck) return NextResponse.json({ error: 'parent deck not found' }, { status: 404 })
+          const descendants = await getDeckAndDescendantIds(dId)
+          if (descendants.includes(pId)) {
+            return NextResponse.json({ error: 'Cannot move a deck under one of its own sub-decks' }, { status: 400 })
+          }
+        }
+        await db.update(deck).set({ parentId: pId ?? null }).where(eq(deck.id, dId))
+        return NextResponse.json({ ok: true })
       }
 
       case 'addWords': {
@@ -938,7 +1072,10 @@ export async function POST(req: NextRequest) {
         const deckRow = await db.select().from(deck).where(eq(deck.id, id)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
         if (!deckRow.isCustom) return NextResponse.json({ error: 'This deck ships with the app and cannot be deleted.' }, { status: 403 })
-        await db.delete(deck).where(eq(deck.id, id))
+        const allIds = await getDeckAndDescendantIds(id)
+        for (const targetId of allIds.reverse()) {
+          await db.delete(deck).where(eq(deck.id, targetId))
+        }
         return NextResponse.json({ ok: true })
       }
 

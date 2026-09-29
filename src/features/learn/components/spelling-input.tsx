@@ -58,7 +58,8 @@ export function SpellingInput({
     if (prevValueLenRef.current !== value.length) {
       prevValueLenRef.current = value.length
       if (cursorPos > value.length) {
-        setCursorPos(value.length)
+        const id = window.setTimeout(() => { setCursorPos(value.length) }, 0)
+        return () => window.clearTimeout(id)
       }
     }
   }, [value, cursorPos])
