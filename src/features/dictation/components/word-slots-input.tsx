@@ -246,6 +246,7 @@ export function WordSlotsInput({
       <input
         ref={inputRef}
         type="text"
+        id="dictation-input"
         value={typedWords[activeIdx] ?? ''}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

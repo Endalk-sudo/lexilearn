@@ -399,6 +399,8 @@ function DictationSession({
   // syncing derived state with setState inside an effect causes cascading
   // renders.
   useEffect(() => {
+    setResult(null)
+    setReplays(0)
     let playId = 0
     if (audioReady) {
       playId = window.setTimeout(() => {
@@ -432,7 +434,6 @@ function DictationSession({
     []
   )
 
-
   const next = useCallback(async () => {
     if (finishingRef.current || !result) return
     if (idx + 1 >= items.length) {
@@ -447,6 +448,8 @@ function DictationSession({
       }
       return
     }
+    setResult(null)
+    setReplays(0)
     setIdx((i) => i + 1)
   }, [accSum, answered, idx, items.length, onFinish, result, xpEarned])
 
@@ -719,6 +722,7 @@ function DictationItemAnswer({
       <div key={shakeKey} className={cn(attempts > 0 && 'shake')}>
         {item.kind === 'word' ? (
           <SpellingInput
+            key={`spelling-${item.wordId}`}
             value={typed}
             onChange={setTyped}
             target={item.word}
@@ -730,6 +734,7 @@ function DictationItemAnswer({
           />
         ) : (
           <WordSlotsInput
+            key={`slots-${item.wordId}`}
             target={item.text}
             value={typed}
             onChange={setTyped}

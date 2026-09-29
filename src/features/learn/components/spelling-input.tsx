@@ -146,6 +146,7 @@ export function SpellingInput({
       <input
         ref={inputRef}
         type="text"
+        id={testId}
         value={value}
         onChange={(e) => {
           const next = e.target.value.slice(0, target.length)
