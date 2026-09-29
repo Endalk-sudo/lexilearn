@@ -75,6 +75,7 @@ export function WordCard({
   showDefinition = true,
   hideWord = false,
   autoSpeak: propAutoSpeak,
+  onReveal,
 }: {
   word: WordDTO
   ttsVoice?: string
@@ -82,13 +83,15 @@ export function WordCard({
   showDefinition?: boolean
   hideWord?: boolean
   autoSpeak?: boolean
+  onReveal?: () => void
 }) {
   const storeAutoSpeak = useAppStore((s) => s.autoSpeak)
   const autoSpeak = propAutoSpeak ?? storeAutoSpeak
   const [tab, setTab] = useState<Tab>('meaning')
   const [details, setDetails] = useState(false)
   const [hint, setHint] = useState(false)
-  const [revealed, setRevealed] = useState(showDefinition)
+  const [localRevealedWordId, setLocalRevealedWordId] = useState<string | null>(null)
+  const revealed = showDefinition || localRevealedWordId === word.id
   const [speaking, setSpeaking] = useState(false)
   const getSnapshot = useCallback(() => isWordBookmarked(word.word), [word.word])
   const bookmarked = useSyncExternalStore(subscribeBookmarks, getSnapshot, () => false)
@@ -430,7 +433,7 @@ export function WordCard({
                       size="sm"
                       variant="ghost"
                       className="h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                      onClick={() => setRevealed(false)}
+                      onClick={() => setLocalRevealedWordId(null)}
                     >
                       Hide answer
                     </Button>
@@ -448,7 +451,10 @@ export function WordCard({
             >
               <Button
                 variant="outline"
-                onClick={() => setRevealed(true)}
+                onClick={() => {
+                  setLocalRevealedWordId(word.id)
+                  onReveal?.()
+                }}
                 data-testid="wordcard-reveal"
                 className="mt-4 h-10 w-full text-xs font-semibold cursor-pointer border-border hover:bg-muted/40 transition-colors"
               >

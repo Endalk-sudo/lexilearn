@@ -51,6 +51,12 @@ with sync_playwright() as p:
     if reveal.count() > 0:
         reveal.first.click()
         pg.wait_for_timeout(1000)
+        start_spell = pg.get_by_test_id("learn-start-spelling")
+        if start_spell.count() == 0:
+            start_spell = pg.get_by_role("button", name=re.compile("start spelling", re.I))
+        if start_spell.count() > 0:
+            start_spell.first.click()
+            pg.wait_for_timeout(1000)
 
     # Now on spell stage
     boxes_container = pg.locator("[aria-label='Spelling boxes']")

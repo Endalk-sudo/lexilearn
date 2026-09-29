@@ -24,10 +24,11 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
 
-type Stage = 'recall' | 'spell' | 'result'
+type Stage = 'recall' | 'meaning' | 'spell' | 'result'
 
 const STEPS: { id: Stage; label: string }[] = [
   { id: 'recall', label: 'Recall' },
+  { id: 'meaning', label: 'Meaning' },
   { id: 'spell', label: 'Spell' },
   { id: 'result', label: 'Check' },
 ]
@@ -117,17 +118,24 @@ export function LearnView() {
     return () => window.clearTimeout(id)
   }, [autoSpeak, current, stage, loading, ttsVoice, ttsRate])
 
-  const reveal = useCallback(() => {
+  const revealMeaning = useCallback(() => {
+    if (!current) return
+    playSound('tap')
+    buzz('light')
+    setStage('meaning')
+    if (!speak(current.word.word, { voice: ttsVoice, rate: ttsRate })) {
+      toast.error('Pronunciation is unavailable in this browser.')
+    }
+  }, [current, ttsRate, ttsVoice])
+
+  const startSpelling = useCallback(() => {
     if (!current) return
     playSound('tap')
     buzz('light')
     setStage('spell')
     setSpelling('')
     setAttempts(0)
-    if (!speak(current.word.word, { voice: ttsVoice, rate: ttsRate })) {
-      toast.error('Pronunciation is unavailable in this browser.')
-    }
-  }, [current, ttsRate, ttsVoice])
+  }, [current])
 
   const finishCard = useCallback(
     async (correct: boolean) => {
@@ -230,7 +238,21 @@ export function LearnView() {
       if (stage === 'recall') {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault()
-          reveal()
+          revealMeaning()
+          return
+        }
+        if (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'p') {
+          e.preventDefault()
+          if (current) speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+          return
+        }
+      }
+
+      // Stage meaning
+      if (stage === 'meaning') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          startSpelling()
           return
         }
         if (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'p') {
@@ -251,7 +273,7 @@ export function LearnView() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [attempts, cards.length, current, finishCard, idx, next, reveal, stage, ttsRate, ttsVoice])
+  }, [attempts, cards.length, current, finishCard, idx, next, revealMeaning, startSpelling, stage, ttsRate, ttsVoice])
 
   const levelUp = useMemo(() => !!levelAfter && levelBefore !== levelAfter, [levelAfter, levelBefore])
 
@@ -399,7 +421,8 @@ export function LearnView() {
           dragElastic={0.5}
           onDragEnd={(_, info) => {
             if (info.offset.x < -90) {
-              if (stage === 'recall') reveal()
+              if (stage === 'recall') revealMeaning()
+              else if (stage === 'meaning') startSpelling()
               else if (stage === 'result') void next()
             }
           }}
@@ -411,6 +434,7 @@ export function LearnView() {
             ttsRate={ttsRate}
             showDefinition={stage !== 'recall'}
             hideWord={stage === 'spell'}
+            onReveal={revealMeaning}
           />
         </motion.div>
       </AnimatePresence>
@@ -426,11 +450,59 @@ export function LearnView() {
               <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
                 Trying to retrieve it — even when you are unsure — is what builds the memory.
               </p>
-              <Button ref={primaryRef} size="lg" onClick={reveal} data-testid="learn-reveal" className="mt-5 w-full sm:w-auto sm:px-10">
-                Reveal and listen
-                <ArrowRight className="h-4 w-4" />
+              <Button ref={primaryRef} size="lg" onClick={revealMeaning} data-testid="learn-reveal" className="mt-5 w-full sm:w-auto sm:px-10 cursor-pointer">
+                Reveal meaning & listen
+                <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
-              <p className="mt-3 text-xs text-muted-foreground"><span className="hidden sm:inline">Space to reveal · swipe left</span><span className="sm:hidden">Tap to reveal</span></p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                <span className="hidden sm:inline">Press Space to reveal meaning · swipe left</span>
+                <span className="sm:hidden">Tap to reveal meaning</span>
+              </p>
+            </motion.div>
+          </motion.div>
+        ) : null}
+
+        {stage === 'meaning' ? (
+          <motion.div key="meaning" variants={v(stagger(0.04))} initial="hidden" animate="show" exit="exit" className="mt-4">
+            <motion.div variants={v(listItem)} transition={t()} className="surface p-5 text-center sm:p-6">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-primary-soft text-primary" aria-hidden="true">
+                <Volume2 className="h-4 w-4" />
+              </div>
+              <h2 className="mt-3 text-sm font-semibold">Study the meaning & pronunciation</h2>
+              <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Review the definition, examples, and Amharic translation above before testing your spelling.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => {
+                    playSound('tap')
+                    speak(current.word.word, { voice: ttsVoice, rate: ttsRate })
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Volume2 className="h-4 w-4 mr-1.5" />
+                  Hear again
+                  <kbd className="ml-2 hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+                    R
+                  </kbd>
+                </Button>
+                <Button
+                  ref={primaryRef}
+                  size="lg"
+                  onClick={startSpelling}
+                  data-testid="learn-start-spelling"
+                  className="cursor-pointer sm:px-8"
+                >
+                  Start spelling
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                <span className="hidden sm:inline">Press Space or Enter to open typing · swipe left</span>
+                <span className="sm:hidden">Tap Start spelling to continue</span>
+              </p>
             </motion.div>
           </motion.div>
         ) : null}
@@ -517,9 +589,17 @@ export function LearnView() {
             <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
               {stage === 'spell' ? 'Enter' : 'Space / Enter'}
             </kbd>
-            <span>{stage === 'recall' ? 'Reveal & Hear' : stage === 'spell' ? 'Check answer' : 'Next Word'}</span>
+            <span>
+              {stage === 'recall'
+                ? 'Reveal Meaning'
+                : stage === 'meaning'
+                ? 'Start Spelling'
+                : stage === 'spell'
+                ? 'Check answer'
+                : 'Next Word'}
+            </span>
           </span>
-          {stage === 'recall' ? (
+          {stage === 'recall' || stage === 'meaning' ? (
             <span className="flex items-center gap-1.5">
               <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
                 R
@@ -544,7 +624,7 @@ export function LearnView() {
           ) : null}
         </div>
         <span className="text-[11px] font-medium text-muted-foreground">
-          Step {stage === 'recall' ? '1: Recall' : stage === 'spell' ? '2: Spell' : '3: Result'}
+          Step {stage === 'recall' ? '1: Recall' : stage === 'meaning' ? '2: Meaning' : stage === 'spell' ? '3: Spell' : '4: Result'}
         </span>
       </div>
     </div>

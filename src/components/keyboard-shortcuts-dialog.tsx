@@ -64,11 +64,11 @@ export function KeyboardShortcutsDialog({
     {
       category: 'Learn Mode',
       items: [
-        { keys: ['Space', 'or', 'Enter'], description: 'Reveal card & hear word' },
-        { keys: ['r'], description: 'Replay audio in Recall stage' },
+        { keys: ['Space', 'or', 'Enter'], description: '1st hit: Reveal meaning → 2nd hit: Start spelling → 3rd hit: Next word' },
+        { keys: ['r'], description: 'Replay audio in Recall or Meaning stage' },
         { keys: [altKey, 'R'], description: 'Replay audio while typing spelling', note: `or Ctrl+Space` },
         { keys: [altKey, 'H'], description: 'Get a hint while spelling', note: `or Ctrl+H` },
-        { keys: ['Enter'], description: 'Submit spelling / Next word' },
+        { keys: ['Enter'], description: 'Submit spelling / Advance' },
       ],
     },
     {

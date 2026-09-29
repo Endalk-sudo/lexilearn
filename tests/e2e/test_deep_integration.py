@@ -105,7 +105,11 @@ with sync_playwright() as p:
         reveal = pg.get_by_role("button", name=re.compile("reveal|listen", re.I))
     if reveal.count() > 0:
         reveal.first.click(); pg.wait_for_timeout(900)
-        pg.screenshot(path="/tmp/e2e-shots/deep-C-revealed.png")
+        start_spell = pg.get_by_test_id("learn-start-spelling")
+        if start_spell.count() == 0:
+            start_spell = pg.get_by_role("button", name=re.compile("start spelling", re.I))
+        if start_spell.count() > 0:
+            start_spell.first.click(); pg.wait_for_timeout(900)
         spell = pg.get_by_test_id("learn-check")
         inp = pg.locator("input[placeholder*='ype the word'], input[placeholder*='pelling']")
         if inp.count() > 0:

@@ -41,8 +41,12 @@ with sync_playwright() as p:
     if c>0:
         btn.first.click(); pg.wait_for_timeout(1200); txt2=pg.locator("main").inner_text()[:3000]
         rec("P3-learn","reveal works", len(txt2)>len(txt) or "meaning" in txt2.lower(), txt2[:140].replace(chr(10)," | "))
-        pg.screenshot(path=f"{shots}/final-P3-revealed.png")
-        # learn flow is recall -> spell -> result (grades live in Review, not Learn)
+        start_spell = pg.get_by_test_id("learn-start-spelling")
+        if start_spell.count() == 0:
+            start_spell = pg.get_by_role("button", name=re.compile("start spelling", re.I))
+        if start_spell.count() > 0:
+            start_spell.first.click(); pg.wait_for_timeout(1000)
+        # learn flow is recall -> meaning -> spell -> result (grades live in Review, not Learn)
         spell=pg.get_by_test_id("learn-check")
         rec("P3-learn","spell stage reached", spell.count()>0, f"count={spell.count()}")
         advanced=False
