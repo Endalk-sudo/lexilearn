@@ -3,20 +3,42 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { deck, word, srsCard, reviewLog, quizSession, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
-import { eq, gte, lte, and, isNull, asc, desc, sql } from 'drizzle-orm'
+import { deck, category, wordCategory, word, srsCard, reviewLog, quizSession, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
+import { eq, gte, lte, and, isNull, asc, desc, sql, inArray, exists } from 'drizzle-orm'
 import { calculateSm2, GRADE_XP, type Grade } from '@/lib/srs'
 import { dayKey } from '@/lib/date'
 import { createId } from '@/db/id'
 import { z } from 'zod'
-import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion } from '@/lib/api'
+import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion, CategoryDTO } from '@/lib/api'
 import { getStat, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
 import { assertSameOrigin } from '@/server/csrf'
 import { isRateLimited } from '@/server/rate-limit'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
 // ---------- Helpers ----------
-function parseWord(w: typeof word.$inferSelect): WordDTO {
+async function fetchCategoriesForWords(wordIds: string[]): Promise<Map<string, CategoryDTO[]>> {
+  const map = new Map<string, CategoryDTO[]>()
+  if (wordIds.length === 0) return map
+  const rows = await db.select({
+    wordId: wordCategory.wordId,
+    id: category.id,
+    name: category.name,
+    color: category.color,
+  }).from(wordCategory)
+    .innerJoin(category, eq(wordCategory.categoryId, category.id))
+    .where(inArray(wordCategory.wordId, wordIds))
+    .orderBy(asc(category.name))
+
+  for (const r of rows) {
+    const list = map.get(r.wordId)
+    const dto: CategoryDTO = { id: r.id, name: r.name, color: r.color }
+    if (list) list.push(dto)
+    else map.set(r.wordId, [dto])
+  }
+  return map
+}
+
+function parseWord(w: typeof word.$inferSelect, categories: CategoryDTO[] = []): WordDTO {
   return {
     id: w.id,
     word: w.word,
@@ -31,6 +53,7 @@ function parseWord(w: typeof word.$inferSelect): WordDTO {
     etymology: w.etymology,
     amharic: w.amharic,
     deckId: w.deckId,
+    categories,
   }
 }
 
@@ -169,6 +192,39 @@ const MAX_BULK_WORDS = 1000
 type BulkWord = {
   word: string; pos?: string; ipa?: string; definition?: string
   example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string
+  category?: string; categories?: string | string[]
+}
+
+function extractCategoryNames(w: BulkWord): string[] {
+  const list: string[] = []
+  if (typeof w.category === 'string' && w.category.trim()) {
+    list.push(...w.category.split(/[|,]/).map((s) => s.trim()).filter(Boolean))
+  }
+  if (Array.isArray(w.categories)) {
+    for (const c of w.categories) {
+      if (typeof c === 'string' && c.trim()) list.push(...c.split(/[|,]/).map((s) => s.trim()).filter(Boolean))
+    }
+  } else if (typeof w.categories === 'string' && w.categories.trim()) {
+    list.push(...w.categories.split(/[|,]/).map((s) => s.trim()).filter(Boolean))
+  }
+  return [...new Set(list)].slice(0, 20)
+}
+
+function ensureCategories(tx: any, names: string[]): string[] {
+  const ids: string[] = []
+  for (const raw of names) {
+    const name = raw.trim()
+    if (!name) continue
+    const existing = tx.select().from(category).where(sql`lower(${category.name}) = lower(${name})`).get()
+    if (existing) {
+      ids.push(existing.id)
+    } else {
+      const id = createId()
+      tx.insert(category).values({ id, name }).run()
+      ids.push(id)
+    }
+  }
+  return ids
 }
 
 /** Map one loose word payload to an insert row. `synonyms`/`antonyms` accept
@@ -178,6 +234,7 @@ function toWordRow(w: BulkWord, deckId: string) {
   const splitList = (s?: string) =>
     s ? JSON.stringify(s.split(/[|,]/).map((x) => x.trim()).filter(Boolean)) : null
   const cefrNorm = w.cefr?.trim().toUpperCase() || null
+  const cats = extractCategoryNames(w)
   return {
     id: createId(),
     word: w.word.trim(),
@@ -191,6 +248,7 @@ function toWordRow(w: BulkWord, deckId: string) {
     antonyms: splitList(w.antonyms),
     etymology: null,
     amharic: w.amharic ?? null,
+    category: cats[0] ?? null,
     deckId,
   }
 }
@@ -209,13 +267,23 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
     return true
   })
 
-  const rows = uniqueWords.map((w) => toWordRow(w, deckId))
+  const rows = uniqueWords.map((w) => ({ row: toWordRow(w, deckId), rawCats: extractCategoryNames(w) }))
 
   // One transaction for the deck and all of its words: a failure part-way
   // through used to leave an empty deck behind with no way to tell.
   db.transaction((tx) => {
     tx.insert(deck).values({ id: deckId, name, description, isCustom: true }).run()
-    if (rows.length) tx.insert(word).values(rows).run()
+    if (rows.length) {
+      tx.insert(word).values(rows.map((r) => r.row)).run()
+      for (const r of rows) {
+        if (r.rawCats.length) {
+          const catIds = ensureCategories(tx, r.rawCats)
+          if (catIds.length) {
+            tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
+          }
+        }
+      }
+    }
   })
 
   return { id: deckId, count: rows.length, skipped: validWords.length - uniqueWords.length }
@@ -239,9 +307,9 @@ function pickRandom<T>(arr: T[], n: number): T[] {
  *  `''` sitting in the option list (F-200/F-207). */
 type QuizWord = { dto: WordDTO; firstDef: string }
 
-function buildWordPool(rows: (typeof word.$inferSelect)[]): { all: QuizWord[]; withDef: QuizWord[] } {
+function buildWordPool(rows: (typeof word.$inferSelect)[], catMap?: Map<string, CategoryDTO[]>): { all: QuizWord[]; withDef: QuizWord[] } {
   const all = rows.map((r) => {
-    const dto = parseWord(r)
+    const dto = parseWord(r, catMap?.get(r.id) ?? [])
     return { dto, firstDef: dto.definitions[0]?.text?.trim() ?? '' }
   })
   return { all, withDef: all.filter((x) => x.firstDef.length > 0) }
@@ -265,15 +333,28 @@ function pickOptions(correct: string, pool: string[], n: number): string[] | nul
   return distractors.length === n - 1 ? [correct, ...distractors] : null
 }
 
-async function generateQuiz(deckId: string | null, mode: QuizMode, count: number) {
-  const wordRows = await db.select({ w: word, srs: srsCard }).from(word).leftJoin(srsCard, eq(srsCard.wordId, word.id)).where(deckId ? eq(word.deckId, deckId) : undefined)
+async function generateQuiz(deckId: string | null, mode: QuizMode, count: number, categoryId?: string | null) {
+  const categoryCondition = categoryId
+    ? exists(
+        db.select({ d: sql`1` })
+          .from(wordCategory)
+          .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
+      )
+    : undefined
+
+  const wordRows = await db.select({ w: word, srs: srsCard })
+    .from(word)
+    .leftJoin(srsCard, eq(srsCard.wordId, word.id))
+    .where(and(deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
   const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
   if (words.length < 4) return []
+
+  const catMap = await fetchCategoriesForWords(words.map((w) => w.id))
 
   // `typing` and `spelling_bee` are graded on the word itself, so they can use
   // every word. The three multiple-choice modes need a definition on both sides.
   const definitionBased = mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round'
-  const deckPool = buildWordPool(words)
+  const deckPool = buildWordPool(words, catMap)
   const sample = pickRandom(definitionBased ? deckPool.withDef : deckPool.all, Math.min(count, words.length))
   if (sample.length === 0) return []
 
@@ -283,7 +364,7 @@ async function generateQuiz(deckId: string | null, mode: QuizMode, count: number
   let globalDefPool: string[] = []
   let globalWordPool: string[] = []
   if (definitionBased) {
-    const allWordRows = deckId
+    const allWordRows = deckId || categoryId
       ? await db.select().from(word)
       : words
     const global = buildWordPool(allWordRows as (typeof word.$inferSelect)[])
@@ -333,6 +414,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const action = url.searchParams.get('action') || ''
   const deckId = url.searchParams.get('deckId')
+  const categoryId = url.searchParams.get('categoryId')
   const limit = parseInt(url.searchParams.get('limit') || '20', 10)
   const mode = (url.searchParams.get('mode') as QuizMode | null) || 'mc'
   const count = parseInt(url.searchParams.get('count') || '10', 10)
@@ -340,27 +422,81 @@ export async function GET(req: NextRequest) {
 
   try {
     switch (action) {
+      case 'categories': {
+        const catRows = await db.select().from(category).orderBy(asc(category.name))
+        const now = new Date()
+
+        const wordCounts = await db.select({
+          categoryId: wordCategory.categoryId,
+          total: sql<number>`count(distinct ${wordCategory.wordId})`,
+        }).from(wordCategory).groupBy(wordCategory.categoryId)
+        const wordCountMap = new Map(wordCounts.map((c) => [c.categoryId, c.total]))
+
+        const dueCounts = await db.select({
+          categoryId: wordCategory.categoryId,
+          total: sql<number>`count(distinct ${wordCategory.wordId})`,
+        }).from(wordCategory)
+          .innerJoin(srsCard, eq(wordCategory.wordId, srsCard.wordId))
+          .where(lte(srsCard.nextReview, now))
+          .groupBy(wordCategory.categoryId)
+        const dueCountMap = new Map(dueCounts.map((c) => [c.categoryId, c.total]))
+
+        const newCounts = await db.select({
+          categoryId: wordCategory.categoryId,
+          total: sql<number>`count(distinct ${wordCategory.wordId})`,
+        }).from(wordCategory)
+          .innerJoin(word, eq(wordCategory.wordId, word.id))
+          .where(wordHasNoSrsCard())
+          .groupBy(wordCategory.categoryId)
+        const newCountMap = new Map(newCounts.map((c) => [c.categoryId, c.total]))
+
+        return NextResponse.json(catRows.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          wordCount: wordCountMap.get(c.id) ?? 0,
+          dueCount: dueCountMap.get(c.id) ?? 0,
+          newCount: newCountMap.get(c.id) ?? 0,
+        })))
+      }
+
       case 'due': {
         // Kept as part of the public API surface: the e2e suite smoke-tests it
         // directly, and it is the deck-agnostic variant of `reviewable`.
         const now = new Date()
+        const categoryCondition = categoryId
+          ? exists(
+              db.select({ d: sql`1` })
+                .from(wordCategory)
+                .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
+            )
+          : undefined
         const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
           .innerJoin(word, eq(srsCard.wordId, word.id))
-          .where(lte(srsCard.nextReview, now))
+          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
           .orderBy(asc(srsCard.nextReview))
           .limit(limit)
-        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: toSrsDto(r.c) })))
+        const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w, catMap.get(r.w.id) ?? []), srs: toSrsDto(r.c) })))
       }
 
       case 'new': {
         // Truly new words only (no SRS card yet), filtered and limited in SQL.
         // The old JS filter fetched `limit * 3` rows first, so it silently
         // stopped returning anything once a deck outgrew the window (B1).
+        const categoryCondition = categoryId
+          ? exists(
+              db.select({ d: sql`1` })
+                .from(wordCategory)
+                .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
+            )
+          : undefined
         const rows = await db.select({ w: word }).from(word)
-          .where(and(wordHasNoSrsCard(), deckId ? eq(word.deckId, deckId) : undefined))
+          .where(and(wordHasNoSrsCard(), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
           .orderBy(asc(word.createdAt))
           .limit(limit)
-        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: null })))
+        const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w, catMap.get(r.w.id) ?? []), srs: null })))
       }
 
       case 'reviewable': {
@@ -368,12 +504,20 @@ export async function GET(req: NextRequest) {
         // under-fetched (a `limit * 2` scan) AND let fresh cards leak in,
         // duplicating the same word across both queues (B1).
         const now = new Date()
+        const categoryCondition = categoryId
+          ? exists(
+              db.select({ d: sql`1` })
+                .from(wordCategory)
+                .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
+            )
+          : undefined
         const rows = await db.select({ c: srsCard, w: word }).from(srsCard)
           .innerJoin(word, eq(srsCard.wordId, word.id))
-          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined))
+          .where(and(lte(srsCard.nextReview, now), deckId ? eq(word.deckId, deckId) : undefined, categoryCondition))
           .orderBy(asc(srsCard.nextReview))
           .limit(limit)
-        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w), srs: toSrsDto(r.c) })))
+        const catMap = await fetchCategoriesForWords(rows.map((r) => r.w.id))
+        return NextResponse.json(rows.map((r) => ({ word: parseWord(r.w, catMap.get(r.w.id) ?? []), srs: toSrsDto(r.c) })))
       }
 
       case 'decks': {
@@ -395,10 +539,11 @@ export async function GET(req: NextRequest) {
           .leftJoin(srsCard, eq(srsCard.wordId, word.id))
           .where(eq(word.deckId, deckId))
           .orderBy(asc(word.createdAt))
+        const catMap = await fetchCategoriesForWords(wordRows.map((r) => r.w.id))
         return NextResponse.json({
           id: deckRow.id, name: deckRow.name, description: deckRow.description,
           isCustom: deckRow.isCustom,
-          words: wordRows.map((r) => ({ ...parseWord(r.w), srs: r.srs ? toSrsDto(r.srs) : null })),
+          words: wordRows.map((r) => ({ ...parseWord(r.w, catMap.get(r.w.id) ?? []), srs: r.srs ? toSrsDto(r.srs) : null })),
         })
       }
 
@@ -423,7 +568,7 @@ export async function GET(req: NextRequest) {
       }
 
       case 'quiz': {
-        const questions = await generateQuiz(deckId, mode, count)
+        const questions = await generateQuiz(deckId, mode, count, categoryId)
         return NextResponse.json(questions)
       }
 
@@ -497,7 +642,8 @@ export async function GET(req: NextRequest) {
           .where(sql`instr(lower(${word.word}), lower(${q})) > 0`)
           .orderBy(sql`case when instr(lower(${word.word}), lower(${q})) = 1 then 0 else 1 end`, asc(word.word))
           .limit(50)
-        return NextResponse.json(words.map(parseWord))
+        const catMap = await fetchCategoriesForWords(words.map((w) => w.id))
+        return NextResponse.json(words.map((w) => parseWord(w, catMap.get(w.id) ?? [])))
       }
 
       default:
@@ -546,6 +692,8 @@ const BulkWordSchema = z.object({
   synonyms: z.string().max(2000).optional(),
   antonyms: z.string().max(2000).optional(),
   amharic: z.string().max(500).optional(),
+  category: z.string().max(200).optional(),
+  categories: z.union([z.string(), z.array(z.string().max(100))]).optional(),
 })
 
 const CreateDeckBody = z.object({
@@ -570,6 +718,8 @@ const AddWordBody = z.object({
   synonyms: z.string().max(2000).optional(),
   antonyms: z.string().max(2000).optional(),
   amharic: z.string().max(500).optional(),
+  categoryIds: z.array(z.string().min(1)).max(20).optional(),
+  categories: z.array(z.string().max(100)).max(20).optional(),
 })
 
 const UpdateWordBody = z.object({
@@ -582,6 +732,24 @@ const UpdateWordBody = z.object({
   synonyms: z.string().max(2000).optional(),
   antonyms: z.string().max(2000).optional(),
   amharic: z.string().max(500).nullable().optional(),
+  categoryIds: z.array(z.string().min(1)).max(20).optional(),
+})
+
+const CreateCategoryBody = z.object({
+  name: z.string().min(1).max(100),
+  color: z.string().max(50).nullable().optional(),
+})
+
+const RenameCategoryBody = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().min(1).max(100),
+})
+
+const CategoryIdBody = z.object({ categoryId: z.string().min(1) })
+
+const SetWordCategoriesBody = z.object({
+  wordId: z.string().min(1),
+  categoryIds: z.array(z.string().min(1)).max(50),
 })
 
 const IdBody = z.object({ wordId: z.string().min(1) })
@@ -742,8 +910,18 @@ export async function POST(req: NextRequest) {
           )
         }
 
-        const rows = toInsert.map((w) => toWordRow(w, parsed.data.deckId))
-        db.transaction((tx) => { tx.insert(word).values(rows).run() })
+        const rows = toInsert.map((w) => ({ row: toWordRow(w, parsed.data.deckId), rawCats: extractCategoryNames(w) }))
+        db.transaction((tx) => {
+          tx.insert(word).values(rows.map((r) => r.row)).run()
+          for (const r of rows) {
+            if (r.rawCats.length) {
+              const catIds = ensureCategories(tx, r.rawCats)
+              if (catIds.length) {
+                tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
+              }
+            }
+          }
+        })
         return NextResponse.json({
           count: rows.length,
           skipped: duplicates.length,
@@ -882,7 +1060,16 @@ export async function POST(req: NextRequest) {
             const existing = tx.select({ id: word.id }).from(word)
               .where(and(eq(word.deckId, deckId), sql`lower(${word.word}) = lower(${wordKey})`)).get()
             if (existing) return { duplicate: true }
-            return tx.insert(word).values(toWordRow(fields, deckId)).returning({ id: word.id }).get()
+            const newWord = tx.insert(word).values(toWordRow(fields, deckId)).returning({ id: word.id }).get()
+            let catIds = fields.categoryIds ?? []
+            if (fields.categories && fields.categories.length) {
+              const extraIds = ensureCategories(tx, fields.categories)
+              catIds = [...new Set([...catIds, ...extraIds])]
+            }
+            if (catIds.length) {
+              tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: newWord.id, categoryId: cid }))).run()
+            }
+            return newWord
           })
           if (!inserted) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
           if ('duplicate' in inserted) {
@@ -897,7 +1084,7 @@ export async function POST(req: NextRequest) {
       case 'updateWord': {
         const parsed = UpdateWordBody.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: 'invalid word payload' }, { status: 400 })
-        const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic } = parsed.data
+        const { wordId, pos, ipa, definition, example, cefr, synonyms, antonyms, amharic, categoryIds } = parsed.data
         const existing = await db.select().from(word).where(eq(word.id, wordId)).get()
         if (!existing) return NextResponse.json({ error: 'word not found' }, { status: 404 })
         const splitList = (s: string) => JSON.stringify(s.split(/[|,]/).map((x) => x.trim()).filter(Boolean))
@@ -910,7 +1097,54 @@ export async function POST(req: NextRequest) {
         if (synonyms !== undefined) data.synonyms = synonyms ? splitList(synonyms) : null
         if (antonyms !== undefined) data.antonyms = antonyms ? splitList(antonyms) : null
         if (amharic !== undefined) data.amharic = amharic
-        if (Object.keys(data).length) await db.update(word).set(data).where(eq(word.id, wordId))
+
+        db.transaction((tx) => {
+          if (Object.keys(data).length) tx.update(word).set(data).where(eq(word.id, wordId)).run()
+          if (categoryIds !== undefined) {
+            tx.delete(wordCategory).where(eq(wordCategory.wordId, wordId)).run()
+            if (categoryIds.length) {
+              tx.insert(wordCategory).values(categoryIds.map((cid) => ({ wordId, categoryId: cid }))).run()
+            }
+          }
+        })
+        return NextResponse.json({ ok: true })
+      }
+
+      case 'createCategory': {
+        const parsed = CreateCategoryBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'category name required' }, { status: 400 })
+        const name = parsed.data.name.trim()
+        const existing = await db.select().from(category).where(sql`lower(${category.name}) = lower(${name})`).get()
+        if (existing) return NextResponse.json({ id: existing.id })
+        const id = createId()
+        await db.insert(category).values({ id, name, color: parsed.data.color ?? null })
+        return NextResponse.json({ id })
+      }
+
+      case 'renameCategory': {
+        const parsed = RenameCategoryBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'categoryId and name required' }, { status: 400 })
+        await db.update(category).set({ name: parsed.data.name.trim() }).where(eq(category.id, parsed.data.categoryId))
+        return NextResponse.json({ ok: true })
+      }
+
+      case 'deleteCategory': {
+        const parsed = CategoryIdBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'categoryId required' }, { status: 400 })
+        await db.delete(category).where(eq(category.id, parsed.data.categoryId))
+        return NextResponse.json({ ok: true })
+      }
+
+      case 'setWordCategories': {
+        const parsed = SetWordCategoriesBody.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ error: 'wordId and categoryIds required' }, { status: 400 })
+        const { wordId, categoryIds } = parsed.data
+        db.transaction((tx) => {
+          tx.delete(wordCategory).where(eq(wordCategory.wordId, wordId)).run()
+          if (categoryIds.length) {
+            tx.insert(wordCategory).values(categoryIds.map((cid) => ({ wordId, categoryId: cid }))).run()
+          }
+        })
         return NextResponse.json({ ok: true })
       }
 

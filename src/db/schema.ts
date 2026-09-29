@@ -1,7 +1,7 @@
 // LexiLearn Drizzle schema — mirrors the previous Prisma schema 1:1.
 // Table/column names and SQLite storage formats are byte-compatible with the
 // existing db/custom.db, so the current database file works unchanged.
-import { sqliteTable, integer, text, real, index, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, integer, text, real, index, uniqueIndex, primaryKey, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { createId } from './id'
 
@@ -25,6 +25,15 @@ export const deck = sqliteTable('Deck', {
   createdAt: createdAt(),
 })
 
+export const category = sqliteTable('Category', {
+  id: idPk(),
+  name: text('name').notNull(),
+  color: text('color'),
+  createdAt: createdAt(),
+}, (t) => [
+  index('Category_name_idx').on(t.name),
+])
+
 export const word = sqliteTable('Word', {
   id: idPk(),
   word: text('word').notNull(),
@@ -38,13 +47,23 @@ export const word = sqliteTable('Word', {
   antonyms: text('antonyms'),
   etymology: text('etymology'),
   amharic: text('amharic'),
+  category: text('category'),
   deckId: text('deckId').notNull().references(() => deck.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, (t) => [
   index('Word_deckId_idx').on(t.deckId),
   index('Word_word_idx').on(t.word),
+  index('Word_category_idx').on(t.category),
   // Prevent the same word from being added to the same deck twice.
   uniqueIndex('Word_word_deckId_unique').on(t.word, t.deckId),
+])
+
+export const wordCategory = sqliteTable('WordCategory', {
+  wordId: text('wordId').notNull().references(() => word.id, { onDelete: 'cascade' }),
+  categoryId: text('categoryId').notNull().references(() => category.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({ columns: [t.wordId, t.categoryId] }),
+  index('WordCategory_categoryId_idx').on(t.categoryId),
 ])
 
 export const srsCard = sqliteTable('SrsCard', {
@@ -319,9 +338,19 @@ export const deckRelations = relations(deck, ({ many, one }) => ({
   words: many(word),
 }))
 
-export const wordRelations = relations(word, ({ one }) => ({
+export const categoryRelations = relations(category, ({ many }) => ({
+  wordCategories: many(wordCategory),
+}))
+
+export const wordCategoryRelations = relations(wordCategory, ({ one }) => ({
+  word: one(word, { fields: [wordCategory.wordId], references: [word.id] }),
+  category: one(category, { fields: [wordCategory.categoryId], references: [category.id] }),
+}))
+
+export const wordRelations = relations(word, ({ one, many }) => ({
   deck: one(deck, { fields: [word.deckId], references: [deck.id] }),
   srsCard: one(srsCard, { fields: [word.id], references: [srsCard.wordId] }),
+  wordCategories: many(wordCategory),
 }))
 
 export const srsCardRelations = relations(srsCard, ({ one }) => ({
@@ -380,4 +409,6 @@ export type MentorKnowledge = typeof mentorKnowledge.$inferSelect
 export type MentorWeeklyReport = typeof mentorWeeklyReport.$inferSelect
 export type PronunciationAttempt = typeof pronunciationAttempt.$inferSelect
 export type NaturalnessAttempt = typeof naturalnessAttempt.$inferSelect
+export type Category = typeof category.$inferSelect
+export type WordCategory = typeof wordCategory.$inferSelect
 

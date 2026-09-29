@@ -6,6 +6,7 @@ import { BrainCircuit, Flame, Snail, Sparkles, Star, Undo2, Volume2 } from 'luci
 import { api, type CardWithWord } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { NextStep } from '@/components/layout/next-step'
+import { StudyScopeBanner } from '@/components/study-scope-banner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SessionComplete } from '@/components/feedback/session-complete'
@@ -112,6 +113,8 @@ export function ReviewView() {
   })
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
+  const studyCategory = useAppStore((s) => s.studyCategory)
+  const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -164,13 +167,13 @@ export function ReviewView() {
     setLoading(true)
     try {
       const [due, settings, stats] = await Promise.all([
-        api.getReviewableCards(null, 30),
+        api.getReviewableCards(null, 30, studyCategory?.id),
         api.getSettings(),
         api.getDashboardStats(),
       ])
       // Nothing due yet (brand-new account) → practice the newest words so
       // Review is never a dead end; real due cards always come first (B1).
-      const list = due.length ? due : await api.getNewCards(null, 30)
+      const list = due.length ? due : await api.getNewCards(null, 30, studyCategory?.id)
       setCards(list)
       setTtsVoice(settings.ttsVoice)
       setTtsRate(settings.ttsRate)
@@ -198,16 +201,17 @@ export function ReviewView() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [studyCategory])
 
-  const didInitRef = useRef(false)
+  const lastLoadedScopeRef = useRef<string | null>(null)
 
-  // Initial data fetch on mount (guarded so StrictMode double-effects don't refetch).
+  // Initial data fetch on mount and reload when category scope changes
   useEffect(() => {
-    if (didInitRef.current) return
-    didInitRef.current = true
+    const scopeKey = studyCategory?.id ?? '__all__'
+    if (lastLoadedScopeRef.current === scopeKey) return
+    lastLoadedScopeRef.current = scopeKey
     void load()
-  }, [load])
+  }, [load, studyCategory])
 
   const current = cards[idx]
 
@@ -447,14 +451,22 @@ export function ReviewView() {
   if (!cards.length) {
     return (
       <div className="mx-auto max-w-2xl space-y-4">
+        <StudyScopeBanner />
         <EmptyState
           icon={BrainCircuit}
-          title="Nothing is due right now"
-          hint="That is the point of spaced repetition — the next batch arrives exactly when you would start forgetting it."
-          actionLabel="Learn new words"
-          onAction={() => navigate('learn')}
+          title={studyCategory ? `Nothing due in “${studyCategory.name}”` : 'Nothing is due right now'}
+          hint={
+            studyCategory
+              ? 'No words in this category are due for review right now. You can clear the category filter to review all due cards.'
+              : 'That is the point of spaced repetition — the next batch arrives exactly when you would start forgetting it.'
+          }
+          actionLabel={studyCategory ? 'Review all categories' : 'Learn new words'}
+          onAction={() => {
+            if (studyCategory) setStudyCategory(null)
+            else navigate('learn')
+          }}
           secondary={
-            <Button variant="ghost" size="sm" onClick={() => navigate('library')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
               Browse your library
             </Button>
           }
@@ -476,6 +488,7 @@ export function ReviewView() {
   return (
     <div className="mx-auto max-w-2xl">
       <XpPopLayer pops={pops} />
+      <StudyScopeBanner />
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>

@@ -69,7 +69,7 @@ describe('calculateSm2', () => {
   it('updates lastReviewed to now', () => {
     const before = new Date()
     const result = calculateSm2(baseCard, 4)
-    expect(result.lastReviewed.getTime()).toBeGreaterThanOrEqual(before.getTime())
+    expect(result.lastReviewed!.getTime()).toBeGreaterThanOrEqual(before.getTime())
   })
 })
 

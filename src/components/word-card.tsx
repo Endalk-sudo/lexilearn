@@ -9,6 +9,7 @@ import { speak } from '@/lib/tts'
 import { toast } from 'sonner'
 import { playSound } from '@/lib/feel'
 import type { WordDTO } from '@/lib/api'
+import { CategoryBadgeList } from '@/features/library/components/category-badge'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { revealBlock, transition, useMotionSafe } from '@/lib/motion'
@@ -158,6 +159,9 @@ export function WordCard({
                     >
                       {word.cefr}
                     </span>
+                  ) : null}
+                  {word.categories && word.categories.length > 0 ? (
+                    <CategoryBadgeList categories={word.categories} max={3} />
                   ) : null}
                 </div>
 

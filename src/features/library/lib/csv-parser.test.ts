@@ -45,4 +45,9 @@ describe('parseCsv', () => {
     const rows = parseCsv('word,part of speech,meaning\napple,noun,a fruit')
     expect(rows[0]).toMatchObject({ word: 'apple', pos: 'noun', definition: 'a fruit' })
   })
+
+  it('parses category and tags column', () => {
+    const rows = parseCsv('word,definition,category\napple,a fruit,food | health')
+    expect(rows[0]).toMatchObject({ word: 'apple', definition: 'a fruit', categories: 'food | health' })
+  })
 })

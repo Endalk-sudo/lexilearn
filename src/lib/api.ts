@@ -47,6 +47,18 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 500): Pro
 }
 
 // ---------- Types ----------
+export type CategoryDTO = {
+  id: string
+  name: string
+  color: string | null
+}
+
+export type CategorySummary = CategoryDTO & {
+  wordCount: number
+  dueCount: number
+  newCount: number
+}
+
 export type WordDTO = {
   id: string
   word: string
@@ -61,6 +73,7 @@ export type WordDTO = {
   etymology: string | null
   amharic: string | null
   deckId: string
+  categories: CategoryDTO[]
 }
 
 export type SrsCardDTO = {
@@ -177,20 +190,25 @@ export type DeckDetail = {
 
 // ---------- API surface ----------
 export const api = {
-  getNewCards: (deckId: string | null, limit = 10) => getJSON<CardWithWord[]>('new', { deckId, limit }),
-  getReviewableCards: (deckId: string | null, limit = 50) => getJSON<CardWithWord[]>('reviewable', { deckId, limit }),
+  getNewCards: (deckId: string | null, limit = 10, categoryId?: string | null) => getJSON<CardWithWord[]>('new', { deckId, limit, categoryId }),
+  getReviewableCards: (deckId: string | null, limit = 50, categoryId?: string | null) => getJSON<CardWithWord[]>('reviewable', { deckId, limit, categoryId }),
   submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' = 'review') =>
     withRetry(() => postJSON<{ ok: boolean }>('review', { wordId, grade, mode })),
   getDecks: () => getJSON<DeckSummary[]>('decks'),
   getDeck: (deckId: string) => getJSON<DeckDetail>('deck', { deckId }),
-  createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }[]) =>
+  createCustomDeck: (name: string, description: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categories?: string[] }[]) =>
     postJSON<{ id: string; count: number; skipped?: number }>('createDeck', { name, description, words }),
-  addWordsToDeck: (deckId: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }[]) =>
+  addWordsToDeck: (deckId: string, words: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categories?: string[] }[]) =>
     postJSON<{ count: number; skipped?: number; duplicates?: string[] }>('addWords', { deckId, words }),
-  addWord: (deckId: string, fields: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }) =>
+  addWord: (deckId: string, fields: { word: string; pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categoryIds?: string[] }) =>
     postJSON<{ id: string }>('addWord', { deckId, ...fields }),
-  updateWord: (wordId: string, fields: { pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string }) =>
+  updateWord: (wordId: string, fields: { pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categoryIds?: string[] }) =>
     postJSON<{ ok: boolean }>('updateWord', { wordId, ...fields }),
+  getCategories: () => getJSON<CategorySummary[]>('categories'),
+  createCategory: (name: string, color?: string | null) => postJSON<{ id: string }>('createCategory', { name, color }),
+  renameCategory: (categoryId: string, name: string) => postJSON<{ ok: boolean }>('renameCategory', { categoryId, name }),
+  deleteCategory: (categoryId: string) => postJSON<{ ok: boolean }>('deleteCategory', { categoryId }),
+  setWordCategories: (wordId: string, categoryIds: string[]) => postJSON<{ ok: boolean }>('setWordCategories', { wordId, categoryIds }),
   deleteWord: (wordId: string) => postJSON<{ ok: boolean }>('deleteWord', { wordId }),
   deleteDeck: (deckId: string) => postJSON<{ ok: boolean }>('deleteDeck', { deckId }),
   getDashboardStats: () => getJSON<DashboardStats>('dashboard'),
@@ -198,7 +216,7 @@ export const api = {
   getSettings: () => getJSON<Settings>('settings'),
   updateSettings: (patch: Partial<Settings>) => postJSON<{ ok: boolean }>('updateSettings', patch),
   resetProgress: () => postJSON<{ ok: boolean }>('reset', {}),
-  generateQuiz: (deckId: string | null, mode: QuizMode, count = 10) => getJSON<QuizQuestion[]>('quiz', { deckId, mode, count }),
+  generateQuiz: (deckId: string | null, mode: QuizMode, count = 10, categoryId?: string | null) => getJSON<QuizQuestion[]>('quiz', { deckId, mode, count, categoryId }),
   submitQuizSession: (mode: QuizMode, total: number, correct: number, xpEarned: number) =>
     postJSON<{ ok: boolean }>('quizSession', { mode, total, correct, xpEarned }),
   searchWords: (query: string) => getJSON<WordDTO[]>('search', { query }),

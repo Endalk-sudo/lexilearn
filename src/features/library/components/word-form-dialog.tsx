@@ -1,13 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { api } from '@/lib/api'
+import { useState, useEffect } from 'react'
+import { api, type CategorySummary, type CategoryDTO } from '@/lib/api'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Tag, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
+import { getCategoryStyle } from './category-badge'
+import { cn } from '@/lib/utils'
 
 type WordValues = {
   word?: string
@@ -19,6 +23,7 @@ type WordValues = {
   synonyms?: string
   antonyms?: string
   amharic?: string
+  categories?: CategoryDTO[]
 }
 
 type Props = {
@@ -40,13 +45,20 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
   const [synonyms, setSynonyms] = useState(initialValues?.synonyms ?? '')
   const [antonyms, setAntonyms] = useState(initialValues?.antonyms ?? '')
   const [amharic, setAmharic] = useState(initialValues?.amharic ?? '')
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    initialValues?.categories?.map((c) => c.id) ?? []
+  )
+  const [allCategories, setAllCategories] = useState<CategorySummary[]>([])
+  const [newCatInput, setNewCatInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [cefrError, setCefrError] = useState('')
 
-  // Reset in the close event (rather than an effect) to keep the lint rule
-  // react-hooks/set-state-in-effect happy. The edit instance additionally
-  // remounts per word via `key={editing?.id}`, so the first painted frame
-  // already shows this word's values — no stale flash.
+  useEffect(() => {
+    if (open) {
+      void api.getCategories().then(setAllCategories).catch(() => {})
+    }
+  }, [open])
+
   const resetForm = () => {
     setWord(initialValues?.word ?? '')
     setPos(initialValues?.pos ?? '')
@@ -57,12 +69,35 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
     setSynonyms(initialValues?.synonyms ?? '')
     setAntonyms(initialValues?.antonyms ?? '')
     setAmharic(initialValues?.amharic ?? '')
+    setSelectedCategoryIds(initialValues?.categories?.map((c) => c.id) ?? [])
+    setNewCatInput('')
     setCefrError('')
   }
 
   const handleOpenChange = (v: boolean) => {
     if (!v) resetForm()
     onOpenChange(v)
+  }
+
+  const toggleCategory = (id: string) => {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  const handleAddNewCategory = async () => {
+    const trimmed = newCatInput.trim()
+    if (!trimmed) return
+    try {
+      const res = await api.createCategory(trimmed)
+      const updatedList = await api.getCategories()
+      setAllCategories(updatedList)
+      setSelectedCategoryIds((prev) => [...prev, res.id])
+      setNewCatInput('')
+      toast.success(`Category "${trimmed}" created`)
+    } catch {
+      toast.error('Failed to create category')
+    }
   }
 
   const handleSave = async () => {
@@ -78,13 +113,21 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
     setCefrError('')
     setSaving(true)
     try {
-      const fields = { pos: pos || undefined, ipa: ipa || undefined, definition: definition || undefined, example: example || undefined, cefr: cefrNorm || undefined, synonyms: synonyms || undefined, antonyms: antonyms || undefined, amharic: amharic || undefined }
+      const fields = {
+        pos: pos || undefined,
+        ipa: ipa || undefined,
+        definition: definition || undefined,
+        example: example || undefined,
+        cefr: cefrNorm || undefined,
+        synonyms: synonyms || undefined,
+        antonyms: antonyms || undefined,
+        amharic: amharic || undefined,
+        categoryIds: selectedCategoryIds,
+      }
       if (isEdit) {
         await api.updateWord(initialValues.id!, fields)
         toast.success('Word updated')
       } else {
-        // Preserve the user's casing for display; dedupe stays
-        // case-insensitive on the server.
         const w = word.trim()
         await api.addWord(deckId, { word: w, ...fields })
         toast.success('Word added')
@@ -104,13 +147,69 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit word' : 'Add word'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="space-y-3.5 max-h-[70vh] overflow-y-auto pr-1">
           {!isEdit && (
             <div>
               <Label htmlFor="wf-word">Word</Label>
               <Input id="wf-word" value={word} onChange={(e) => setWord(e.target.value)} placeholder="serendipity" />
             </div>
           )}
+
+          {/* Categories Selector */}
+          <div>
+            <Label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Tag className="h-3.5 w-3.5" />
+              Categories / Topics
+            </Label>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {allCategories.map((c) => {
+                const selected = selectedCategoryIds.includes(c.id)
+                const style = getCategoryStyle(c.color)
+                return (
+                  <Badge
+                    key={c.id}
+                    variant="outline"
+                    onClick={() => toggleCategory(c.id)}
+                    className={cn(
+                      'text-xs py-0.5 px-2 cursor-pointer transition-all inline-flex items-center gap-1',
+                      selected
+                        ? `${style} ring-1.5 ring-primary font-semibold shadow-xs`
+                        : 'opacity-60 hover:opacity-100 border-border/80 text-muted-foreground'
+                    )}
+                  >
+                    {selected && <Check className="h-3 w-3 shrink-0" />}
+                    <span>{c.name}</span>
+                  </Badge>
+                )
+              })}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <Input
+                value={newCatInput}
+                onChange={(e) => setNewCatInput(e.target.value)}
+                placeholder="New category name…"
+                className="h-7 text-xs flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleAddNewCategory()
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="soft"
+                className="h-7 text-xs px-2"
+                onClick={() => void handleAddNewCategory()}
+                disabled={!newCatInput.trim()}
+              >
+                <Plus className="h-3 w-3 mr-0.5" />
+                Add tag
+              </Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="wf-pos">Part of speech</Label>

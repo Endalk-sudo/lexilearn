@@ -49,6 +49,7 @@ export function SpellingInput({
       return () => window.clearTimeout(id)
     }
   }, [autoFocus, disabled, target])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred via setTimeout above
 
   // Clamp cursor position when value length changes — use a ref to avoid
   // synchronous setState in effect (React 19 best practice).

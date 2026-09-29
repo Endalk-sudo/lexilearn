@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { api, type QuizMode, type QuizQuestion } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { StudyScopeBanner } from '@/components/study-scope-banner'
 import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ export function QuizView() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <StudyScopeBanner />
       {!mode ? (
         <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="space-y-6">
           <motion.div variants={v(listItem)} transition={t()}>
@@ -137,6 +139,8 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const [newAfter, setNewAfter] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
+  const studyCategory = useAppStore((s) => s.studyCategory)
+  const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const finishedRef = useRef(false)
@@ -157,7 +161,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     ;(async () => {
       try {
         const [list, settings] = await Promise.all([
-          api.generateQuiz(null, requestMode, count),
+          api.generateQuiz(null, requestMode, count, studyCategory?.id),
           api.getSettings(),
         ])
         if (!live) return
@@ -173,7 +177,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     return () => {
       live = false
     }
-  }, [count, requestMode])
+  }, [count, requestMode, studyCategory])
 
   const current = questions[idx]
 
@@ -319,10 +323,22 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     return (
       <EmptyState
         icon={ListChecks}
-        title="No words to quiz yet"
-        hint="Add a few words to a deck first — quizzes pull from what is already in your library."
-        actionLabel="Open library"
-        onAction={() => navigate('library')}
+        title={studyCategory ? `Not enough words in “${studyCategory.name}” to quiz` : 'No words to quiz yet'}
+        hint={
+          studyCategory
+            ? 'Quizzes require at least 4 words in this category. You can clear the category filter to quiz across all decks, or add more words to this category.'
+            : 'Add a few words to a deck first — quizzes pull from what is already in your library.'
+        }
+        actionLabel={studyCategory ? 'Quiz all categories' : 'Open library'}
+        onAction={() => {
+          if (studyCategory) setStudyCategory(null)
+          else navigate('library')
+        }}
+        secondary={
+          <Button variant="ghost" size="sm" onClick={onExit}>
+            Pick another mode
+          </Button>
+        }
       />
     )
   }
@@ -356,7 +372,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
             setTimeLeft(SPEED_SECONDS)
             setLoading(true)
             api
-              .generateQuiz(null, requestMode, count)
+              .generateQuiz(null, requestMode, count, studyCategory?.id)
               .then((list) => setQuestions(list))
               .catch(() => toast.error('Could not rebuild the quiz'))
               .finally(() => setLoading(false))
@@ -392,6 +408,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   return (
     <div className="space-y-4">
       <XpPopLayer pops={pops} />
+      <StudyScopeBanner />
 
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onExit}>

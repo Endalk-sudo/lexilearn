@@ -8,6 +8,8 @@ export type ParsedWord = {
   synonyms?: string
   antonyms?: string
   amharic?: string
+  /** Raw category names, `|`- or `,`-separated — split by the caller. */
+  categories?: string
 }
 
 /**
@@ -57,6 +59,9 @@ const COLUMN_ALIASES: Record<string, keyof ParsedWord> = {
   synonyms: 'synonyms',
   antonyms: 'antonyms',
   amharic: 'amharic',
+  category: 'categories',
+  categories: 'categories',
+  tags: 'categories',
 }
 
 /** A row is the header when its first cell is "word" and at least two cells are known column names. */
@@ -125,6 +130,7 @@ export function parseCsv(text: string): ParsedWord[] {
         synonyms: parts[6]?.trim() || undefined,
         antonyms: parts[7]?.trim() || undefined,
         amharic: parts[8]?.trim() || undefined,
+        categories: parts[9]?.trim() || undefined,
       })
     }
   }
@@ -132,7 +138,13 @@ export function parseCsv(text: string): ParsedWord[] {
 }
 
 export const CSV_FORMAT_HINT =
-  'word, pos, definition, example, ipa, cefr, synonyms, antonyms, amharic'
+  'word, pos, definition, example, ipa, cefr, synonyms, antonyms, amharic, categories'
 
 export const CSV_PLACEHOLDER =
-  'serendipity, noun, a happy accident, Finding that old letter was pure serendipity., /ˌsɛrənˈdɪpɪti/, C1, luck | fortune, misfortune, ድንገተኛ ደስታ'
+  'serendipity, noun, a happy accident, Finding that old letter was pure serendipity., /ˌsɛrənˈdɪpɪti/, C1, luck | fortune, misfortune, ድንገተኛ ደስታ, favorites | confusing'
+
+/** Split a raw categories cell (`a | b,c`) into clean names. */
+export function splitCategoryNames(raw?: string): string[] {
+  if (!raw) return []
+  return [...new Set(raw.split(/[|,]/).map((s) => s.trim()).filter(Boolean))].slice(0, 20)
+}

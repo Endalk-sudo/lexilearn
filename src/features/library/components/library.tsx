@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, BookOpen, Ear, Layers, Library as LibraryIcon, Pencil, Plus,
-  Search as SearchIcon, Star, Trash2, Upload, Volume2, X,
+  Search as SearchIcon, Star, Tag, Trash2, Upload, Volume2, X,
 } from 'lucide-react'
 import {
-  api, type DeckDetail, type DeckSummary, type WordDTO,
+  api, type DeckDetail, type DeckSummary, type WordDTO, type CategorySummary,
 } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/page-header'
@@ -23,6 +23,8 @@ import { EmptyState } from '@/components/feedback/empty-state'
 import { WordCard } from '@/components/word-card'
 import { WordFormDialog } from '@/features/library/components/word-form-dialog'
 import { BulkAddWordsDialog } from '@/features/library/components/bulk-add-words-dialog'
+import { ManageCategoriesDialog } from '@/features/library/components/manage-categories-dialog'
+import { CategoryBadgeList } from '@/features/library/components/category-badge'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -31,7 +33,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { CSV_FORMAT_HINT, CSV_PLACEHOLDER, parseCsv } from '@/features/library/lib/csv-parser'
+import { CSV_FORMAT_HINT, CSV_PLACEHOLDER, parseCsv, splitCategoryNames } from '@/features/library/lib/csv-parser'
 import { posKey } from '@/features/library/lib/pos'
 import { speak } from '@/lib/tts'
 import { playSound } from '@/lib/feel'
@@ -77,6 +79,7 @@ function DecksPanel() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [categoriesOpen, setCategoriesOpen] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
   const { v, t } = useMotionSafe()
@@ -147,10 +150,16 @@ function DecksPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground num">{decks.length} decks</p>
-        <Button variant="soft" size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New deck
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCategoriesOpen(true)}>
+            <Tag className="h-4 w-4 mr-1 text-primary" />
+            Categories
+          </Button>
+          <Button variant="soft" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            New deck
+          </Button>
+        </div>
       </div>
 
       {decks.length === 0 ? (
@@ -266,6 +275,12 @@ function DecksPanel() {
           if (id) navigate('library-deck', { deckId: id })
         }}
       />
+
+      <ManageCategoriesDialog
+        open={categoriesOpen}
+        onOpenChange={setCategoriesOpen}
+        onCategoriesChanged={() => void load()}
+      />
     </div>
   )
 }
@@ -326,7 +341,8 @@ function CreateDeckDialog({
     }
     setCreating(true)
     try {
-      const result = await api.createCustomDeck(name.trim(), description.trim(), parsed)
+      const words = parsed.map((w) => ({ ...w, categories: splitCategoryNames(w.categories) }))
+      const result = await api.createCustomDeck(name.trim(), description.trim(), words)
       if (result.skipped && result.skipped > 0) {
         toast.success(`Deck created with ${result.count} words, ${result.skipped} duplicate rows skipped`)
       } else {
@@ -438,9 +454,15 @@ function DictionaryPanel() {
   const [selected, setSelected] = useState<WordDTO | null>(null)
   const [cefrFilter, setCefrFilter] = useState<'all' | 'A' | 'B' | 'C'>('all')
   const [posFilter, setPosFilter] = useState<'all' | 'noun' | 'verb' | 'adj' | 'adv'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [categories, setCategories] = useState<CategorySummary[]>([])
   const [onlyStarred, setOnlyStarred] = useState(false)
   const [bookmarkedList, setBookmarkedList] = useState<string[]>([])
   const listRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    void api.getCategories().then(setCategories).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const syncBookmarks = () => {
@@ -493,10 +515,11 @@ function DictionaryPanel() {
     return results.filter((w) => {
       if (cefrFilter !== 'all' && (!w.cefr || !w.cefr.toUpperCase().startsWith(cefrFilter))) return false
       if (posFilter !== 'all' && posKey(w.pos) !== posFilter) return false
+      if (categoryFilter !== 'all' && !w.categories?.some((c) => c.id === categoryFilter || c.name.toLowerCase() === categoryFilter.toLowerCase())) return false
       if (onlyStarred && !bookmarkedList.includes(w.word.toLowerCase())) return false
       return true
     })
-  }, [results, cefrFilter, posFilter, onlyStarred, bookmarkedList])
+  }, [results, cefrFilter, posFilter, categoryFilter, onlyStarred, bookmarkedList])
 
   // A selection that no longer matches the filtered list falls back to the
   // first result — derived, so no effect needs to clear it synchronously.
@@ -628,6 +651,26 @@ function DictionaryPanel() {
             <span>Starred</span>
           </button>
 
+          {categories.length > 0 && (
+            <>
+              <div className="h-3.5 w-px bg-border/80 mx-1 hidden sm:block" />
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1 hidden sm:inline">Category:</span>
+              <select
+                aria-label="Filter by category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-6 rounded-md border border-border/80 bg-muted/60 px-2 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+              >
+                <option value="all">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.wordCount})
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
           <span className="ml-auto text-xs text-muted-foreground num" role="status">
             {filteredResults.length} {filteredResults.length === 1 ? 'word' : 'words'}
             {results.length >= 50 ? ' (top 50 — refine your search)' : ''}
@@ -669,6 +712,7 @@ function DictionaryPanel() {
             onClick={() => {
               setCefrFilter('all')
               setPosFilter('all')
+              setCategoryFilter('all')
               setOnlyStarred(false)
             }}
           >
@@ -730,6 +774,11 @@ function DictionaryPanel() {
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                           {word.definitions[0].text}
                         </span>
+                      ) : null}
+                      {word.categories && word.categories.length > 0 ? (
+                        <div className="mt-1">
+                          <CategoryBadgeList categories={word.categories} max={2} />
+                        </div>
                       ) : null}
                     </div>
                     <Button
@@ -827,12 +876,24 @@ export function DeckDetailView() {
   const [deck, setDeck] = useState<DeckDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [categories, setCategories] = useState<CategorySummary[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState<(WordDTO & { id: string }) | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; word: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const { v, t } = useMotionSafe()
+
+  const refreshCategories = useCallback(async () => {
+    try {
+      setCategories(await api.getCategories())
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    void refreshCategories()
+  }, [refreshCategories])
 
   const loadSeqRef = useRef(0)
   const load = useCallback(async () => {
@@ -866,16 +927,22 @@ export function DeckDetailView() {
 
   const words = useMemo(() => {
     if (!deck) return []
+    let list = deck.words
+    if (categoryFilter !== 'all') {
+      list = list.filter((w) =>
+        w.categories?.some((c) => c.id === categoryFilter || c.name.toLowerCase() === categoryFilter.toLowerCase())
+      )
+    }
     const term = filter.trim().toLowerCase()
-    if (!term) return deck.words
-    return deck.words.filter(
+    if (!term) return list
+    return list.filter(
       (w) =>
         w.word.toLowerCase().includes(term) ||
         (w.definitions[0]?.text ?? '').toLowerCase().includes(term) ||
         (w.amharic ?? '').toLowerCase().includes(term) ||
         (w.examples[0] ?? '').toLowerCase().includes(term)
     )
-  }, [deck, filter])
+  }, [deck, filter, categoryFilter])
 
   const removeWord = async (wordId: string) => {
     const prev = deck
@@ -1009,6 +1076,21 @@ export function DeckDetailView() {
                 spellCheck={false}
               />
             </div>
+            {categories.length > 0 && (
+              <select
+                aria-label="Filter deck by category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-9 rounded-md border border-border/80 bg-background px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+              >
+                <option value="all">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <span className="text-sm text-muted-foreground num" role="status" aria-live="polite" data-testid="deck-filter-count">
               showing {words.length} of {deck.words.length}
             </span>
@@ -1020,7 +1102,10 @@ export function DeckDetailView() {
               title={`No words match “${filter}”`}
               hint="Try a shorter search, or clear the filter to see the whole deck."
               actionLabel="Clear filter"
-              onAction={() => setFilter('')}
+              onAction={() => {
+                setFilter('')
+                setCategoryFilter('all')
+              }}
             />
           ) : (
             <motion.ul variants={v(stagger(0.02))} initial="hidden" animate="show" className="space-y-2">
@@ -1051,6 +1136,11 @@ export function DeckDetailView() {
                       ) : null}
                       {word.amharic ? (
                         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground" lang="am">{word.amharic}</p>
+                      ) : null}
+                      {word.categories && word.categories.length > 0 ? (
+                        <div className="mt-1.5">
+                          <CategoryBadgeList categories={word.categories} max={3} />
+                        </div>
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -1131,7 +1221,10 @@ export function DeckDetailView() {
       <WordFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSaved={load}
+        onSaved={async () => {
+          await load()
+          void refreshCategories()
+        }}
         deckId={deck.id}
       />
       <WordFormDialog
@@ -1140,7 +1233,10 @@ export function DeckDetailView() {
         onOpenChange={(open) => {
           if (!open) setEditing(null)
         }}
-        onSaved={load}
+        onSaved={async () => {
+          await load()
+          void refreshCategories()
+        }}
         deckId={deck.id}
         initialValues={
           editing
@@ -1155,6 +1251,7 @@ export function DeckDetailView() {
                 synonyms: editing.synonyms.join(', '),
                 antonyms: editing.antonyms.join(', '),
                 amharic: editing.amharic ?? '',
+                categories: editing.categories ?? [],
               }
             : undefined
         }
@@ -1164,7 +1261,10 @@ export function DeckDetailView() {
         deckName={deck.name}
         open={bulkOpen}
         onOpenChange={setBulkOpen}
-        onImported={load}
+        onImported={async () => {
+          await load()
+          void refreshCategories()
+        }}
       />
     </div>
   )

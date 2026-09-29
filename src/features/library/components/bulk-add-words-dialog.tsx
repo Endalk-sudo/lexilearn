@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '@/lib/api'
-import { parseCsv, CSV_FORMAT_HINT, CSV_PLACEHOLDER, type ParsedWord } from '@/features/library/lib/csv-parser'
+import { parseCsv, CSV_FORMAT_HINT, CSV_PLACEHOLDER, splitCategoryNames, type ParsedWord } from '@/features/library/lib/csv-parser'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -62,7 +62,8 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
     }
     setImporting(true)
     try {
-      const res = await api.addWordsToDeck(deckId, parsed)
+      const words = parsed.map((w) => ({ ...w, categories: splitCategoryNames(w.categories) }))
+      const res = await api.addWordsToDeck(deckId, words)
       if (res.skipped && res.skipped > 0) {
         toast.success(`${res.count} words added, ${res.skipped} skipped (already in deck)`)
       } else {
@@ -132,6 +133,7 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
                       <th className="text-left px-3 py-1.5 font-medium">Definition</th>
                       <th className="text-left px-3 py-1.5 font-medium">IPA</th>
                       <th className="text-left px-3 py-1.5 font-medium">አማርኛ</th>
+                      <th className="text-left px-3 py-1.5 font-medium">Categories</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -142,11 +144,12 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
                         <td className="px-3 py-1.5 text-muted-foreground max-w-[200px] truncate">{w.definition ?? '—'}</td>
                         <td className="px-3 py-1.5 font-mono text-muted-foreground">{w.ipa ?? '—'}</td>
                         <td className="px-3 py-1.5 text-muted-foreground max-w-[150px] truncate" lang="am">{w.amharic ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-muted-foreground max-w-[150px] truncate">{w.categories ?? '—'}</td>
                       </tr>
                     ))}
                     {parsed.length > 20 && (
                       <tr>
-                        <td colSpan={5} className="px-3 py-2 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-3 py-2 text-center text-muted-foreground">
                           …and {parsed.length - 20} more
                         </td>
                       </tr>

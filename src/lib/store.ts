@@ -73,10 +73,14 @@ export type RouteState = {
   searchQuery: string
 }
 
+export type StudyCategory = { id: string; name: string } | null
+
 type AppState = RouteState & {
   coachTab: CoachTab
   quizMode: QuizMode | null
   dictationDeckId: string | null
+  /** Category-scoped studying: Learn/Review/Quiz filter to these words. */
+  studyCategory: StudyCategory
   searchQuery: string
   paletteOpen: boolean
   accentHue: number
@@ -89,6 +93,7 @@ type AppState = RouteState & {
   setCoachTab: (tab: CoachTab) => void
   setQuizMode: (mode: QuizMode | null) => void
   setDictationDeckId: (dictationDeckId: string | null) => void
+  setStudyCategory: (studyCategory: StudyCategory) => void
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
   setAccentHue: (hue: number) => void
@@ -105,6 +110,7 @@ export const useAppStore = create<AppState>((set) => ({
   coachTab: 'coach',
   quizMode: null,
   dictationDeckId: null,
+  studyCategory: null,
   searchQuery: '',
   paletteOpen: false,
   accentHue: 259,
@@ -127,6 +133,7 @@ export const useAppStore = create<AppState>((set) => ({
   setCoachTab: (coachTab) => set({ coachTab }),
   setQuizMode: (quizMode) => set({ quizMode }),
   setDictationDeckId: (dictationDeckId) => set({ dictationDeckId }),
+  setStudyCategory: (studyCategory) => set({ studyCategory }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setAccentHue: (accentHue) => {

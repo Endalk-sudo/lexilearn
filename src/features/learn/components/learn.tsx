@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Keyboard, Volume2 } from 'lucide-react'
+import { ArrowRight, Keyboard, Tag, Volume2, X } from 'lucide-react'
 import { api, type CardWithWord } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { StudyScopeBanner } from '@/components/study-scope-banner'
 import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,8 @@ export function LearnView() {
   const [levelAfter, setLevelAfter] = useState('')
   const [streak, setStreak] = useState(0)
   const [dueAfter, setDueAfter] = useState(0)
+  const studyCategory = useAppStore((s) => s.studyCategory)
+  const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
   const { pops, pop } = useXpPops()
@@ -60,7 +63,7 @@ export function LearnView() {
     setLoading(true)
     try {
       const [list, settings, stats] = await Promise.all([
-        api.getNewCards(null, 10),
+        api.getNewCards(null, 10, studyCategory?.id),
         api.getSettings(),
         api.getDashboardStats(),
       ])
@@ -89,14 +92,9 @@ export function LearnView() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [studyCategory?.id])
 
-  const didInitRef = useRef(false)
-
-  // Initial data fetch on mount (guarded so StrictMode double-effects don't refetch).
   useEffect(() => {
-    if (didInitRef.current) return
-    didInitRef.current = true
     void load()
   }, [load])
 
@@ -260,17 +258,40 @@ export function LearnView() {
   if (!cards.length) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <PageHeader eyebrow="Learn" icon={Keyboard} title="No new words right now" description="Every word in your library has already been introduced." />
+        <StudyScopeBanner />
+        <PageHeader
+          eyebrow="Learn"
+          icon={Keyboard}
+          title={studyCategory ? `No new words in “${studyCategory.name}”` : 'No new words right now'}
+          description={
+            studyCategory
+              ? `All words in the "${studyCategory.name}" category have already been introduced, or none have been assigned to it yet.`
+              : 'Every word in your library has already been introduced.'
+          }
+        />
         <EmptyState
           icon={Volume2}
-          title="Add words to keep going"
-          hint="Import a list, create a deck, or review what you already have so it never fades."
-          actionLabel="Open library"
-          onAction={() => navigate('library')}
+          title={studyCategory ? 'Try another category or all words' : 'Add words to keep going'}
+          hint={
+            studyCategory
+              ? 'You can clear the category filter to learn words across all decks, or pick another category.'
+              : 'Import a list, create a deck, or review what you already have so it never fades.'
+          }
+          actionLabel={studyCategory ? 'Learn all categories' : 'Open library'}
+          onAction={() => {
+            if (studyCategory) setStudyCategory(null)
+            else navigate('library')
+          }}
           secondary={
-            <Button variant="ghost" size="sm" onClick={() => navigate('review')}>
-              Review instead
-            </Button>
+            studyCategory ? (
+              <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
+                Manage categories
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => navigate('review')}>
+                Review instead
+              </Button>
+            )
           }
         />
       </div>
@@ -283,6 +304,7 @@ export function LearnView() {
   return (
     <div className="mx-auto max-w-3xl">
       <XpPopLayer pops={pops} />
+      <StudyScopeBanner />
 
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
