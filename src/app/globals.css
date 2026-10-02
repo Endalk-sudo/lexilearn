@@ -575,6 +575,60 @@
     column-gap: 0;
   }
   .spell-row-inner { gap: var(--spell-gap); }
+
+  /* ---------- Wrapping word slots (sentence dictation) ----------
+   * `.spell-row` above is nowrap by design: a single spelling answer must read
+   * as one unbroken line. A dictated sentence cannot work that way — with
+   * nowrap and a tier picked from the *longest word*, a 15-word sentence had
+   * nowhere to go and simply ran off the card.
+   *
+   * So the slot row wraps instead: `.spell-row-wrap` centres every line, and
+   * `.spell-word` makes each word one atomic flex item (`flex-shrink: 0`) so
+   * words wrap as units and no letter box is ever split across a line break. */
+  .spell-row-wrap {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.875rem;
+    align-items: stretch;
+  }
+  .spell-word {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* The word box sizes itself from the *target* word (set inline in ch), not
+   * from what has been typed, so a slot never jumps or reflows mid-word. */
+  .spell-word-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.06em;
+    font-size: var(--spell-font);
+    line-height: 1;
+    overflow: hidden;
+  }
+  /* One character cell. `min-width` in `ch` keeps letters on a monospace
+   * rhythm while still allowing the flex parent to squeeze a freakishly long
+   * word instead of overflowing the card. */
+  .spell-letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 1 auto;
+    min-width: 0.62ch;
+  }
+  .spell-letter-ok { color: var(--foreground); }
+  /* Wrong and extra both read as red, but extra is underlined too: a letter you
+   * mistyped and a letter that shouldn't exist are different mistakes. */
+  .spell-letter-wrong { color: var(--destructive); }
+  .spell-letter-extra {
+    color: var(--destructive);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-decoration-color: color-mix(in oklab, var(--destructive) 55%, transparent);
+    text-underline-offset: 0.16em;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

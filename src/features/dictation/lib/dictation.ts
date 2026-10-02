@@ -141,6 +141,64 @@ export function groupDiff(tokens: DiffToken[]): DiffSegment[] {
   return segments
 }
 
+/**
+ * Strip everything the grader ignores, so a single word is reduced to the
+ * letters it is actually judged on. Case, punctuation, apostrophes and
+ * internal whitespace all go; see `normalizeText` for the reasoning.
+ */
+export function stripWordNoise(word: string): string {
+  return normalizeText(word).replace(/\s/g, '')
+}
+
+export type LetterState = 'ok' | 'wrong' | 'extra'
+
+export interface LetterCell {
+  /** The character as typed, after normalisation. */
+  char: string
+  state: LetterState
+}
+
+/**
+ * Per-letter feedback for the word-slot row: correct, wrong, or extra (typed
+ * past the end of the word). Grading is word-level, so this is display only —
+ * but it deliberately runs both sides through `stripWordNoise` so the row
+ * agrees with `diffWords`. Without that the UI would paint characters red that
+ * the grader happily accepts.
+ */
+export function compareWordLetters(expected: string, typed: string): LetterCell[] {
+  const want = stripWordNoise(expected)
+  const got = stripWordNoise(typed)
+  const cells: LetterCell[] = []
+  const span = Math.max(want.length, got.length)
+  for (let i = 0; i < span; i++) {
+    const char = got[i]
+    // Nothing typed here yet — an untyped slot has nothing to colour.
+    if (char === undefined) break
+    const target = want[i]
+    cells.push({
+      char,
+      state: target === undefined ? 'extra' : char === target ? 'ok' : 'wrong'
+    })
+  }
+  return cells
+}
+
+export type WordState = 'empty' | 'partial' | 'ok' | 'wrong'
+
+/**
+ * Roll the per-letter cells up into one state for the whole word box.
+ * `partial` means "every letter so far is right but the word isn't finished",
+ * which reads as neutral rather than as a mistake.
+ */
+export function wordStateOf(expected: string, typed: string): WordState {
+  if (!typed.trim()) return 'empty'
+  if (stripWordNoise(expected) === stripWordNoise(typed)) return 'ok'
+  const want = stripWordNoise(expected)
+  const cells = compareWordLetters(expected, typed)
+  const allRightSoFar = cells.length < want.length && cells.every((c) => c.state === 'ok')
+  return allRightSoFar ? 'partial' : 'wrong'
+}
+
 /** 0–100. Skipped words cost a full mark, stray words cost half. */
 export function accuracyOf(tokens: DiffToken[], targetWordCount: number): number {
   if (targetWordCount <= 0) return tokens.length === 0 ? 100 : 0

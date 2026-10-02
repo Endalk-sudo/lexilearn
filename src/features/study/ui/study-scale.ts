@@ -59,6 +59,19 @@ export function spellFitClass(letterCount: number): string {
   return 'spell-fit-3'
 }
 
+/**
+ * Fit tier for the dictation word-slot row. Box size still follows the longest
+ * word so every slot stays readable, but a long sentence steps down one extra
+ * tier. The slot row wraps (see `.spell-row-wrap`), so compactness beats
+ * generosity here: a 20-word sentence should look like a paragraph, not
+ * swallow the whole card.
+ */
+export function slotFitClass(longestWord: number, wordCount: number): string {
+  const step = Number.parseInt(spellFitClass(longestWord).replace('spell-fit-', ''), 10)
+  const bump = wordCount >= 12 ? 1 : 0
+  return `spell-fit-${Math.min(3, step + bump)}`
+}
+
 /** Split a target into word groups: letters stay together, spaces separate. */
 export function splitTargetWords(target: string): string[][] {
   return target

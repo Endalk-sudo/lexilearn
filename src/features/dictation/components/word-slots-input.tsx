@@ -2,9 +2,14 @@
 
 import { cn } from '@/lib/utils'
 import { typeFeelFromKey } from '@/lib/feel'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { tokenize } from '@/features/dictation/lib/dictation'
-import { spellFitClass } from '@/features/study/ui/study-scale'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  compareWordLetters,
+  tokenize,
+  wordStateOf,
+  type WordState,
+} from '@/features/dictation/lib/dictation'
+import { slotFitClass } from '@/features/study/ui/study-scale'
 
 export type WordSlotsInputProps = {
   target: string
@@ -18,6 +23,8 @@ export type WordSlotsInputProps = {
   className?: string
 }
 
+const CARET = 'animate-caret-blink'
+
 export function WordSlotsInput({
   target,
   value,
@@ -29,29 +36,37 @@ export function WordSlotsInput({
   masked = false,
   className,
 }: WordSlotsInputProps) {
-  const targetWords = tokenize(target)
-  const typedWords = value.length ? value.split(/\s+/) : ['']
-  while (typedWords.length < 1) typedWords.push('')
+  // Memoised because `tokenize` returns a fresh array every call, which would
+  // give the `typedWords` memo below a new identity on every render.
+  const targetWords = useMemo(() => tokenize(target), [target])
+  const slotCount = targetWords.length
 
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
+  // Always a dense array of exactly `slotCount` entries. Keeping the indexes
+  // aligned with the target slots is what makes click-any-word navigation safe:
+  // writing into a far-off slot can't punch a hole in the array and collapse
+  // every word between it and here.
+  const typedWords = useMemo(() => {
+    const parts = value.trim() ? value.split(/\s+/) : []
+    return targetWords.map((_, i) => parts[i] ?? '')
+  }, [targetWords, value])
+
   const [cursorPos, setCursorPos] = useState<number>(0)
+  // The active slot is explicit state rather than derived from what's already
+  // typed. Deriving it from "the first word still missing" looks tempting, but
+  // it yanks focus to the next slot after every single keystroke and scatters
+  // a word one letter per slot. Focus moves only on Space, arrows, or a click.
+  const [slotIdx, setSlotIdx] = useState(0)
+  const activeIdx = Math.min(Math.max(slotIdx, 0), Math.max(0, slotCount - 1))
   const inputRef = useRef<HTMLInputElement>(null)
   const [focused, setFocused] = useState(false)
 
-  // Clamp activeIdx safely
-  const defaultIdx = Math.min(typedWords.length - 1, Math.max(0, targetWords.length - 1))
-  const activeIdx =
-    selectedSlot !== null && selectedSlot >= 0 && selectedSlot < targetWords.length
-      ? selectedSlot
-      : defaultIdx
-
-  // Reset slot selection when target changes — use a ref to track previous target
-  // and avoid synchronous setState in effect (React 19 best practice).
+  // Reset slot selection when target changes — use a ref to track previous
+  // target and avoid synchronous setState in effect (React 19 best practice).
   const prevTargetRef = useRef(target)
   useEffect(() => {
     if (prevTargetRef.current !== target) {
       prevTargetRef.current = target
-      setSelectedSlot(null)
+      setSlotIdx(0)
       setCursorPos(0)
     }
   }, [target])
@@ -67,28 +82,25 @@ export function WordSlotsInput({
   }, [autoFocus, disabled, target])
 
   const currentWord = typedWords[activeIdx] ?? ''
-  // Auto-size from the longest target word so long sentences shrink to one
-  // centered line instead of wrapping or overflowing (same tiers as Learn's
-  // spelling boxes in globals.css).
+  // Box size follows the longest word so every slot stays readable, stepped
+  // down a further tier for long sentences (see `slotFitClass`).
   const longestWordLen = targetWords.reduce((m, w) => Math.max(m, w.length), 0)
-  const fit = spellFitClass(longestWordLen)
+  const fit = slotFitClass(longestWordLen, slotCount)
 
-  // Clamp cursor position when word length changes — use a ref to avoid
-  // synchronous setState in effect (React 19 best practice).
-  const prevWordLenRef = useRef(currentWord.length)
-  useEffect(() => {
-    if (prevWordLenRef.current !== currentWord.length) {
-      prevWordLenRef.current = currentWord.length
-      if (cursorPos > currentWord.length) {
-        setCursorPos(currentWord.length)
-      }
-    }
-  }, [currentWord, cursorPos])
+  const doneCount = useMemo(
+    () => typedWords.filter((w, i) => wordStateOf(targetWords[i] ?? '', w) === 'ok').length,
+    [targetWords, typedWords]
+  )
+
+  // Clamped at read time rather than stored back into state: deriving it here
+  // keeps a shrinking word from parking the caret past its own end, with no
+  // effect and no cascading render to keep the two in sync.
+  const caretPos = Math.min(cursorPos, currentWord.length)
 
   const focusSlot = useCallback(
     (idx: number, pos?: number) => {
       if (disabled) return
-      setSelectedSlot(idx)
+      setSlotIdx(idx)
       const targetWord = typedWords[idx] ?? ''
       const targetPos = typeof pos === 'number' ? Math.min(pos, targetWord.length) : targetWord.length
       setCursorPos(targetPos)
@@ -108,7 +120,7 @@ export function WordSlotsInput({
     const words = [...typedWords]
 
     if (e.key === 'ArrowLeft') {
-      const start = inputRef.current?.selectionStart ?? cursorPos
+      const start = inputRef.current?.selectionStart ?? caretPos
       if (start === 0 && activeIdx > 0) {
         e.preventDefault()
         focusSlot(activeIdx - 1)
@@ -117,8 +129,8 @@ export function WordSlotsInput({
     }
 
     if (e.key === 'ArrowRight') {
-      const end = inputRef.current?.selectionEnd ?? cursorPos
-      if (end >= currentWord.length && activeIdx < typedWords.length - 1) {
+      const end = inputRef.current?.selectionEnd ?? caretPos
+      if (end >= currentWord.length && activeIdx < slotCount - 1) {
         e.preventDefault()
         focusSlot(activeIdx + 1, 0)
         return
@@ -127,12 +139,10 @@ export function WordSlotsInput({
 
     if (e.key === ' ' || e.key === 'Spacebar') {
       e.preventDefault()
+      // Space means "lock this word" — never "skip past a word I haven't
+      // typed", so an empty slot swallows it instead of jumping the queue.
       if (!words[activeIdx]?.trim()) return
-      if (activeIdx < targetWords.length - 1) {
-        if (activeIdx === typedWords.length - 1) {
-          words.push('')
-          onChange(words.join(' '))
-        }
+      if (activeIdx < slotCount - 1) {
         focusSlot(activeIdx + 1, 0)
       } else if (onSubmit && words.join(' ').trim()) {
         onSubmit()
@@ -142,12 +152,7 @@ export function WordSlotsInput({
 
     if (e.key === 'Backspace' && !words[activeIdx] && activeIdx > 0) {
       e.preventDefault()
-      if (activeIdx === words.length - 1) {
-        words.pop()
-        onChange(words.join(' '))
-      }
-      const prevIdx = activeIdx - 1
-      focusSlot(prevIdx, (words[prevIdx] ?? '').length)
+      focusSlot(activeIdx - 1, (words[activeIdx - 1] ?? '').length)
       return
     }
 
@@ -159,14 +164,13 @@ export function WordSlotsInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value
-    if (rawVal.includes(' ')) {
+    if (/\s/.test(rawVal)) {
+      // A paste carrying spaces drops straight into the following slots.
       const pasted = rawVal.trim().split(/\s+/)
       const words = [...typedWords]
       words.splice(activeIdx, 1, ...pasted)
-      const newWords = words.slice(0, targetWords.length)
-      onChange(newWords.join(' '))
-      const newActive = Math.min(activeIdx + pasted.length - 1, targetWords.length - 1)
-      focusSlot(newActive)
+      onChange(words.slice(0, slotCount).join(' '))
+      focusSlot(Math.min(activeIdx + pasted.length - 1, slotCount - 1))
       return
     }
 
@@ -179,75 +183,62 @@ export function WordSlotsInput({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* One centered line: slots never wrap mid-sentence, and the fit tier
-          shrinks long sentences instead of overflowing the card. */}
+      {/* Words wrap as whole units and every line stays centred, so a long
+          sentence reflows instead of running off the card. */}
       <div
         role="group"
         aria-label="Word slots"
-        className={cn('spell-row spell-row-inner py-2 cursor-text', fit)}
+        className={cn('spell-row spell-row-wrap spell-row-inner py-2 cursor-text', fit)}
       >
         {targetWords.map((tw, i) => {
           const typed = typedWords[i] ?? ''
+          const state = wordStateOf(tw, typed)
           const isActive = i === activeIdx && focused && !disabled
-          const isPast = i < activeIdx
-          const showGuide = guided && !typed && !isActive
-          const slotPos = isActive ? cursorPos : typed.length
-          const maxClickable = Math.min(typedWords.filter(Boolean).length, targetWords.length - 1)
+          const slotPos = isActive ? caretPos : typed.length
+          // Null unless this is the live slot — an inactive word must never
+          // show a caret, or every finished word looks like it is being edited.
+          const caret = isActive ? (
+            <span className="spell-letter" key="caret" aria-hidden="true">
+              <span className={`inline-block h-[1.15em] w-0.5 rounded-full bg-primary ${CARET}`} />
+            </span>
+          ) : null
 
           return (
             <div
               key={i}
+              className="spell-word"
               role="button"
               tabIndex={-1}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => focusSlot(Math.min(i, maxClickable))}
-              aria-label={`Word slot ${i + 1} of ${targetWords.length}${typed ? `: ${typed}` : ''}`}
-              className={cn(
-                'spell-box relative rounded-xl border-2 px-3 font-mono font-semibold transition-all duration-150 text-center select-none cursor-pointer leading-none flex items-center justify-center',
-                isActive && 'border-primary bg-primary-soft ring-[3px] ring-primary/20 scale-[1.03] shadow-md z-10',
-                isPast && typed && 'border-success/60 bg-success-soft/40 text-foreground',
-                !isActive && !isPast && 'border-border bg-card text-muted-foreground/50 hover:border-border/80',
-                disabled && 'opacity-60 cursor-not-allowed'
-              )}
-              style={{ width: 'auto', minWidth: 'var(--spell-box)' }}
+              onClick={() => focusSlot(i)}
+              aria-label={`Word ${i + 1} of ${slotCount}${typed ? `: ${typed} — ${STATE_WORDS[state]}` : ''}`}
             >
-              {typed ? (
-                masked ? (
-                  isActive ? (
-                    <span className="tracking-widest inline-flex items-center justify-center">
-                      <span>{'•'.repeat(Math.min(slotPos, 12))}</span>
-                      <span className="inline-block w-0.5 h-5 bg-primary rounded-full animate-caret-blink mx-0.5" />
-                      <span>{'•'.repeat(Math.max(0, Math.min(typed.length - slotPos, 12)))}</span>
-                    </span>
-                  ) : (
-                    <span className="tracking-widest">{'•'.repeat(Math.min(typed.length, 12))}</span>
-                  )
+              <div
+                className={cn(
+                  'spell-word-box relative rounded-xl border-2 px-2.5 py-2 font-mono font-semibold select-none cursor-pointer transition-colors duration-150',
+                  slotBoxTone(state, isActive),
+                  isActive && 'z-10 ring-[3px] ring-primary/20 shadow-md',
+                  disabled && 'cursor-not-allowed opacity-60'
+                )}
+                // Sized from the target word, not the typed one, so the slot
+                // never reflows while a word is being written into it.
+                style={{ minWidth: `calc(${Math.max(3, tw.length)}ch + 1.25rem)` }}
+              >
+                {typed ? (
+                  <TypedWord typed={tw} raw={typed} state={state} slotPos={slotPos} caret={caret} masked={masked} />
                 ) : isActive ? (
-                  <span className="text-foreground inline-flex items-center justify-center">
-                    <span>{typed.slice(0, slotPos)}</span>
-                    <span className="inline-block w-0.5 h-5 bg-primary rounded-full animate-caret-blink -mx-px" />
-                    <span>{typed.slice(slotPos)}</span>
-                  </span>
+                  caret
+                ) : guided ? (
+                  <>
+                    <span className="spell-letter text-muted-foreground/45">{tw[0] ?? ''}</span>
+                    <span className="spell-letter tracking-wider text-muted-foreground/40">
+                      {'·'.repeat(Math.max(0, Math.min(tw.length - 1, 8)))}
+                    </span>
+                  </>
                 ) : (
-                  <span className="text-foreground">{typed}</span>
-                )
-              ) : showGuide ? (
-                <span className="text-muted-foreground/45 tracking-wider">
-                  {tw[0]}
-                  {'·'.repeat(Math.max(0, Math.min(tw.length - 1, 8)))}
-                </span>
-              ) : (
-                <span className="text-muted-foreground/25">
-                  {isActive ? (
-                    <span className="inline-block w-0.5 h-5 bg-primary rounded-full animate-caret-blink align-middle" />
-                  ) : (
-                    '···'
-                  )}
-                </span>
-              )}
-              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50 num">
-                {i + 1}
-              </span>
+                  <span className="spell-letter tracking-widest text-muted-foreground/30">···</span>
+                )}
+              </div>
             </div>
           )
         })}
@@ -282,12 +273,114 @@ export function WordSlotsInput({
         autoCapitalize="off"
         spellCheck={false}
         data-testid="dictation-input"
-        aria-label={`Type word ${activeIdx + 1} of ${targetWords.length}`}
+        aria-label={`Type word ${activeIdx + 1} of ${slotCount}`}
         className="sr-only"
       />
-      <p className="text-center text-sm text-muted-foreground">
-        Word {Math.min(activeIdx + 1, targetWords.length)} of {targetWords.length} · Space locks word · Backspace or arrows navigate · Click a slot to jump · Enter checks
+      <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+        <span className="num">
+          Word {Math.min(activeIdx + 1, slotCount)} of {slotCount}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span className={cn('num', doneCount === slotCount && 'text-success')}>
+          {doneCount} correct
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>Space locks word · Enter checks · Click any word to jump</span>
+      </div>
+      {/* Announces word moves and completions only — the counter is derived from
+          whole-word state, so it never fires mid-word on every keystroke. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {`Word ${Math.min(activeIdx + 1, slotCount)} of ${slotCount}. ${doneCount} of ${slotCount} correct.`}
       </p>
     </div>
   )
+}
+
+/**
+ * The typed word split into one cell per letter, coloured against the target.
+ * Wrong letters go red; letters past the end of the word go red and underlined,
+ * because typing too many letters is a different mistake from misspelling one.
+ * The caret is woven in at the true cursor position so it sits between letters
+ * rather than after the word.
+ */
+function TypedWord({
+  typed,
+  raw,
+  state,
+  slotPos,
+  caret,
+  masked,
+}: {
+  typed: string
+  raw: string
+  state: WordState
+  slotPos: number
+  caret: React.ReactNode
+  masked: boolean
+}) {
+  const cells = compareWordLetters(typed, raw)
+
+  if (state === 'ok' && !masked) {
+    // A finished word reads better as one word than as a row of letters, so it
+    // skips the per-letter treatment entirely. The caret still has to be visible
+    // while editing, sitting before the word at position 0 and after it otherwise.
+    return (
+      <>
+        {slotPos === 0 ? caret : null}
+        <span className="spell-letter tracking-tight">{raw}</span>
+        {slotPos === 0 ? null : caret}
+      </>
+    )
+  }
+
+  // One pass over the word so the caret is inserted exactly once. Building it
+  // in two loops (typed letters, then placeholders) duplicated the caret
+  // whenever the cursor sat at the end of what had been typed.
+  const width = Math.max(typed.length, cells.length)
+  const out: React.ReactNode[] = []
+  for (let i = 0; i < width; i++) {
+    if (i === slotPos) out.push(caret)
+    const cell = cells[i]
+    out.push(
+      cell ? (
+        <span
+          key={i}
+          className={cn('spell-letter', `spell-letter-${cell.state}`, masked && 'opacity-70')}
+        >
+          {masked ? '•' : cell.char}
+        </span>
+      ) : (
+        // Faint placeholders for letters still owed, so the eye can see how much
+        // of the word is left without the answer being spelled out.
+        <span key={`p${i}`} className="spell-letter text-muted-foreground/25">
+          ·
+        </span>
+      )
+    )
+  }
+  if (slotPos >= width) out.push(caret)
+
+  return <>{out}</>
+}
+
+const STATE_WORDS: Record<WordState, string> = {
+  empty: 'empty',
+  partial: 'incomplete',
+  ok: 'correct',
+  wrong: 'has errors',
+}
+
+/** Box colour by word state; the active slot always wins over its state. */
+function slotBoxTone(state: WordState, isActive: boolean): string {
+  if (isActive) return 'border-primary bg-primary-soft'
+  switch (state) {
+    case 'ok':
+      return 'border-success/60 bg-success-soft'
+    case 'wrong':
+      return 'border-destructive/60 bg-destructive-soft'
+    case 'partial':
+      return 'border-primary-line/50 bg-primary-soft/30'
+    default:
+      return 'border-dashed border-border bg-card'
+  }
 }
