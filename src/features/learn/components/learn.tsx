@@ -34,7 +34,17 @@ const STEPS: { id: Stage; label: string }[] = [
   { id: 'result', label: 'Check' },
 ]
 
-export function LearnView() {
+export function LearnView({
+  mode = 'learn',
+  deckId = null,
+  deckName = null,
+}: {
+  // `learn` drills the global new-word queue; `deck` drills a picked deck's
+  // reviewable + new cards through the same recall → meaning → spell flow.
+  mode?: 'learn' | 'deck'
+  deckId?: string | null
+  deckName?: string | null
+} = {}) {
   const [cards, setCards] = useState<CardWithWord[]>([])
   const [loading, setLoading] = useState(true)
   const [idx, setIdx] = useState(0)
@@ -73,17 +83,26 @@ export function LearnView() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [list, settings, stats] = await Promise.all([
-        api.getNewCards(null, 10, studyCategoryRef.current?.id),
-        api.getSettings(),
-        api.getDashboardStats(),
-      ])
+      const [list, settings, stats] = mode === 'deck'
+        ? await Promise.all([
+            Promise.all([
+              api.getReviewableCards(deckId, 50),
+              api.getNewCards(deckId, 10),
+            ]).then(([a, b]) => [...a, ...b]),
+            api.getSettings(),
+            api.getDashboardStats(),
+          ])
+        : await Promise.all([
+            api.getNewCards(null, 10, studyCategoryRef.current?.id),
+            api.getSettings(),
+            api.getDashboardStats(),
+          ])
       setCards(list)
       setTtsVoice(settings.ttsVoice)
       setTtsRate(settings.ttsRate)
       setLevelBefore(stats.level.name)
       setStreak(stats.streak)
-      const start = list.length ? resumeIndexFor('learn', list.length) : 0
+      const start = list.length ? resumeIndexFor(mode, list.length) : 0
       setIdx(start)
       setStage('recall')
       setDone(false)
@@ -91,8 +110,8 @@ export function LearnView() {
       setXpEarned(0)
       if (list.length) {
         saveResume({
-          view: 'learn',
-          label: 'New words',
+          view: mode,
+          label: deckName ?? (mode === 'deck' ? 'Whole library' : 'New words'),
           detail: `${list.length - start} to go`,
           index: start,
           total: list.length,
@@ -103,7 +122,7 @@ export function LearnView() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [mode, deckId, deckName])
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load() }, 0)
@@ -160,9 +179,9 @@ export function LearnView() {
         buzz('error')
       }
       popXpFromElement(gained, primaryRef.current, pop)
-      void api.submitReview(current.word.id, correct ? 5 : 0, 'learn').catch(() => {})
+      void api.submitReview(current.word.id, correct ? 5 : 0, mode).catch(() => {})
     },
-    [current, pop]
+    [current, pop, mode]
   )
 
   const submitSpelling = useCallback(() => {
@@ -181,6 +200,29 @@ export function LearnView() {
   const next = useCallback(async () => {
     const last = idx + 1 >= cards.length
     if (last) {
+      // Deck mode is endless: finishing a pass reshuffles the very same words
+      // and starts over. Accumulated xp/correct/streak are kept so a long grind
+      // still scores. Regular Learn still ends a session on the last card.
+      if (mode === 'deck' && cards.length > 0) {
+        const reshuffled = [...cards]
+        for (let i = reshuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[reshuffled[i], reshuffled[j]] = [reshuffled[j], reshuffled[i]]
+        }
+        setCards(reshuffled)
+        setIdx(0)
+        setStage('recall')
+        setSpelling('')
+        setAttempts(0)
+        setWasCorrect(false)
+        try {
+          const stats = await api.getDashboardStats()
+          setLevelAfter(stats.level.name)
+          setStreak(stats.streak)
+          setDueAfter(stats.dueCount)
+        } catch { /* offline */ }
+        return
+      }
       try {
         const stats = await api.getDashboardStats()
         setLevelAfter(stats.level.name)
@@ -199,13 +241,13 @@ export function LearnView() {
     setAttempts(0)
     setWasCorrect(false)
     saveResume({
-      view: 'learn',
-      label: 'New words',
+      view: mode,
+      label: deckName ?? (mode === 'deck' ? 'Whole library' : 'New words'),
       detail: `${cards.length - nextIdx} to go`,
       index: nextIdx,
       total: cards.length,
     })
-  }, [cards.length, idx])
+  }, [cards, idx, mode, deckName])
 
   // Keyboard navigation & study shortcuts
   useEffect(() => {
@@ -305,7 +347,7 @@ export function LearnView() {
     return (
       <div className={studyColClassName("space-y-4")}>
         <SessionComplete
-          title="New words locked in"
+          title={mode === 'deck' ? `${deckName ?? 'Deck'} session done` : 'New words locked in'}
           correct={correctCount}
           total={cards.length}
           xp={xpEarned}
@@ -346,13 +388,15 @@ export function LearnView() {
       <div className={studyColClassName("space-y-6")}>
         <StudyScopeBanner />
         <PageHeader
-          eyebrow="Learn"
+          eyebrow={mode === 'deck' ? 'Deck' : 'Learn'}
           icon={Keyboard}
-          title={studyCategory ? `No new words in “${studyCategory.name}”` : 'No new words right now'}
+          title={studyCategory ? `No new words in “${studyCategory.name}”` : mode === 'deck' ? `No cards due in ${deckName ?? 'this deck'}` : 'No new words right now'}
           description={
             studyCategory
               ? `All words in the "${studyCategory.name}" category have already been introduced, or none have been assigned to it yet.`
-              : 'Every word in your library has already been introduced.'
+              : mode === 'deck'
+                ? 'Nothing is due and there are no new words in this deck yet. Clear the category filter elsewhere, or add words to it.'
+                : 'Every word in your library has already been introduced.'
           }
         />
         <EmptyState
@@ -405,7 +449,7 @@ export function LearnView() {
 
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="label text-primary">Learn</h1>
+          <h1 className="label text-primary">{mode === 'deck' ? `Deck · ${deckName ?? 'Whole library'}` : 'Learn'}</h1>
           <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <span className="num">
               {idx + 1} / {cards.length}
@@ -607,7 +651,11 @@ export function LearnView() {
                 </p>
               </div>
               <Button ref={primaryRef} onClick={() => void next()} data-testid="learn-next" className="mt-5 w-full cursor-pointer shadow-sm">
-                {idx + 1 >= cards.length ? 'Finish session' : 'Next word'}
+                {idx + 1 >= cards.length
+                    ? mode === 'deck'
+                      ? 'Keep studying · reshuffle'
+                      : 'Finish session'
+                    : 'Next word'}
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
               <p className="mt-3 text-center text-xs text-muted-foreground">Press Enter or Space to continue</p>

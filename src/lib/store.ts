@@ -15,6 +15,7 @@ export type ViewName =
   | 'library'
   | 'library-deck'
   | 'dictation'
+  | 'deck'
   | 'progress'
   | 'coach'
 
@@ -101,6 +102,8 @@ type AppState = RouteState & {
   coachTab: CoachTab
   quizMode: QuizMode | null
   dictationDeckId: string | null
+  /** One-shot: the deck the user tapped "Study" on — DeckDetailView enters study mode from it. */
+  studyDeckId: string | null
   /** Category-scoped studying: Learn/Review/Quiz filter to these words. */
   studyCategory: StudyCategory
   searchQuery: string
@@ -120,6 +123,7 @@ type AppState = RouteState & {
   setCoachTab: (tab: CoachTab) => void
   setQuizMode: (mode: QuizMode | null) => void
   setDictationDeckId: (dictationDeckId: string | null) => void
+  setStudyDeckId: (studyDeckId: string | null) => void
   setStudyCategory: (studyCategory: StudyCategory) => void
   setSearchQuery: (query: string) => void
   setPaletteOpen: (open: boolean) => void
@@ -140,6 +144,7 @@ export const useAppStore = create<AppState>((set) => ({
   coachTab: 'coach',
   quizMode: null,
   dictationDeckId: null,
+  studyDeckId: null,
   studyCategory: null,
   searchQuery: '',
   paletteOpen: false,
@@ -166,6 +171,7 @@ export const useAppStore = create<AppState>((set) => ({
   setCoachTab: (coachTab) => set({ coachTab }),
   setQuizMode: (quizMode) => set({ quizMode }),
   setDictationDeckId: (dictationDeckId) => set({ dictationDeckId }),
+  setStudyDeckId: (studyDeckId) => set({ studyDeckId }),
   setStudyCategory: (studyCategory) => set({ studyCategory }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
@@ -224,6 +230,7 @@ export const VIEW_TITLES: Record<ViewName, string> = {
   review: 'Review',
   quiz: 'Quiz',
   dictation: 'Dictation',
+  deck: 'Deck',
   library: 'Library',
   'library-deck': 'Deck',
   progress: 'Progress',

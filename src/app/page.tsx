@@ -35,6 +35,10 @@ const LibraryViews = dynamic(
   })),
   { loading: () => <SessionSkeleton /> },
 )
+const DeckView = dynamic(
+  () => import('@/features/deck/components/deck').then((m) => m.DeckView),
+  { loading: () => <SessionSkeleton /> },
+)
 const ProgressView = dynamic(
   () => import('@/features/progress/components/progress').then((m) => m.ProgressView),
   { loading: () => <SessionSkeleton /> },
@@ -58,6 +62,8 @@ function ViewContainer({ view }: { view: string }) {
     case 'library':
     case 'library-deck':
       return <LibraryViews view={view} />
+    case 'deck':
+      return <DeckView />
     case 'progress':
       return <ProgressView />
     case 'coach':

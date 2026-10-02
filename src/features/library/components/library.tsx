@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, BookOpen, ChevronDown, ChevronRight, Ear, FolderPlus, FolderTree,
-  Layers, Library as LibraryIcon, Pencil, Plus, Search as SearchIcon, Star, Tag,
+  Layers, Library as LibraryIcon, Pencil, Play, Plus, Search as SearchIcon, Star, Tag,
   Trash2, Upload, Volume2, X,
 } from 'lucide-react'
 import {
@@ -17,6 +17,7 @@ import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { LearnView } from '@/features/learn/components/learn'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -85,6 +86,7 @@ function DecksPanel() {
   const [expandedDeckIds, setExpandedDeckIds] = useState<Set<string>>(new Set())
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
+  const setStudyDeckId = useAppStore((s) => s.setStudyDeckId)
   const { v, t } = useMotionSafe()
 
   const deckIdSet = useMemo(() => new Set(decks.map((d) => d.id)), [decks])
@@ -386,6 +388,20 @@ function DecksPanel() {
                         >
                           <Ear className="h-3.5 w-3.5 mr-1 text-primary" />
                           Dictate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setStudyDeckId(deck.id)
+                            navigate('library-deck', { deckId: deck.id })
+                          }}
+                          className="h-8 px-2 text-xs font-medium cursor-pointer"
+                          title={`Study ${deck.name} endlessly`}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1 text-primary" />
+                          Study
                         </Button>
                         <Button
                           size="sm"
@@ -1176,7 +1192,20 @@ export function DeckDetailView() {
   const [editing, setEditing] = useState<DeckWord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; word: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Tapping "Study" on a deck row lands here ready to study: seed from the
+  // one-shot store flag, then clear it so coming back to this same deck later
+  // doesn't re-trigger. Clearing the store is not a React setState, so React
+  // 19's cascade rule doesn't apply to it.
+  const [studySeeded] = useState(() => useAppStore.getState().studyDeckId === deckId)
+  const [studying, setStudying] = useState(studySeeded)
   const { v, t } = useMotionSafe()
+  const setStudyDeckId = useAppStore((s) => s.setStudyDeckId)
+
+  useEffect(() => {
+    if (useAppStore.getState().studyDeckId === deckId) {
+      setStudyDeckId(null)
+    }
+  }, [deckId, setStudyDeckId])
 
   const activeCategoryId = categoryFilter === 'all' ? null : categoryFilter
   const filtering = !!debouncedFilter || categoryFilter !== 'all'
@@ -1373,6 +1402,25 @@ export function DeckDetailView() {
     )
   }
 
+  // Inline study mode for this deck — same recall → meaning → spell flow as
+  // Learn, but it endlessly reshuffles this deck's words until you close it.
+  if (studying) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setStudying(false)} className="-ml-2 cursor-pointer">
+            <ArrowLeft className="h-4 w-4" />
+            Back to deck
+          </Button>
+          <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+            {deck.name} · endless
+          </span>
+        </div>
+        <LearnView mode="deck" deckId={deck.id} deckName={deck.name} />
+      </div>
+    )
+  }
+
   const firstPage = rows.slice(0, DECK_PAGE_SIZE)
   const appended = rows.slice(DECK_PAGE_SIZE)
 
@@ -1431,6 +1479,15 @@ export function DeckDetailView() {
             >
               <Ear className="h-4 w-4" />
               Dictate
+            </Button>
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={() => setStudying((s) => !s)}
+              aria-pressed={studying}
+            >
+              <Play className="h-4 w-4" />
+              {studying ? 'Close study' : 'Study deck'}
             </Button>
             <Button size="sm" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />

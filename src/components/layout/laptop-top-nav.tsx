@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, BrainCircuit, ChevronRight, Compass,
-  Ear, Flame, GraduationCap, HelpCircle, Keyboard, PanelLeftClose, PanelLeftOpen, Search,
+  Ear, Flame, GraduationCap, HelpCircle, Keyboard, Layers, PanelLeftClose, PanelLeftOpen, Search,
   Sparkles, Volume2, VolumeX,
 } from 'lucide-react'
 import { useAppStore, VIEW_TITLES, type ViewName } from '@/lib/store'
@@ -70,6 +70,7 @@ export function LaptopTopNav() {
     { view: 'learn', label: 'Learn', icon: GraduationCap, count: stats?.newCount },
     { view: 'quiz', label: 'Quiz', icon: HelpCircle },
     { view: 'dictation', label: 'Dictate', icon: Ear },
+    { view: 'deck', label: 'Deck', icon: Layers },
     { view: 'library', label: 'Library', icon: BookOpen },
     { view: 'coach', label: 'Coach', icon: Sparkles },
   ]

@@ -269,7 +269,7 @@ export type DeckPageQuery = {
 export const api = {
   getNewCards: (deckId: string | null, limit = 10, categoryId?: string | null) => getJSON<CardWithWord[]>('new', { deckId, limit, categoryId }),
   getReviewableCards: (deckId: string | null, limit = 50, categoryId?: string | null) => getJSON<CardWithWord[]>('reviewable', { deckId, limit, categoryId }),
-  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' = 'review') =>
+  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' | 'deck' = 'review') =>
     withRetry(() => postJSON<{ ok: boolean }>('review', { wordId, grade, mode })).then((r) => {
       // Every answer moves XP, streaks and counts — drop cached aggregates.
       bustActions('dashboard', 'analytics')

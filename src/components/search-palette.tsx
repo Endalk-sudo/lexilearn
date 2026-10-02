@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, BookOpen, BrainCircuit, CornerDownLeft, Ear, GraduationCap,
-  Plus, Search, Sparkles, TrendingUp, Volume2,
+  Layers, Plus, Search, Sparkles, TrendingUp, Volume2,
 } from 'lucide-react'
 import { api, type WordDTO } from '@/lib/api'
 import { useAppStore, type LibraryTab, type ViewName } from '@/lib/store'
@@ -41,6 +41,7 @@ const QUICK: Quick[] = [
   { label: 'Review due cards', hint: 'Clear today\u2019s queue', icon: BrainCircuit, view: 'review' },
   { label: 'Learn new words', hint: 'Recall, listen, spell', icon: GraduationCap, view: 'learn' },
   { label: 'Dictation', hint: 'Hear it, type it', icon: Ear, view: 'dictation' },
+  { label: 'Study deck', hint: 'Drill a deck, recall, listen, spell', icon: Layers, view: 'deck' },
   { label: 'Dictionary', hint: 'Look up any word', icon: BookOpen, view: 'library', tab: 'dictionary' },
   { label: 'Progress', hint: 'Streaks and mastery', icon: TrendingUp, view: 'progress' },
   { label: 'AI Coach', hint: 'Fix mistakes, speak', icon: Sparkles, view: 'coach' },

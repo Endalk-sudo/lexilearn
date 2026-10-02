@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  BookOpen, BrainCircuit, ChevronRight, CircleCheck, Compass, Ear, Flame,
+  BookOpen, BrainCircuit, ChevronRight, CircleCheck, Compass, Ear, Flame, Layers,
   Play, ShieldCheck, Sparkles, Target, Trophy, Zap,
 } from 'lucide-react'
 import { api, type DashboardStats } from '@/lib/api'
@@ -279,6 +279,7 @@ export function TodayView() {
             <motion.section variants={v(listItem)} transition={t()} className="grid gap-2.5 sm:grid-cols-2">
               <QuietLink icon={Sparkles} label="Quick quiz" hint="Six modes, 60s speed test" onClick={() => navigate('quiz')} />
               <QuietLink icon={Ear} label="Dictation" hint="Hear it, type it" onClick={() => { setDictationDeckId(null); navigate('dictation') }} />
+              <QuietLink icon={Layers} label="Study deck" hint="Recall → listen → spell, by deck" onClick={() => navigate('deck')} />
               <QuietLink icon={BookOpen} label="Dictionary" hint="Search & explore words" onClick={() => navigate('library', { libraryTab: 'dictionary' })} />
               <QuietLink icon={Trophy} label="Progress" hint={`${stats.masteredCount} words mastered`} onClick={() => navigate('progress')} />
             </motion.section>
