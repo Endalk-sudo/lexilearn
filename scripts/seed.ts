@@ -43,19 +43,22 @@ async function main() {
   await db.delete(deck)
   await db.delete(appStat)
 
-  // 2. Read CSVs from docs/
-  const p1Path = path.resolve(process.cwd(), 'docs/headwords_sixth_thousand_part1.csv')
-  const p2Path = path.resolve(process.cwd(), 'docs/headwords_sixth_thousand_part2.csv')
+  // 2. Read CEFR-level CSVs from docs/
+  const levels = ['b1', 'b2', 'c1', 'c2'] as const
+  const csvPaths = levels.map((lvl) => path.resolve(process.cwd(), `docs/headwords_sixth_thousand_${lvl}.csv`))
 
-  if (!fs.existsSync(p1Path) || !fs.existsSync(p2Path)) {
-    throw new Error('docs/ CSV files not found!')
+  for (const p of csvPaths) {
+    if (!fs.existsSync(p)) throw new Error(`Missing CSV: ${p}`)
   }
 
-  const p1Words = parseCsv(fs.readFileSync(p1Path, 'utf8'))
-  const p2Words = parseCsv(fs.readFileSync(p2Path, 'utf8'))
+  const wordsByLevel = levels.map((lvl, i) => ({
+    level: lvl.toUpperCase(),
+    words: parseCsv(fs.readFileSync(csvPaths[i], 'utf8')),
+  }))
 
-  console.log(`  📄 Loaded Part 1: ${p1Words.length} words`)
-  console.log(`  📄 Loaded Part 2: ${p2Words.length} words`)
+  for (const { level, words } of wordsByLevel) {
+    console.log(`  📄 Loaded CEFR ${level}: ${words.length} words`)
+  }
 
   // 3. Create Parent Deck
   const parentDeckId = 'headwords-sixth-thousand'
@@ -68,29 +71,30 @@ async function main() {
   })
   console.log('  🏛️  Created parent deck: "Headwords Sixth Thousand"')
 
-  // 4. Create Sub-deck 1: Part 1
-  const subDeck1Id = 'headwords-part-1'
-  await db.insert(deck).values({
-    id: subDeck1Id,
-    name: 'Part 1 (Words 1–500)',
-    description: 'Headwords Sixth Thousand: Part 1 (abduct – involuntary).',
+  // 4. Create one sub-deck per CEFR level
+  const subDecks = wordsByLevel.map(({ level, words }) => ({
+    id: `headwords-${level.toLowerCase()}`,
+    name: `CEFR ${level} (${words.length} words)`,
+    description: `Headwords Sixth Thousand: CEFR ${level} words (${words[0]?.word ?? '?'} – ${words[words.length - 1]?.word ?? '?'}).`,
     isCustom: false,
     parentId: parentDeckId,
-  })
+    level,
+    words,
+  }))
 
-  // 5. Create Sub-deck 2: Part 2
-  const subDeck2Id = 'headwords-part-2'
-  await db.insert(deck).values({
-    id: subDeck2Id,
-    name: 'Part 2 (Words 501–1000)',
-    description: 'Headwords Sixth Thousand: Part 2 (ironed – zoom).',
-    isCustom: false,
-    parentId: parentDeckId,
-  })
-  console.log('  📂 Created sub-decks: "Part 1 (Words 1–500)" and "Part 2 (Words 501–1000)"')
+  for (const sd of subDecks) {
+    await db.insert(deck).values({
+      id: sd.id,
+      name: sd.name,
+      description: sd.description,
+      isCustom: sd.isCustom,
+      parentId: sd.parentId,
+    })
+  }
+  console.log(`  📂 Created sub-decks: ${subDecks.map((s) => s.name).join(', ')}`)
 
   // Helper to insert words inside a transaction
-  const insertWords = (words: typeof p1Words, deckId: string, label: string) => {
+  const insertWords = (words: typeof wordsByLevel[number]['words'], deckId: string, label: string) => {
     const insertStmt = sqlite.prepare(`
       INSERT INTO Word (id, word, pos, ipa, cefr, definitions, examples, synonyms, antonyms, amharic, deckId, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -123,8 +127,9 @@ async function main() {
     console.log(`  ✓ Inserted ${words.length} words into "${label}"`)
   }
 
-  insertWords(p1Words, subDeck1Id, 'Part 1 (Words 1–500)')
-  insertWords(p2Words, subDeck2Id, 'Part 2 (Words 501–1000)')
+  for (const sd of subDecks) {
+    insertWords(sd.words, sd.id, sd.name)
+  }
 
   // 6. Initialize App Stats (fresh starting stats, zero progress)
   const initialStats: Record<string, string> = {
@@ -146,10 +151,11 @@ async function main() {
     await db.insert(appStat).values({ key: k, value: v }).onConflictDoNothing()
   }
 
+  const totalWords = wordsByLevel.reduce((n, w) => n + w.words.length, 0)
   console.log(`\n🎉 Seed completed successfully!`)
-  console.log(`   Total words in database: ${p1Words.length + p2Words.length}`)
+  console.log(`   Total words in database: ${totalWords}`)
   console.log(`   Root deck: "Headwords Sixth Thousand"`)
-  console.log(`   Sub-decks: "Part 1 (Words 1–500)" & "Part 2 (Words 501–1000)"`)
+  console.log(`   Sub-decks: ${subDecks.map((s) => s.name).join(', ')}`)
   console.log(`   SRS cards / review logs: 0 (100% fresh start)`)
 }
 
