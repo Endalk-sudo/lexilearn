@@ -231,12 +231,15 @@ function DecksPanel() {
           }}
         />
       ) : (
-        <motion.ul variants={v(stagger(0.03))} initial="hidden" animate="show" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Plain list, not staggered: every card would be a live animation
+              subscription, and deck counts grow with user data. The
+              page-level fade covers the entrance. */}
           {rootDecks.map((deck) => {
             const children = subDecksByParent.get(deck.id) ?? []
             const isExpanded = expandedDeckIds.has(deck.id)
             return (
-              <motion.li key={deck.id} variants={v(listItem)} transition={t()}>
+              <li key={deck.id}>
                 <div className="surface lift group flex h-full flex-col justify-between p-4.5 rounded-xl border border-border/80 bg-card hover:border-primary-line hover:shadow-md transition-all duration-200">
                   <div>
                     <div className="flex items-start justify-between gap-2">
@@ -396,10 +399,10 @@ function DecksPanel() {
                     </div>
                   </div>
                 </div>
-              </motion.li>
+              </li>
             )
           })}
-        </motion.ul>
+        </ul>
       )}
 
       <CreateDeckDialog
@@ -1066,22 +1069,127 @@ const STATUS_VARIANT: Record<string, 'outline' | 'soft' | 'success' | 'warning'>
   mastered: 'success',
 }
 
+/** Words requested per deck-detail page. Matches the server default. */
+const DECK_PAGE_SIZE = 30
+
+type DeckWord = DeckDetail['words'][number]
+
+/**
+ * One deck row. Deliberately not a motion component: the list is paged, and
+ * animating 500 staggered rows made the last row's entrance wait 10 seconds.
+ * Only the first page is staggered now (see the two lists below).
+ */
+function DeckWordRow({
+  word,
+  onEdit,
+  onDelete,
+}: {
+  word: DeckWord
+  onEdit: (w: DeckWord) => void
+  onDelete: (w: DeckWord) => void
+}) {
+  return (
+    <div className="surface flex items-start justify-between gap-3 p-3.5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">{word.word}</span>
+          {word.pos ? (
+            <span className="text-xs italic text-muted-foreground">{word.pos}</span>
+          ) : null}
+          {word.cefr ? (
+            <Badge variant="outline" className="font-mono text-xs">
+              {word.cefr}
+            </Badge>
+          ) : null}
+          {word.srs ? (
+            <Badge variant={STATUS_VARIANT[word.srs.status] ?? 'outline'} className="capitalize">
+              {word.srs.status}
+            </Badge>
+          ) : null}
+        </div>
+        {word.definitions[0] ? (
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {word.definitions[0].text}
+          </p>
+        ) : null}
+        {word.amharic ? (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground" lang="am">{word.amharic}</p>
+        ) : null}
+        {word.categories && word.categories.length > 0 ? (
+          <div className="mt-1.5">
+            <CategoryBadgeList categories={word.categories} max={3} />
+          </div>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Hear ${word.word}`}
+          onClick={() => {
+            if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
+          }}
+        >
+          <Volume2 className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Edit ${word.word}`}
+          onClick={() => onEdit(word)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Delete ${word.word}`}
+          onClick={() => onDelete(word)}
+        >
+          <Trash2 className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function DeckDetailView() {
   const deckId = useAppStore((s) => s.deckId)
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
+  // Deck metadata + server-side counts. The word list lives in `rows` because it
+  // accumulates across pages and must not be replaced by each response.
   const [deck, setDeck] = useState<DeckDetail | null>(null)
+  const [rows, setRows] = useState<DeckWord[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [pagesLoaded, setPagesLoaded] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState(false)
   const [filter, setFilter] = useState('')
+  const [debouncedFilter, setDebouncedFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [categories, setCategories] = useState<CategorySummary[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [subDeckCreateOpen, setSubDeckCreateOpen] = useState(false)
-  const [editing, setEditing] = useState<(WordDTO & { id: string }) | null>(null)
+  const [editing, setEditing] = useState<DeckWord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; word: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const { v, t } = useMotionSafe()
+
+  const activeCategoryId = categoryFilter === 'all' ? null : categoryFilter
+  const filtering = !!debouncedFilter || categoryFilter !== 'all'
+
+  // Refs, not state: these are read inside stable callbacks and must not
+  // retrigger effects or re-create the IntersectionObserver.
+  const cursorRef = useRef<string | null>(null)
+  const inFlightRef = useRef(false)
+  const seqRef = useRef(0)
+  const listTopRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  /** Deck id whose first page has already been scrolled to; avoids a scroll on first paint. */
+  const scrolledForRef = useRef<string | null>(null)
 
   const refreshCategories = useCallback(async () => {
     try {
@@ -1093,62 +1201,134 @@ export function DeckDetailView() {
     void refreshCategories()
   }, [refreshCategories])
 
-  const loadSeqRef = useRef(0)
-  const load = useCallback(async () => {
-    if (!deckId) return
-    const seq = ++loadSeqRef.current
-    setLoading(true)
-    try {
-      const detail = await api.getDeck(deckId)
-      if (loadSeqRef.current === seq) setDeck(detail)
-    } catch {
-      if (loadSeqRef.current === seq) toast.error('Could not load that deck')
-    } finally {
-      if (loadSeqRef.current === seq) setLoading(false)
-    }
-  }, [deckId])
+  // Filtering happens server-side, so keystrokes are debounced into one
+  // round trip per pause instead of one per key.
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedFilter(filter.trim()), 250)
+    return () => window.clearTimeout(id)
+  }, [filter])
 
+  const loadFirstPage = useCallback(async () => {
+    if (!deckId) return
+    const seq = ++seqRef.current
+    setLoading(true)
+    setLoadMoreError(false)
+    try {
+      const detail = await api.getDeck(deckId, {
+        limit: DECK_PAGE_SIZE,
+        query: debouncedFilter,
+        categoryId: activeCategoryId,
+      })
+      if (seqRef.current !== seq) return
+      setDeck(detail)
+      setRows(detail.words)
+      cursorRef.current = detail.nextCursor
+      setHasMore(!!detail.nextCursor)
+      setPagesLoaded(1)
+      // A reload (filter change, new word) can leave the reader scrolled past a
+      // now-much-shorter list, so bring the list back into view.
+      if (scrolledForRef.current !== null) {
+        listTopRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
+      scrolledForRef.current = deckId
+    } catch {
+      if (seqRef.current !== seq) return
+      setDeck(null)
+      setRows([])
+      setHasMore(false)
+    } finally {
+      if (seqRef.current === seq) setLoading(false)
+    }
+  }, [deckId, debouncedFilter, activeCategoryId])
+
+  const loadMore = useCallback(async () => {
+    if (!deckId || inFlightRef.current || !cursorRef.current) return
+    const seq = seqRef.current
+    inFlightRef.current = true
+    setLoadingMore(true)
+    setLoadMoreError(false)
+    try {
+      const detail = await api.getDeck(deckId, {
+        cursor: cursorRef.current,
+        limit: DECK_PAGE_SIZE,
+        query: debouncedFilter,
+        categoryId: activeCategoryId,
+      })
+      // A filter change or deck switch started a newer request; drop this page.
+      if (seqRef.current !== seq) return
+      setDeck((prev) => prev && {
+        ...prev,
+        total: detail.total,
+        filteredTotal: detail.filteredTotal,
+        masteredCount: detail.masteredCount,
+      })
+      setRows((prev) => {
+        // Keyset pagination shouldn't repeat rows, but a row added mid-scroll
+        // can shift the boundary — dedupe so React keys stay unique.
+        const seen = new Set(prev.map((w) => w.id))
+        return prev.concat(detail.words.filter((w) => !seen.has(w.id)))
+      })
+      cursorRef.current = detail.nextCursor
+      setHasMore(!!detail.nextCursor)
+      setPagesLoaded((n) => n + 1)
+    } catch {
+      if (seqRef.current === seq) setLoadMoreError(true)
+    } finally {
+      inFlightRef.current = false
+      if (seqRef.current === seq) setLoadingMore(false)
+    }
+  }, [deckId, debouncedFilter, activeCategoryId])
+
+  // Re-runs on first load, on every filter change, and on deck switch.
   useEffect(() => {
     if (!deckId) return
-    void load()
-  }, [load, deckId])
+    void loadFirstPage()
+  }, [loadFirstPage, deckId])
 
-  const words = useMemo(() => {
-    if (!deck) return []
-    let list = deck.words
-    if (categoryFilter !== 'all') {
-      list = list.filter((w) =>
-        w.categories?.some((c) => c.id === categoryFilter || c.name.toLowerCase() === categoryFilter.toLowerCase())
-      )
-    }
-    const term = filter.trim().toLowerCase()
-    if (!term) return list
-    return list.filter(
-      (w) =>
-        w.word.toLowerCase().includes(term) ||
-        (w.definitions[0]?.text ?? '').toLowerCase().includes(term) ||
-        (w.amharic ?? '').toLowerCase().includes(term) ||
-        (w.examples[0] ?? '').toLowerCase().includes(term)
+  // Infinite scroll. `pagesLoaded` is in the deps on purpose: re-subscribing
+  // makes IntersectionObserver re-report the sentinel's current state, so a
+  // page too short to push the sentinel out of view keeps loading until it is.
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || !hasMore || loading || loadingMore) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) void loadMore()
+      },
+      { rootMargin: '600px 0px' }
     )
-  }, [deck, filter, categoryFilter])
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasMore, pagesLoaded, loading, loadingMore, loadMore])
 
   const removeWord = async (wordId: string) => {
-    const prev = deck
-    // Optimistic removal keeps filter + scroll position; reload reconciles.
-    if (prev) setDeck({ ...prev, words: prev.words.filter((w) => w.id !== wordId) })
+    // Optimistic: drop the row and keep scroll position and the loaded window.
+    setRows((prev) => prev.filter((w) => w.id !== wordId))
+    // The row was on screen, so it matched the active filter and was in the
+    // deck — both counts go down by one.
+    setDeck((prev) => prev && {
+      ...prev,
+      total: Math.max(0, prev.total - 1),
+      filteredTotal: Math.max(0, prev.filteredTotal - 1),
+    })
     setDeleting(true)
     try {
       await api.deleteWord(wordId)
       toast.success('Word removed')
-      await load()
     } catch {
-      if (prev) setDeck(prev)
       toast.error('Could not remove that word')
+      // Reconcile against the server rather than guess.
+      void loadFirstPage()
     } finally {
       setDeleting(false)
       setDeleteTarget(null)
     }
   }
+
+  /** Patch a single edited row in place — no refetch, no scroll jump. */
+  const patchWord = useCallback((updated: DeckWord) => {
+    setRows((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
+  }, [])
 
   if (!deckId) {
     return (
@@ -1182,7 +1362,7 @@ export function DeckDetailView() {
         hint="It may have been deleted — or loading failed. Your other decks are untouched."
         actionLabel="Retry"
         onAction={() => {
-          void load()
+          void loadFirstPage()
         }}
         secondary={
           <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
@@ -1193,7 +1373,8 @@ export function DeckDetailView() {
     )
   }
 
-  const mastered = deck.words.filter((w) => w.srs?.status === 'mastered').length
+  const firstPage = rows.slice(0, DECK_PAGE_SIZE)
+  const appended = rows.slice(DECK_PAGE_SIZE)
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -1228,7 +1409,7 @@ export function DeckDetailView() {
         title={deck.name}
         description={
           deck.description ||
-          `${deck.words.length} direct words · ${mastered} mastered${deck.subDecks && deck.subDecks.length > 0 ? ` · ${deck.subDecks.length} sub-deck${deck.subDecks.length === 1 ? '' : 's'}` : ''}`
+          `${deck.total} direct words · ${deck.masteredCount} mastered${deck.subDecks && deck.subDecks.length > 0 ? ` · ${deck.subDecks.length} sub-deck${deck.subDecks.length === 1 ? '' : 's'}` : ''}`
         }
         actions={
           <>
@@ -1300,7 +1481,7 @@ export function DeckDetailView() {
         </div>
       )}
 
-      {deck.words.length === 0 ? (
+      {deck.total === 0 ? (
         <EmptyState
           icon={Plus}
           title={deck.subDecks && deck.subDecks.length > 0 ? "No direct words in this deck" : "This deck is empty"}
@@ -1325,118 +1506,115 @@ export function DeckDetailView() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-48 flex-1">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter this deck…"
-                aria-label="Filter words in this deck"
-                className="pl-9"
-                autoComplete="off"
-                spellCheck={false}
-              />
+          <div ref={listTopRef} className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-48 flex-1">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Filter this deck…"
+                  aria-label="Filter words in this deck"
+                  className="pl-9"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              {categories.length > 0 && (
+                <select
+                  aria-label="Filter deck by category"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="h-9 rounded-md border border-border/80 bg-background px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <span className="text-sm text-muted-foreground num" role="status" aria-live="polite" data-testid="deck-filter-count">
+                showing {rows.length} of {deck.filteredTotal}
+                {filtering ? ` · ${deck.total} in deck` : ''}
+              </span>
             </div>
-            {categories.length > 0 && (
-              <select
-                aria-label="Filter deck by category"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-9 rounded-md border border-border/80 bg-background px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
-              >
-                <option value="all">All categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+
+            {rows.length === 0 ? (
+              loadingMore || loading ? null : (
+                <EmptyState
+                  icon={SearchIcon}
+                  title={`No words match “${filter}”`}
+                  hint="Try a shorter search, or clear the filter to see the whole deck."
+                  actionLabel="Clear filter"
+                  onAction={() => {
+                    setFilter('')
+                    setCategoryFilter('all')
+                  }}
+                />
+              )
+            ) : (
+              <>
+                {/* First page staggers in. Later pages are plain <li>s: replaying a
+                    stagger cascade per page is exactly the jank we removed. */}
+                <motion.ul variants={v(stagger(0.02))} initial="hidden" animate="show" className="space-y-2">
+                  {firstPage.map((word) => (
+                    <motion.li key={word.id} variants={v(listItem)} transition={t()} className="cv-auto">
+                      <DeckWordRow
+                        word={word}
+                        onEdit={setEditing}
+                        onDelete={(w) => setDeleteTarget({ id: w.id, word: w.word })}
+                      />
+                    </motion.li>
+                  ))}
+                </motion.ul>
+                {appended.length > 0 && (
+                  <ul className="space-y-2">
+                    {appended.map((word) => (
+                      <li key={word.id} className="cv-auto">
+                        <DeckWordRow
+                          word={word}
+                          onEdit={setEditing}
+                          onDelete={(w) => setDeleteTarget({ id: w.id, word: w.word })}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
-            <span className="text-sm text-muted-foreground num" role="status" aria-live="polite" data-testid="deck-filter-count">
-              showing {words.length} of {deck.words.length}
-            </span>
           </div>
 
-          {words.length === 0 ? (
-            <EmptyState
-              icon={SearchIcon}
-              title={`No words match “${filter}”`}
-              hint="Try a shorter search, or clear the filter to see the whole deck."
-              actionLabel="Clear filter"
-              onAction={() => {
-                setFilter('')
-                setCategoryFilter('all')
-              }}
-            />
-          ) : (
-            <motion.ul variants={v(stagger(0.02))} initial="hidden" animate="show" className="space-y-2">
-              {words.map((word) => (
-                <motion.li key={word.id} variants={v(listItem)} transition={t()} className="cv-auto">
-                  <div className="surface flex items-start justify-between gap-3 p-3.5">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold">{word.word}</span>
-                        {word.pos ? (
-                          <span className="text-xs italic text-muted-foreground">{word.pos}</span>
-                        ) : null}
-                        {word.cefr ? (
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {word.cefr}
-                          </Badge>
-                        ) : null}
-                        {word.srs ? (
-                          <Badge variant={STATUS_VARIANT[word.srs.status] ?? 'outline'} className="capitalize">
-                            {word.srs.status}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {word.definitions[0] ? (
-                        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                          {word.definitions[0].text}
-                        </p>
-                      ) : null}
-                      {word.amharic ? (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground" lang="am">{word.amharic}</p>
-                      ) : null}
-                      {word.categories && word.categories.length > 0 ? (
-                        <div className="mt-1.5">
-                          <CategoryBadgeList categories={word.categories} max={3} />
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Hear ${word.word}`}
-                        onClick={() => {
-                          if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
-                        }}
-                      >
-                        <Volume2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Edit ${word.word}`}
-                        onClick={() => setEditing({ ...word, id: word.id })}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Delete ${word.word}`}
-                        onClick={() => setDeleteTarget({ id: word.id, word: word.word })}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  </div>
-                </motion.li>
+          {/* Sentinel: loads the next page as the reader approaches the end. */}
+          {rows.length > 0 && (
+            <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+          )}
+
+          {loadingMore && (
+            <div className="space-y-2" aria-busy="true" role="status">
+              <span className="sr-only">Loading more words…</span>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-lg" />
               ))}
-            </motion.ul>
+            </div>
+          )}
+
+          {loadMoreError && (
+            <div className="surface flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/70 p-3">
+              <p className="text-sm text-muted-foreground">
+                Could not load more words — {rows.length} of {deck.filteredTotal} shown.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void loadMore()}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {!hasMore && rows.length > 0 && !filtering && (
+            <p className="py-2 text-center text-xs text-muted-foreground num">
+              That&apos;s every word in this deck.
+            </p>
           )}
 
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -1484,7 +1662,9 @@ export function DeckDetailView() {
         open={addOpen}
         onOpenChange={setAddOpen}
         onSaved={async () => {
-          await load()
+          // A new word sorts last (newest createdAt), so it isn't in any loaded
+          // page — reload from the top rather than pretend it is on screen.
+          await loadFirstPage()
           void refreshCategories()
         }}
         deckId={deck.id}
@@ -1495,8 +1675,8 @@ export function DeckDetailView() {
         onOpenChange={(open) => {
           if (!open) setEditing(null)
         }}
-        onSaved={async () => {
-          await load()
+        onSaved={async (saved) => {
+          if (saved) patchWord({ ...saved, srs: editing?.srs ?? null })
           void refreshCategories()
         }}
         deckId={deck.id}
@@ -1524,7 +1704,7 @@ export function DeckDetailView() {
         open={bulkOpen}
         onOpenChange={setBulkOpen}
         onImported={async () => {
-          await load()
+          await loadFirstPage()
           void refreshCategories()
         }}
       />
@@ -1534,8 +1714,11 @@ export function DeckDetailView() {
         initialParentId={deck.id}
         parentDecks={[{ id: deck.id, name: deck.name }]}
         onCreated={async (id) => {
-          await load()
-          if (id) navigate('library-deck', { deckId: id })
+          if (id) {
+            navigate('library-deck', { deckId: id })
+          } else {
+            await loadFirstPage()
+          }
         }}
       />
     </div>

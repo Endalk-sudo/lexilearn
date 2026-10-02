@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { api, type CategorySummary, type CategoryDTO } from '@/lib/api'
+import { api, type CategorySummary, type CategoryDTO, type WordDTO } from '@/lib/api'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -29,7 +29,12 @@ type WordValues = {
 type Props = {
   open: boolean
   onOpenChange: (v: boolean) => void
-  onSaved: () => void
+  /**
+   * Receives the saved word when editing, so a paged deck list can patch that
+   * one row in place instead of refetching (which would reset to page 1).
+   * Undefined when adding — a new word is not in any loaded page yet.
+   */
+  onSaved: (saved?: WordDTO) => void
   deckId: string
   initialValues?: WordValues & { id?: string }
 }
@@ -125,15 +130,17 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
         categoryIds: selectedCategoryIds,
       }
       if (isEdit) {
-        await api.updateWord(initialValues.id!, fields)
+        const res = await api.updateWord(initialValues.id!, fields)
         toast.success('Word updated')
+        onOpenChange(false)
+        onSaved(res.word)
       } else {
         const w = word.trim()
         await api.addWord(deckId, { word: w, ...fields })
         toast.success('Word added')
+        onOpenChange(false)
+        onSaved()
       }
-      onOpenChange(false)
-      onSaved()
     } catch {
       toast.error(isEdit ? 'Failed to update word' : 'Failed to add word')
     } finally {

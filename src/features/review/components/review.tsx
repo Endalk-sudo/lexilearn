@@ -166,14 +166,18 @@ export function ReviewView() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [due, settings, stats] = await Promise.all([
+      // The fallback is fired eagerly too: the old code awaited getNewCards
+      // only after learning `due` was empty, adding a full round trip to the
+      // slowest path (brand-new-account Review). Both reads are independent.
+      const [due, fresh, settings, stats] = await Promise.all([
         api.getReviewableCards(null, 30, studyCategory?.id),
+        api.getNewCards(null, 30, studyCategory?.id),
         api.getSettings(),
         api.getDashboardStats(),
       ])
       // Nothing due yet (brand-new account) → practice the newest words so
       // Review is never a dead end; real due cards always come first (B1).
-      const list = due.length ? due : await api.getNewCards(null, 30, studyCategory?.id)
+      const list = due.length ? due : fresh
       setCards(list)
       setTtsVoice(settings.ttsVoice)
       setTtsRate(settings.ttsRate)

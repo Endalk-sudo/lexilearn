@@ -276,8 +276,9 @@ with sync_playwright() as p:
             save_btn.first.click()
             pg.wait_for_timeout(1000)
 
-        # Verify persistence via API
-        s_after = pg.evaluate("fetch('/api/lexilearn?action=settings').then(r=>r.json())")
+        # Verify persistence via API (no-store: settings sends Cache-Control
+        # and assertions must read truth, not the browser HTTP cache)
+        s_after = pg.evaluate("fetch('/api/lexilearn?action=settings', {cache:'no-store'}).then(r=>r.json())")
         rec("7b-autospeak", "auto-speak persisted ON", s_after.get("autoSpeak") is True, f"autoSpeak={s_after.get('autoSpeak')}")
 
         # Navigate to Review and Learn with autoSpeak active to verify smooth execution
@@ -297,7 +298,7 @@ with sync_playwright() as p:
             if save_btn2.count() > 0 and save_btn2.first.is_visible():
                 save_btn2.first.click()
                 pg.wait_for_timeout(1000)
-            s_final = pg.evaluate("fetch('/api/lexilearn?action=settings').then(r=>r.json())")
+            s_final = pg.evaluate("fetch('/api/lexilearn?action=settings', {cache:'no-store'}).then(r=>r.json())")
             rec("7b-autospeak", "auto-speak restored OFF", s_final.get("autoSpeak") is False, f"autoSpeak={s_final.get('autoSpeak')}")
 
     # =========================================================================

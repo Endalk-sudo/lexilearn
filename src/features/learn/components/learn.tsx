@@ -435,6 +435,11 @@ export function LearnView() {
             showDefinition={stage !== 'recall'}
             hideWord={stage === 'spell'}
             onReveal={revealMeaning}
+            // Single TTS owner: Learn's own stage-aware effect above speaks
+            // the word on recall. Without this, WordCard's store-driven
+            // auto-speak fires a second timer for the same word and cancels
+            // the first mid-utterance (audible stutter on every card).
+            autoSpeak={false}
           />
         </motion.div>
       </AnimatePresence>

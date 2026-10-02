@@ -1,8 +1,48 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { addDays, dayKey, parseDayKey, startOfDay } from '@/lib/date'
+
+/**
+ * One calendar cell. Memoized so hovering one cell does not re-render the
+ * other 370: the parent's `hovered` state used to reconcile the whole grid on
+ * every mouseenter. Props are stable (day objects come from the grid memo),
+ * so only the two cells whose hover state flips re-render.
+ */
+const DayCell = memo(function DayCell({
+  day,
+  isFuture,
+  isHovered,
+  onHover,
+}: {
+  day: ContributionDay
+  isFuture: boolean
+  isHovered: boolean
+  onHover: (day: ContributionDay | null) => void
+}) {
+  return (
+    <div
+      className={cn(
+        'h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px] transition-all',
+        isFuture && 'opacity-30',
+        !isFuture && day.count === 0 && 'bg-muted',
+        !isHovered && 'hover:ring-1 hover:ring-foreground/30',
+        isHovered && 'ring-2 ring-foreground/60 scale-125 z-10',
+      )}
+      style={
+        day.count > 0 && !isFuture
+          ? { background: levelColor(day.count) }
+          : undefined
+      }
+      onMouseEnter={() => onHover(day)}
+      onMouseLeave={() => onHover(null)}
+      title={`${formatDate(day.date)}: ${day.count} review${day.count === 1 ? '' : 's'}${
+        day.count > 0 ? ` · ${day.correct}/${day.count} correct` : ''
+      }`}
+    />
+  )
+})
 
 export type ContributionDay = {
   date: string // YYYY-MM-DD
@@ -48,17 +88,25 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
       padded.push(byDate.get(key) ?? { date: key, count: 0, correct: 0 })
     }
 
-    // Group into weeks (columns)
-    const cols: ContributionDay[][] = []
+    // Group into weeks (columns). `future` is computed once here instead of
+    // per cell per render — the old code built 371 Dates and parsed 371 date
+    // strings on every hover re-render.
+    const todayTs = today.getTime()
+    const cols: { day: ContributionDay; future: boolean }[][] = []
     for (let w = 0; w < weeks; w++) {
-      cols.push(padded.slice(w * 7, (w + 1) * 7))
+      cols.push(
+        padded.slice(w * 7, (w + 1) * 7).map((day) => ({
+          day,
+          future: parseDayKey(day.date).getTime() > todayTs,
+        })),
+      )
     }
 
     // Month labels: a column gets a label when its first day starts a new month
     const monthLabels: (string | null)[] = cols.map((week, w) => {
-      const month = parseDayKey(week[0].date).getMonth()
+      const month = parseDayKey(week[0].day.date).getMonth()
       if (w === 0) return MONTH_LABELS[month]
-      return parseDayKey(cols[w - 1][0].date).getMonth() !== month ? MONTH_LABELS[month] : null
+      return parseDayKey(cols[w - 1][0].day.date).getMonth() !== month ? MONTH_LABELS[month] : null
     })
 
     // Aggregate stats over days inside the visible window only.
@@ -152,32 +200,15 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
             {/* Week columns */}
             {grid.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-[3px]">
-                {week.map((day, di) => {
-                  const isFuture = parseDayKey(day.date) > startOfDay(new Date())
-                  const isHovered = hovered?.date === day.date
-                  return (
-                    <div
-                      key={di}
-                      className={cn(
-                        'h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px] transition-all',
-                        isFuture && 'opacity-30',
-                        !isFuture && day.count === 0 && 'bg-muted',
-                        !isHovered && 'hover:ring-1 hover:ring-foreground/30',
-                        isHovered && 'ring-2 ring-foreground/60 scale-125 z-10',
-                      )}
-                      style={
-                        day.count > 0 && !isFuture
-                          ? { background: levelColor(day.count) }
-                          : undefined
-                      }
-                      onMouseEnter={() => setHovered(day)}
-                      onMouseLeave={() => setHovered(null)}
-                      title={`${formatDate(day.date)}: ${day.count} review${day.count === 1 ? '' : 's'}${
-                        day.count > 0 ? ` · ${day.correct}/${day.count} correct` : ''
-                      }`}
-                    />
-                  )
-                })}
+                {week.map(({ day, future }, di) => (
+                  <DayCell
+                    key={di}
+                    day={day}
+                    isFuture={future}
+                    isHovered={hovered?.date === day.date}
+                    onHover={setHovered}
+                  />
+                ))}
               </div>
             ))}
           </div>

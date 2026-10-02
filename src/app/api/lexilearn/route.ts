@@ -4,18 +4,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { deck, category, wordCategory, word, srsCard, reviewLog, quizSession, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
-import { eq, gte, lte, and, isNull, asc, desc, sql, inArray, exists } from 'drizzle-orm'
+import { eq, gte, lte, and, isNull, asc, desc, sql, inArray, exists, type SQL } from 'drizzle-orm'
 import { calculateSm2, GRADE_XP, type Grade } from '@/lib/srs'
+import { clampLimit, decodeCursor, encodeCursor } from '@/lib/paging'
 import { dayKey } from '@/lib/date'
 import { createId } from '@/db/id'
 import { z } from 'zod'
 import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion, CategoryDTO } from '@/lib/api'
-import { getStat, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
+import { getStats, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
 import { assertSameOrigin } from '@/server/csrf'
 import { isRateLimited } from '@/server/rate-limit'
 import { generateNextNode, evaluateAttempt, getMentorOverview, ensureMentorSeed, buildWeeklyCoachReport, evaluatePronunciation, evaluateNaturalness } from '@/features/coach/server/mentor-agent'
 
 // ---------- Helpers ----------
+
+/** Rows per deck-detail page, and the hard ceiling a caller may request. */
+const DECK_PAGE_SIZE = 30
+const DECK_PAGE_MAX = 100
+
 async function fetchCategoriesForWords(wordIds: string[]): Promise<Map<string, CategoryDTO[]>> {
   const map = new Map<string, CategoryDTO[]>()
   if (wordIds.length === 0) return map
@@ -141,8 +147,12 @@ function updateStreakAndXp(grade: Grade) {
 }
 
 async function submitReview(wordId: string, grade: Grade, mode: string = 'review') {
-  const existing = await db.select().from(srsCard).where(eq(srsCard.wordId, wordId)).get()
-  const wordRow = await db.select().from(word).where(eq(word.id, wordId)).get()
+  // The two reads are independent — a 20-question quiz used to pay them as 40
+  // serial round trips.
+  const [existing, wordRow] = await Promise.all([
+    db.select().from(srsCard).where(eq(srsCard.wordId, wordId)).get(),
+    db.select().from(word).where(eq(word.id, wordId)).get(),
+  ])
   if (!wordRow) return
 
   const baseCard = existing
@@ -231,21 +241,30 @@ function extractCategoryNames(w: BulkWord): string[] {
   return [...new Set(list)].slice(0, 20)
 }
 
-function ensureCategories(tx: any, names: string[]): string[] {
-  const ids: string[] = []
-  for (const raw of names) {
-    const name = raw.trim()
-    if (!name) continue
-    const existing = tx.select().from(category).where(sql`lower(${category.name}) = lower(${name})`).get()
-    if (existing) {
-      ids.push(existing.id)
-    } else {
+/**
+ * Resolve category names to ids in bulk: one SELECT for the whole table, one
+ * INSERT per genuinely new name. The old per-word helper ran a
+ * case-insensitive SELECT (which defeats the name index) per category per word
+ * — up to 2000 statements inside a 1000-word import's write lock.
+ * Matching stays case-insensitive, keyed by lowercase name.
+ */
+function resolveCategoryIds(tx: any, names: string[]): Map<string, string> {
+  const byLower = new Map<string, string>()
+  const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))]
+  if (wanted.length === 0) return byLower
+  for (const row of tx.select().from(category).all()) {
+    const key = row.name.toLowerCase()
+    if (!byLower.has(key)) byLower.set(key, row.id)
+  }
+  for (const name of wanted) {
+    const key = name.toLowerCase()
+    if (!byLower.has(key)) {
       const id = createId()
       tx.insert(category).values({ id, name }).run()
-      ids.push(id)
+      byLower.set(key, id)
     }
   }
-  return ids
+  return byLower
 }
 
 /** Map one loose word payload to an insert row. `synonyms`/`antonyms` accept
@@ -296,12 +315,15 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
     tx.insert(deck).values({ id: deckId, name, description, isCustom: true, parentId: parentId ?? null }).run()
     if (rows.length) {
       tx.insert(word).values(rows.map((r) => r.row)).run()
+      // Categories resolved once for the whole import (see addWords) instead
+      // of a SELECT per category per word inside the write lock.
+      const catIdsByName = resolveCategoryIds(tx, rows.flatMap((r) => r.rawCats))
       for (const r of rows) {
-        if (r.rawCats.length) {
-          const catIds = ensureCategories(tx, r.rawCats)
-          if (catIds.length) {
-            tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
-          }
+        const catIds = r.rawCats
+          .map((c) => catIdsByName.get(c.trim().toLowerCase()))
+          .filter((id): id is string => !!id)
+        if (catIds.length) {
+          tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
         }
       }
     }
@@ -311,9 +333,8 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
 }
 
 function pickRandom<T>(arr: T[], n: number): T[] {
-  // Fisher-Yates rather than repeated splice: pickOptions shuffles the whole
-  // distractor pool, and splice-per-element is O(n^2) — fine for a 78-word
-  // deck, painful once someone imports a few thousand words.
+  // Fisher-Yates rather than repeated splice (which is O(n^2)). Pools are
+  // bounded samples (≤300) since the quiz rewrite, so this is cheap.
   const copy = [...arr]
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -322,18 +343,39 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return copy.slice(0, Math.max(0, Math.min(n, copy.length)))
 }
 
-/** Words that carry a usable definition — the only ones a definition-based
- *  question can be built from. A word added via CSV import with no definition
- *  used to become a question whose correct answer was the empty string, with
- *  `''` sitting in the option list (F-200/F-207). */
-type QuizWord = { dto: WordDTO; firstDef: string }
+/** A client must never be able to ask for an unbounded question set. */
+const QUIZ_COUNT_MAX = 20
+/** Distractor candidates drawn from the scoped deck — bounded, not the deck. */
+const QUIZ_POOL_MAX = 200
+/** Dictionary-wide fallback candidates for tiny decks — bounded, not the table. */
+const QUIZ_GLOBAL_POOL_MAX = 100
 
-function buildWordPool(rows: (typeof word.$inferSelect)[], catMap?: Map<string, CategoryDTO[]>): { all: QuizWord[]; withDef: QuizWord[] } {
-  const all = rows.map((r) => {
-    const dto = parseWord(r, catMap?.get(r.id) ?? [])
-    return { dto, firstDef: dto.definitions[0]?.text?.trim() ?? '' }
-  })
-  return { all, withDef: all.filter((x) => x.firstDef.length > 0) }
+/** One text column sampled in SQL: the DB picks random rows, JS only parses them. */
+async function sampleColumn(
+  column: typeof word.word | typeof word.definitions,
+  scope: SQL | undefined,
+  n: number,
+): Promise<string[]> {
+  const rows = await db.select({ v: column }).from(word)
+    .where(scope)
+    .orderBy(sql`RANDOM()`)
+    .limit(n)
+  return rows.map((r) => r.v).filter((v): v is string => typeof v === 'string' && v.length > 0)
+}
+
+/**
+ * First definition text from a stored definitions blob. A word added via CSV
+ * import with no definition used to become a question whose correct answer was
+ * the empty string, with `''` sitting in the option list (F-200/F-207) —
+ * callers filter empty results out.
+ */
+function firstDefOf(definitionsJson: string): string {
+  try {
+    const arr = JSON.parse(definitionsJson) as { text?: string }[]
+    return arr[0]?.text?.trim() ?? ''
+  } catch {
+    return ''
+  }
 }
 
 /**
@@ -366,41 +408,77 @@ async function generateQuiz(deckId: string | null, mode: QuizMode, count: number
   const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
   const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
 
-  const wordRows = await db.select({ w: word, srs: srsCard })
-    .from(word)
-    .leftJoin(srsCard, eq(srsCard.wordId, word.id))
-    .where(and(deckCondition, categoryCondition))
-  const words = wordRows.map((r) => ({ ...r.w, srsCard: r.srs }))
-  if (words.length < 4) return []
-
-  const catMap = await fetchCategoriesForWords(words.map((w) => w.id))
+  // `?count=` is client-controlled; cap it so one request cannot ask for the
+  // whole dictionary as questions.
+  const want = Math.max(1, Math.min(Math.floor(count) || 10, QUIZ_COUNT_MAX))
 
   // `typing` and `spelling_bee` are graded on the word itself, so they can use
   // every word. The three multiple-choice modes need a definition on both sides.
   const definitionBased = mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round'
-  const deckPool = buildWordPool(words, catMap)
-  const sample = pickRandom(definitionBased ? deckPool.withDef : deckPool.all, Math.min(count, words.length))
+  const scope = and(
+    deckCondition,
+    categoryCondition,
+    definitionBased ? sql`${word.definitions} IS NOT NULL AND trim(${word.definitions}) != ''` : undefined,
+  )
+
+  // The question words are sampled in SQL. The old code loaded EVERY word in
+  // the deck (plus the whole dictionary for distractors) and JSON-parsed each
+  // one — a 5k-word deck parsed ~25k JSON blobs per 20-question quiz while
+  // blocking the synchronous driver's event loop.
+  const sampleRows = await db.select().from(word)
+    .where(scope)
+    .orderBy(sql`RANDOM()`)
+    .limit(want)
+  if (sampleRows.length === 0) return []
+
+  // Full DTOs (and their categories) only for the sampled question words.
+  const catMap = await fetchCategoriesForWords(sampleRows.map((w) => w.id))
+  const sample = sampleRows
+    .map((r) => {
+      const dto = parseWord(r, catMap.get(r.id) ?? [])
+      return { dto, firstDef: dto.definitions[0]?.text?.trim() ?? '' }
+    })
+    // The SQL pre-filter is on the raw column; keep only rows whose parsed
+    // first definition is actually usable.
+    .filter((x) => !definitionBased || x.firstDef.length > 0)
   if (sample.length === 0) return []
 
   // A deck can be too small to yield 4 unique options on its own. Widen the
   // distractor pool to the whole dictionary before giving up on a question,
   // so a 5-word custom deck still produces a real multiple-choice question.
+  // A deck can be too small to yield 4 unique options on its own — widen to
+  // the whole dictionary before giving up, but as bounded random samples, not
+  // the full tables. Deck-local candidates come first (same-deck distractors
+  // are harder and more relevant), dictionary-wide fallback after.
+  let ownDefs: string[] = []
+  let ownWords: string[] = []
   let globalDefPool: string[] = []
   let globalWordPool: string[] = []
   if (definitionBased) {
-    const allWordRows = deckId || categoryId
-      ? await db.select().from(word)
-      : words
-    const global = buildWordPool(allWordRows as (typeof word.$inferSelect)[])
-    globalDefPool = [...new Set(global.withDef.map((x) => x.firstDef))]
-    globalWordPool = [...new Set(global.all.map((x) => x.dto.word))]
+    const deckScope = and(deckCondition, categoryCondition)
+    const [deckDefs, deckWords, globalDefs, globalWordRows] = await Promise.all([
+      sampleColumn(word.definitions, deckScope, QUIZ_POOL_MAX),
+      sampleColumn(word.word, deckScope, QUIZ_POOL_MAX),
+      (deckId || categoryId)
+        ? sampleColumn(word.definitions, undefined, QUIZ_GLOBAL_POOL_MAX)
+        : Promise.resolve([] as string[]),
+      (deckId || categoryId)
+        ? sampleColumn(word.word, undefined, QUIZ_GLOBAL_POOL_MAX)
+        : Promise.resolve([] as string[]),
+    ])
+    const sampleDefs = new Set(sample.map((x) => x.firstDef))
+    const sampleWordStrings = new Set(sample.map((x) => x.dto.word))
+    ownDefs = [...new Set(deckDefs.map(firstDefOf).filter((d) => d.length > 0))]
+    ownWords = [...new Set(deckWords)]
+    globalDefPool = [...new Set(globalDefs.map(firstDefOf).filter((d) => d.length > 0 && !sampleDefs.has(d)))]
+    globalWordPool = [...new Set(globalWordRows.filter((w) => !sampleWordStrings.has(w)))]
   }
 
   const questions: QuizQuestion[] = []
 
   for (const { dto: wordDto, firstDef } of sample) {
     if (mode === 'mc' || mode === 'speed_round') {
-      const own = [...new Set(deckPool.withDef.filter((x) => x.dto.id !== wordDto.id).map((x) => x.firstDef))]
+      const own = ownDefs.filter((d) => d !== firstDef)
       const options = pickOptions(firstDef, [...own, ...globalDefPool], 4)
       if (!options) continue
       questions.push({
@@ -408,7 +486,7 @@ async function generateQuiz(deckId: string | null, mode: QuizMode, count: number
         promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
       })
     } else if (mode === 'reverse_mc') {
-      const own = [...new Set(deckPool.all.filter((x) => x.dto.word !== wordDto.word).map((x) => x.dto.word))]
+      const own = ownWords.filter((w) => w !== wordDto.word)
       const options = pickOptions(wordDto.word, [...own, ...globalWordPool], 4)
       if (!options) continue
       questions.push({
@@ -481,7 +559,7 @@ export async function GET(req: NextRequest) {
           wordCount: wordCountMap.get(c.id) ?? 0,
           dueCount: dueCountMap.get(c.id) ?? 0,
           newCount: newCountMap.get(c.id) ?? 0,
-        })))
+        })), { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
       case 'due': {
@@ -592,11 +670,59 @@ export async function GET(req: NextRequest) {
         const deckRow = await db.select().from(deck).where(eq(deck.id, deckId)).get()
         if (!deckRow) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
+        // ---- Paged word list (keyset cursor) ----
+        // A deck can hold 500+ words, so the list is served a page at a time.
+        // `limit + 1` is fetched to learn whether another page exists without a
+        // second COUNT query.
+        const pageLimit = clampLimit(url.searchParams.get('limit'), DECK_PAGE_SIZE, DECK_PAGE_MAX)
+        const cursor = decodeCursor(url.searchParams.get('cursor'))
+        const searchTerm = query.trim().toLowerCase()
+
+        // Same fields the deck filter box used to scan in JS: the word itself,
+        // its definitions/examples (raw JSON text — a typed query is never JSON
+        // punctuation, so no false matches) and the Amharic translation.
+        const searchCondition = searchTerm
+          ? sql`(
+              instr(lower(${word.word}), ${searchTerm}) > 0
+              or instr(lower(coalesce(${word.definitions}, '')), ${searchTerm}) > 0
+              or instr(lower(coalesce(${word.examples}, '')), ${searchTerm}) > 0
+              or instr(lower(coalesce(${word.amharic}, '')), ${searchTerm}) > 0
+            )`
+          : undefined
+        const categoryCondition = categoryId
+          ? exists(
+              db.select({ d: sql`1` })
+                .from(wordCategory)
+                .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
+            )
+          : undefined
+        // Row-value comparison: strictly after (createdAt, id). Anchoring on the
+        // last row actually sent keeps the window stable when words are added
+        // while the reader scrolls, unlike OFFSET.
+        const cursorCondition = cursor
+          ? sql`(${word.createdAt}, ${word.id}) > (${cursor.createdAt}, ${cursor.id})`
+          : undefined
+
         const wordRows = await db.select({ w: word, srs: srsCard }).from(word)
           .leftJoin(srsCard, eq(srsCard.wordId, word.id))
-          .where(eq(word.deckId, deckId))
-          .orderBy(asc(word.createdAt))
-        const catMap = await fetchCategoriesForWords(wordRows.map((r) => r.w.id))
+          .where(and(eq(word.deckId, deckId), searchCondition, categoryCondition, cursorCondition))
+          .orderBy(asc(word.createdAt), asc(word.id))
+          .limit(pageLimit + 1)
+
+        const hasMore = wordRows.length > pageLimit
+        const page = hasMore ? wordRows.slice(0, pageLimit) : wordRows
+        const catMap = await fetchCategoriesForWords(page.map((r) => r.w.id))
+
+        // Counts the client used to derive by scanning the full loaded array —
+        // which would silently report page-sized numbers once paginated.
+        const filterCondition = and(searchCondition, categoryCondition)
+        const [[totalRow], [filteredRow], [masteredRow]] = await Promise.all([
+          db.select({ n: sql<number>`count(*)` }).from(word).where(eq(word.deckId, deckId)),
+          db.select({ n: sql<number>`count(*)` }).from(word).where(and(eq(word.deckId, deckId), filterCondition)),
+          db.select({ n: sql<number>`count(*)` }).from(word)
+            .innerJoin(srsCard, eq(srsCard.wordId, word.id))
+            .where(and(eq(word.deckId, deckId), eq(srsCard.status, 'mastered'))),
+        ])
 
         const allDecks = await db.select({ id: deck.id, name: deck.name, parentId: deck.parentId, isCustom: deck.isCustom }).from(deck)
         const deckById = new Map(allDecks.map((d) => [d.id, d]))
@@ -641,6 +767,7 @@ export async function GET(req: NextRequest) {
           wordCount: getSubDeckTotalWords(cd.id),
         }))
 
+        const lastRow = page[page.length - 1]
         return NextResponse.json({
           id: deckRow.id,
           name: deckRow.name,
@@ -650,28 +777,33 @@ export async function GET(req: NextRequest) {
           parent: deckRow.parentId && deckById.has(deckRow.parentId) ? { id: deckRow.parentId, name: deckById.get(deckRow.parentId)!.name } : null,
           ancestors,
           subDecks,
-          words: wordRows.map((r) => ({ ...parseWord(r.w, catMap.get(r.w.id) ?? []), srs: r.srs ? toSrsDto(r.srs) : null })),
-        })
+          words: page.map((r) => ({ ...parseWord(r.w, catMap.get(r.w.id) ?? []), srs: r.srs ? toSrsDto(r.srs) : null })),
+          total: totalRow?.n ?? 0,
+          filteredTotal: filteredRow?.n ?? 0,
+          masteredCount: masteredRow?.n ?? 0,
+          nextCursor: hasMore && lastRow ? encodeCursor({ createdAt: lastRow.w.createdAt.getTime(), id: lastRow.w.id }) : null,
+        }, { headers: { 'Cache-Control': 'private, max-age=15' } })
       }
 
       case 'dashboard': {
         const stats = await getDashboardStats()
-        return NextResponse.json(stats)
+        return NextResponse.json(stats, { headers: { 'Cache-Control': 'private, max-age=15' } })
       }
 
       case 'analytics': {
         const analytics = await getAnalytics()
-        return NextResponse.json(analytics)
+        return NextResponse.json(analytics, { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
       case 'settings': {
+        const sStats = await getStats(['ttsVoice', 'ttsRate', 'dailyGoal', 'theme', 'autoSpeak'])
         return NextResponse.json({
-          ttsVoice: await getStat('ttsVoice', ''),
-          ttsRate: parseFloat(await getStat('ttsRate', '1')) || 1,
-          dailyGoal: parseInt(await getStat('dailyGoal', '20'), 10) || 20,
-          theme: await getStat('theme', 'system'),
-          autoSpeak: (await getStat('autoSpeak', 'false')) === 'true',
-        })
+          ttsVoice: sStats.get('ttsVoice') ?? '',
+          ttsRate: parseFloat(sStats.get('ttsRate') ?? '1') || 1,
+          dailyGoal: parseInt(sStats.get('dailyGoal') ?? '20', 10) || 20,
+          theme: sStats.get('theme') ?? 'system',
+          autoSpeak: (sStats.get('autoSpeak') ?? 'false') === 'true',
+        }, { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
       case 'quiz': {
@@ -1047,12 +1179,16 @@ export async function POST(req: NextRequest) {
         const rows = toInsert.map((w) => ({ row: toWordRow(w, parsed.data.deckId), rawCats: extractCategoryNames(w) }))
         db.transaction((tx) => {
           tx.insert(word).values(rows.map((r) => r.row)).run()
+          // Categories resolved once for the whole import (see
+          // resolveCategoryIds) instead of a SELECT per category per word
+          // inside the write lock.
+          const catIdsByName = resolveCategoryIds(tx, rows.flatMap((r) => r.rawCats))
           for (const r of rows) {
-            if (r.rawCats.length) {
-              const catIds = ensureCategories(tx, r.rawCats)
-              if (catIds.length) {
-                tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
-              }
+            const catIds = r.rawCats
+              .map((c) => catIdsByName.get(c.trim().toLowerCase()))
+              .filter((id): id is string => !!id)
+            if (catIds.length) {
+              tx.insert(wordCategory).values(catIds.map((cid) => ({ wordId: r.row.id, categoryId: cid }))).run()
             }
           }
         })
@@ -1073,9 +1209,14 @@ export async function POST(req: NextRequest) {
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
         if (!deckRow.isCustom) return NextResponse.json({ error: 'This deck ships with the app and cannot be deleted.' }, { status: 403 })
         const allIds = await getDeckAndDescendantIds(id)
-        for (const targetId of allIds.reverse()) {
-          await db.delete(deck).where(eq(deck.id, targetId))
-        }
+        // One transaction, not N: each statement was its own WAL checkpoint,
+        // and a failure part-way left a half-deleted tree. FK cascades still
+        // remove the words, cards and links.
+        db.transaction((tx) => {
+          for (const targetId of allIds.reverse()) {
+            tx.delete(deck).where(eq(deck.id, targetId)).run()
+          }
+        })
         return NextResponse.json({ ok: true })
       }
 
@@ -1096,7 +1237,14 @@ export async function POST(req: NextRequest) {
         const today = dayKey(new Date())
         const start = new Date(); start.setHours(0, 0, 0, 0)
         const end = new Date(); end.setHours(23, 59, 59, 999)
-        const logs = await db.select().from(reviewLog).where(and(gte(reviewLog.reviewedAt, start), lte(reviewLog.reviewedAt, end)))
+        // Two numbers, not every row of the day: the old code shipped all of
+        // today's full log rows into JS just to count them.
+        const [dayAgg] = await db.select({
+          total: sql<number>`count(*)`,
+          correct: sql<number>`sum(case when "isCorrect" then 1 else 0 end)`,
+        }).from(reviewLog).where(and(gte(reviewLog.reviewedAt, start), lte(reviewLog.reviewedAt, end)))
+        const dayTotal = dayAgg?.total ?? 0
+        const dayCorrect = dayAgg?.correct ?? 0
 
         // Awarding XP and marking the challenge claimed is one read-modify-write;
         // doing it in a transaction stops a double-click from paying out twice.
@@ -1112,11 +1260,10 @@ export async function POST(req: NextRequest) {
 
           // Review log only — every quiz answer is logged per question, so the
           // quizSession totals would double-count them (W1).
-          const todayCorrect = logs.filter((l) => l.isCorrect).length
           const streak = parseInt(get('streak', '0'), 10) || 0
           const targets: Record<string, { progress: number; target: number; reward: number }> = {
-            sprint: { progress: logs.length, target: 10, reward: 35 },
-            recall: { progress: todayCorrect, target: 8, reward: 40 },
+            sprint: { progress: dayTotal, target: 10, reward: 35 },
+            recall: { progress: dayCorrect, target: 8, reward: 40 },
             streak: { progress: streak > 0 ? 1 : 0, target: 1, reward: 25 },
           }
           const challenge = targets[parsed.data.key]
@@ -1200,7 +1347,10 @@ export async function POST(req: NextRequest) {
             const newWord = tx.insert(word).values(toWordRow(fields, deckId)).returning({ id: word.id }).get()
             let catIds = fields.categoryIds ?? []
             if (fields.categories && fields.categories.length) {
-              const extraIds = ensureCategories(tx, fields.categories)
+              const byLower = resolveCategoryIds(tx, fields.categories)
+              const extraIds = fields.categories
+                .map((c) => byLower.get(c.trim().toLowerCase()))
+                .filter((id): id is string => !!id)
               catIds = [...new Set([...catIds, ...extraIds])]
             }
             if (catIds.length) {
@@ -1244,7 +1394,15 @@ export async function POST(req: NextRequest) {
             }
           }
         })
-        return NextResponse.json({ ok: true })
+        // Return the saved word so the deck list can patch that one row in
+        // place. With a paged list, refetching the deck would drop the reader
+        // back to page 1 and lose their scroll position.
+        const updated = await db.select().from(word).where(eq(word.id, wordId)).get()
+        if (!updated) return NextResponse.json({ ok: true })
+        const updatedCats = categoryIds !== undefined
+          ? categoryIds.map((cid) => ({ id: cid, name: cid, color: null }))
+          : (await fetchCategoriesForWords([wordId])).get(wordId) ?? []
+        return NextResponse.json({ ok: true, word: parseWord(updated, updatedCats) })
       }
 
       case 'createCategory': {

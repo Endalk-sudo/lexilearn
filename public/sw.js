@@ -4,17 +4,28 @@
  *  - App shell (navigations): network-first, cache fallback -> the app always
  *    opens, even when the local server is unreachable.
  *  - /_next/static (immutable hashed assets): cache-first.
- *  - /api/lexilearn GETs (dashboard, decks, overview...): network-first with
- *    cached fallback -> learning and reviewing keep working offline; only AI
- *    generation needs the local Ollama process.
+ *  - /api/lexilearn GETs: network-first with cached fallback, but ONLY for an
+ *    allowlist of slowly-changing reads (decks, deck pages, dashboard,
+ *    categories, settings). Quiz draws, due queues, search results and mentor
+ *    traffic must never be served stale — replaying yesterday's due queue
+ *    offline would silently rewind progress. Entries carry a 5-minute TTL and
+ *    the cache is capped (LRU-ish) so every deck page and search keystroke
+ *    cannot grow it without bound.
  */
 
-const VERSION = 'lexilearn-v2'
+const VERSION = 'lexilearn-v3'
 const SHELL_CACHE = `${VERSION}-shell`
 const STATIC_CACHE = `${VERSION}-static`
 const API_CACHE = `${VERSION}-api`
 
-const SHELL_ASSETS = ['/', '/manifest.webmanifest', '/logo.png', '/apple-touch-icon.png']
+const SHELL_ASSETS = ['/', '/manifest.webmanifest', '/logo.png', '/apple-touch-icon.png', '/icon.svg', '/favicon.ico']
+
+// Actions safe to replay briefly offline. Everything else (quiz, reviewable,
+// due, new, search, analytics, mentor*, claimChallenge, ...) passes through
+// and fails honestly offline instead of lying with stale data.
+const CACHEABLE_ACTIONS = new Set(['decks', 'deck', 'dashboard', 'categories', 'settings'])
+const API_TTL_MS = 5 * 60 * 1000
+const API_MAX_ENTRIES = 60
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -82,18 +93,40 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 3. Read-only API data: network-first, cached fallback + background refresh.
+  // 3. Allowlisted API reads: network-first, TTL-bound cached fallback.
   if (url.pathname === '/api/lexilearn') {
+    const action = url.searchParams.get('action')
+    if (!action || !CACHEABLE_ACTIONS.has(action)) return // pass through untouched
     event.respondWith(
       fetch(req)
         .then((res) => {
           if (res.ok) {
             const copy = res.clone()
-            caches.open(API_CACHE).then((c) => c.put(req, copy)).catch(() => {})
+            caches.open(API_CACHE).then(async (c) => {
+              try {
+                // Stamp the write time: TTL is enforced on read, and the cap
+                // keeps every paged/filtered URL from growing the cache forever.
+                const body = await copy.arrayBuffer()
+                const headers = new Headers(res.headers)
+                headers.set('x-lexilearn-cached-at', String(Date.now()))
+                await c.put(req, new Response(body, { status: res.status, headers }))
+                const keys = await c.keys()
+                if (keys.length > API_MAX_ENTRIES) {
+                  await Promise.all(keys.slice(0, keys.length - API_MAX_ENTRIES).map((k) => c.delete(k)))
+                }
+              } catch { /* cache is best-effort */ }
+            }).catch(() => {})
           }
           return res
         })
-        .catch(async () => (await caches.match(req)) || new Response(JSON.stringify({ error: 'offline' }), { status: 503, headers: { 'Content-Type': 'application/json' } }))
+        .catch(async () => {
+          const hit = await caches.match(req)
+          if (hit) {
+            const cachedAt = Number(hit.headers.get('x-lexilearn-cached-at') || 0)
+            if (Date.now() - cachedAt < API_TTL_MS) return hit
+          }
+          return new Response(JSON.stringify({ error: 'offline' }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+        })
     )
   }
   // Everything else passes through untouched.

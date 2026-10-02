@@ -138,12 +138,68 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
 
 - **Database**: Composite indexes on `ReviewLog(deckId, reviewedAt)`,
   `MentorAttempt(branchId, createdAt)`, and `MentorSession(mode, createdAt)`
-  for common query patterns.
+  for common query patterns — plus `QuizSession(completedAt)`,
+  `NaturalnessAttempt(createdAt)`, `MentorNode(branchId, createdAt)`,
+  `MentorBranch(projectId, createdAt)`, `MentorAttempt(nodeId, createdAt)`,
+  `MentorTurn(branchId, createdAt)`, and `ReviewLog(grade)`. Redundant
+  prefix/duplicate indexes were dropped (`Word(deckId)`, `Word(word)`,
+  `Word(category)`, `MentorAttempt(branchId)`, `MentorSession(mode)`, the two
+  `MentorTurn` singles) — every index taxes every write. Note:
+  `drizzle-kit push` is currently broken (fails with "index already exists"
+  even on an untouched tree), so schema index changes must also be applied
+  to `db/custom.db` by hand (`CREATE/DROP INDEX IF EXISTS`) until that is
+  fixed. Three declared indexes (`ReviewLog(deckId, reviewedAt)` among them)
+  had in fact never reached the live DB for this reason.
 - **Queries**: The `decks` endpoint uses a single `GROUP BY` instead of
   fetching every word row into JS. Dashboard and analytics queries are
   range-bounded or aggregated in SQL.
-- **Caching**: The `decks` endpoint returns `Cache-Control: private, max-age=30`.
-- **Service worker**: Cache version bumped to `lexilearn-v2` with proper
+- **Deck detail pagination**: The `deck` endpoint serves words a page at a
+  time (30 by default, 100 max) behind a keyset cursor (`createdAt:id` —
+  `createdAt` alone is not unique after a bulk CSV import, so `id` breaks
+  ties). Offset pagination would duplicate/skip rows when words are added
+  mid-scroll; the cursor anchors on the last row actually sent. A composite
+  `Word(deckId, createdAt, id)` index turns each page into a range scan, and
+  `total` / `filteredTotal` / `masteredCount` come from `COUNT(*)` aggregates
+  so the client never needs the full list to render counts. Only the first
+  page animates — later pages are plain rows, because a 500-row stagger
+  cascade delayed the last row by 10 seconds.
+- **SQLite pragmas** (`src/lib/db.ts`): `synchronous = NORMAL` (FULL costs 2
+  fsyncs per commit), `busy_timeout = 5000` (a second writer waits instead of
+  `SQLITE_BUSY`), `cache_size = -64000`, `temp_store = MEMORY` (GROUP
+  BY/ORDER BY spill files are pure overhead locally), and a 64 MB
+  `journal_size_limit` so long-lived servers never replay a giant WAL.
+- **Hot queries**: quiz generation samples in SQL (`ORDER BY RANDOM() LIMIT`,
+  capped at 20 questions, bounded 200/100 distractor pools) instead of
+  loading whole decks plus the dictionary and JSON-parsing every row.
+  `claimChallenge` counts in SQL instead of shipping the day's full log rows.
+  The 8 serial `AppStat` reads per dashboard call (6 per analytics, 5 per
+  settings) are one `WHERE key IN (...)` now. Bulk/category writes resolve
+  all categories once per import instead of a `lower()` SELECT per category
+  per word inside the write lock, `submitReview` fires its two reads in
+  parallel, review's fallback fetch joins the initial `Promise.all`, and deck
+  deletes run in a single transaction.
+- **Caching, three layers**: per-action `Cache-Control` (`dashboard` 15s,
+  `analytics`/`categories`/`settings`/deck pages 15–60s; quiz/review/search
+  never cached); a client request cache in `lib/api.ts` (in-flight dedupe
+  for all GETs, 10s TTL for dashboard/decks/categories/settings, busted by
+  every mutation so writes are never followed by stale reads); and the
+  service worker (allowlist + 5-minute TTL + 60-entry cap — quiz draws, due
+  queues and search results must never be served stale offline).
+- **Bundle**: non-Today views (Quiz, Dictation, Library, Progress, Coach)
+  and the recharts charts split off via `next/dynamic`, canvas-confetti
+  loads on first celebration, and `optimizePackageImports` covers
+  recharts/lucide-react/framer-motion. First-paint JS went 1715 KB → 1024 KB
+  raw (491 KB → 308 KB gzip). `AnimatePresence mode="wait"` on the view
+  switch became `mode="sync"` so the old view's exit no longer holds the
+  new one hostage.
+- **Render**: deck grid and appended deck pages are plain rows (only the
+  first page staggers); the contribution calendar memoizes cells and
+  precomputes future-flags so hover re-renders 2 cells, not 371; the
+  progress activity feed mounts in 25-row steps; Learn owns TTS alone
+  (WordCard no longer double-speaks); the mentor keydown listener
+  subscribes once via ref.
+- **Caching**: The `decks` endpoint returns `Cache-Control: private, max-age=15`.
+- **Service worker**: Cache version bumped to `lexilearn-v3` with proper
   cleanup of stale caches on activate.
 - **DB singleton**: Fixed HMR caching issue — the DB connection is now cached
   in all environments, preventing connection leaks across hot reloads.

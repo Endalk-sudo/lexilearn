@@ -7,7 +7,7 @@
 
 import { db } from '@/lib/db'
 import { deck, word, srsCard, reviewLog, quizSession, appStat } from '@/db/schema'
-import { eq, gte, lt, lte, and, notExists, desc, sql } from 'drizzle-orm'
+import { eq, gte, lt, lte, and, inArray, notExists, desc, sql } from 'drizzle-orm'
 import { dayKey, startOfDay, addDays } from '@/lib/date'
 import { GRADE_XP, getLevel } from '@/lib/srs'
 
@@ -16,6 +16,16 @@ import { GRADE_XP, getLevel } from '@/lib/srs'
 export async function getStat(key: string, fallback = ''): Promise<string> {
   const row = await db.select().from(appStat).where(eq(appStat.key, key)).get()
   return row?.value ?? fallback
+}
+
+/**
+ * One round trip for many keys. Dashboard and analytics each used to issue 6-8
+ * serial single-key SELECTs — every navigation paid that chain in full.
+ */
+export async function getStats(keys: string[]): Promise<Map<string, string>> {
+  if (keys.length === 0) return new Map()
+  const rows = await db.select().from(appStat).where(inArray(appStat.key, keys))
+  return new Map(rows.map((r) => [r.key, r.value]))
 }
 
 export async function setStat(key: string, value: string): Promise<void> {
@@ -86,20 +96,25 @@ export async function getDashboardStats() {
       .from(srsCard).where(lt(srsCard.nextReview, addDays(startOfToday, 7))),
   ])
 
-  const streak = parseInt(await getStat('streak', '0'), 10) || 0
-  const longestStreak = parseInt(await getStat('longestStreak', '0'), 10) || 0
-  const totalXp = parseInt(await getStat('totalXp', '0'), 10) || 0
-  const totalReviews = parseInt(await getStat('totalReviews', '0'), 10) || 0
-  const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
-  const lastSessionDate = await getStat('lastSessionDate', '')
-  const streakShieldUsedDate = await getStat('streakShieldUsedDate', '')
-  const challengeClaimedDate = await getStat('challengeClaimedDate', '')
+  const stats = await getStats([
+    'streak', 'longestStreak', 'totalXp', 'totalReviews', 'totalCorrect',
+    'lastSessionDate', 'streakShieldUsedDate', 'challengeClaimedDate', 'dailyGoal',
+  ])
+  const num = (key: string, fallback = 0) => parseInt(stats.get(key) ?? '', 10) || fallback
+  const streak = num('streak')
+  const longestStreak = num('longestStreak')
+  const totalXp = num('totalXp')
+  const totalReviews = num('totalReviews')
+  const totalCorrect = num('totalCorrect')
+  const lastSessionDate = stats.get('lastSessionDate') ?? ''
+  const streakShieldUsedDate = stats.get('streakShieldUsedDate') ?? ''
+  const challengeClaimedDate = stats.get('challengeClaimedDate') ?? ''
   // XP and correct-counts come from the review log alone: every quiz answer
   // (and dictation/learn/review attempt) is logged per question, so adding the
   // quizSession totals here would double-count them (W1).
   const todayCorrect = todayLogs.filter((l) => l.isCorrect).length
   const xpToday = todayLogs.reduce((sum, l) => sum + ((GRADE_XP as Record<number, number>)[l.grade] ?? 0), 0)
-  const dailyGoal = parseInt(await getStat('dailyGoal', '20'), 10) || 20
+  const dailyGoal = num('dailyGoal', 20)
   const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0
 
   const { level, nextLevel, pct: levelPct } = getLevel(totalXp)
@@ -198,12 +213,14 @@ export async function getAnalytics() {
       .from(reviewLog).where(gte(reviewLog.reviewedAt, weekStart)),
   ])
 
-  const totalReviews = parseInt(await getStat('totalReviews', '0'), 10) || 0
-  const totalCorrect = parseInt(await getStat('totalCorrect', '0'), 10) || 0
+  const aStats = await getStats(['totalReviews', 'totalCorrect', 'totalXp', 'streak', 'longestStreak'])
+  const aNum = (key: string) => parseInt(aStats.get(key) ?? '', 10) || 0
+  const totalReviews = aNum('totalReviews')
+  const totalCorrect = aNum('totalCorrect')
   const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0
-  const totalXp = parseInt(await getStat('totalXp', '0'), 10) || 0
-  const streak = parseInt(await getStat('streak', '0'), 10) || 0
-  const longestStreak = parseInt(await getStat('longestStreak', '0'), 10) || 0
+  const totalXp = aNum('totalXp')
+  const streak = aNum('streak')
+  const longestStreak = aNum('longestStreak')
 
   const statusCount = (s: string) => statusRows.find((r) => r.status === s)?.total ?? 0
   const mastered = statusCount('mastered')

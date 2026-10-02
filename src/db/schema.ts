@@ -54,9 +54,15 @@ export const word = sqliteTable('Word', {
   deckId: text('deckId').notNull().references(() => deck.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, (t) => [
-  index('Word_deckId_idx').on(t.deckId),
-  index('Word_word_idx').on(t.word),
-  index('Word_category_idx').on(t.category),
+  // Deck detail pages walk a deck's words in (createdAt, id) order with a
+  // keyset cursor. This composite index turns each page into a range scan
+  // instead of sorting every word in the deck on every request. Its leftmost
+  // column also serves every bare `WHERE deckId = ?`, so the old single-column
+  // Word_deckId_idx was pure write overhead (same for Word_word_idx, which the
+  // unique index below already covers as its leftmost column, and
+  // Word_category_idx — the legacy Word.category display column is never used
+  // as a filter; all category queries go through the WordCategory junction).
+  index('Word_deckId_createdAt_idx').on(t.deckId, t.createdAt, t.id),
   // Prevent the same word from being added to the same deck twice.
   uniqueIndex('Word_word_deckId_unique').on(t.word, t.deckId),
 ])
@@ -99,6 +105,10 @@ export const reviewLog = sqliteTable('ReviewLog', {
   index('ReviewLog_reviewedAt_idx').on(t.reviewedAt),
   index('ReviewLog_wordId_idx').on(t.wordId),
   index('ReviewLog_deckId_reviewedAt_idx').on(t.deckId, t.reviewedAt),
+  // Analytics groups the whole table by grade on every load; a tiny
+  // low-cardinality index turns that aggregation from a full scan into an
+  // index walk.
+  index('ReviewLog_grade_idx').on(t.grade),
 ])
 
 export const quizSession = sqliteTable('QuizSession', {
@@ -109,7 +119,11 @@ export const quizSession = sqliteTable('QuizSession', {
   xpEarned: integer('xpEarned').notNull().default(0),
   startedAt: integer('startedAt', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowMs),
   completedAt: integer('completedAt', { mode: 'timestamp_ms' }),
-})
+}, (t) => [
+  // Analytics sorts `ORDER BY completedAt DESC LIMIT 20` on every load with no
+  // index — a full scan plus sort of every session ever on each visit.
+  index('QuizSession_completedAt_idx').on(t.completedAt),
+])
 
 export const appStat = sqliteTable('AppStat', {
   key: text('key').primaryKey(),
@@ -126,7 +140,8 @@ export const mentorSession = sqliteTable('MentorSession', {
   metadata: text('metadata'),
   createdAt: createdAt(),
 }, (t) => [
-  index('MentorSession_mode_idx').on(t.mode),
+  // The (mode, createdAt) composite serves bare `WHERE mode = ?` as its
+  // leftmost prefix, so the single-column mode index was write overhead.
   index('MentorSession_createdAt_idx').on(t.createdAt),
   index('MentorSession_mode_createdAt_idx').on(t.mode, t.createdAt),
 ])
@@ -177,7 +192,10 @@ export const mentorAttempt = sqliteTable('MentorAttempt', {
   createdAt: createdAt(),
 }, (t) => [
   index('MentorAttempt_nodeId_idx').on(t.nodeId),
-  index('MentorAttempt_branchId_idx').on(t.branchId),
+  // Branch history loads every attempt and sorts in JS because no
+  // (nodeId, createdAt) composite exists. The old single-column branchId
+  // index was a prefix of the composite below — dropped as write overhead.
+  index('MentorAttempt_nodeId_createdAt_idx').on(t.nodeId, t.createdAt),
   index('MentorAttempt_createdAt_idx').on(t.createdAt),
   index('MentorAttempt_branchId_createdAt_idx').on(t.branchId, t.createdAt),
 ])
@@ -202,6 +220,8 @@ export const mentorBranch = sqliteTable('MentorBranch', {
   createdAt: createdAt(),
 }, (t) => [
   index('MentorBranch_projectId_idx').on(t.projectId),
+  // Coach home sorts `WHERE projectId ORDER BY createdAt` on every open.
+  index('MentorBranch_projectId_createdAt_idx').on(t.projectId, t.createdAt),
   index('MentorBranch_parentBranchId_idx').on(t.parentBranchId),
 ])
 
@@ -218,6 +238,9 @@ export const mentorNode = sqliteTable('MentorNode', {
   createdAt: createdAt(),
 }, (t) => [
   index('MentorNode_branchId_idx').on(t.branchId),
+  // Question generation looks up `WHERE branchId ORDER BY createdAt DESC` —
+  // filtering N nodes then sorting them without index help.
+  index('MentorNode_branchId_createdAt_idx').on(t.branchId, t.createdAt),
   index('MentorNode_parentNodeId_idx').on(t.parentNodeId),
 ])
 
@@ -281,8 +304,9 @@ export const mentorTurn = sqliteTable('MentorTurn', {
   meta: text('meta'),
   createdAt: createdAt(),
 }, (t) => [
-  index('MentorTurn_branchId_idx').on(t.branchId),
-  index('MentorTurn_createdAt_idx').on(t.createdAt),
+  // History reads are always `WHERE branchId ORDER BY createdAt`; one
+  // composite replaces the two singles and halves the per-insert index cost.
+  index('MentorTurn_branchId_createdAt_idx').on(t.branchId, t.createdAt),
 ])
 
 
@@ -334,7 +358,11 @@ export const naturalnessAttempt = sqliteTable('NaturalnessAttempt', {
   alternatives: text('alternatives').notNull(),
   explanation: text('explanation').notNull(),
   createdAt: createdAt(),
-})
+}, (t) => [
+  // History reads `ORDER BY createdAt DESC LIMIT 20` — same shape as the
+  // pronunciation table's index next door.
+  index('NaturalnessAttempt_createdAt_idx').on(t.createdAt),
+])
 
 // ---------- Relations (Prisma `include` equivalents for RQB `with`) ----------
 export const deckRelations = relations(deck, ({ many, one }) => ({

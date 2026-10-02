@@ -1,10 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
-import {
-  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
 import {
   Activity, BellRing, Flame, Minus, Monitor, Moon, Plus, Save, Sparkles,
   Sun, Target, TrendingUp, Trash2, Trophy, Volume2, Zap,
@@ -41,6 +39,17 @@ import { cn } from '@/lib/utils'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
 
 const GRADE_LABELS: Record<number, string> = { 0: 'Again', 3: 'Hard', 4: 'Good', 5: 'Easy' }
+
+// recharts splits into its own chunk (see charts.tsx) — the chart areas show
+// skeletons until it arrives, so Progress paints without waiting for d3.
+const WeeklyChart = dynamic(
+  () => import('@/features/progress/components/charts').then((m) => m.WeeklyChart),
+  { loading: () => <Skeleton className="h-full w-full rounded-lg" /> },
+)
+const StatusPie = dynamic(
+  () => import('@/features/progress/components/charts').then((m) => m.StatusPie),
+  { loading: () => <Skeleton className="h-full w-full rounded-full" /> },
+)
 const PIE_TOKENS = ['var(--chart-2)', 'var(--chart-1)', 'var(--chart-3)', 'var(--chart-5)']
 const GRADE_TOKENS = ['var(--chart-4)', 'var(--chart-3)', 'var(--chart-2)', 'var(--chart-1)']
 
@@ -82,6 +91,7 @@ function OverviewPanel() {
   const [dash, setDash] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAllLogs, setShowAllLogs] = useState(false)
+  const [visibleLogCount, setVisibleLogCount] = useState(25)
   const navigate = useAppStore((s) => s.navigate)
   const { v, t } = useMotionSafe()
 
@@ -145,8 +155,13 @@ function OverviewPanel() {
 
   const masteredPct = data.totalWords ? Math.round((data.masteredCount / data.totalWords) * 100) : 0
   const gradeMax = Math.max(1, ...data.gradeDistribution.map((g) => g.count))
-  // Server returns up to 100 recent logs; show all of them when expanded (W4).
-  const logs = showAllLogs ? data.recentLogs.slice(0, 100) : data.recentLogs.slice(0, 8)
+  // Server returns up to 100 recent logs. The expanded list mounts in 25-row
+  // steps instead of all 100 in one commit — 100 rows of badges and hover
+  // handlers in a single commit drops frames on low-end devices.
+  const logs = showAllLogs
+    ? data.recentLogs.slice(0, visibleLogCount)
+    : data.recentLogs.slice(0, 8)
+  const hasMoreLogs = showAllLogs && visibleLogCount < data.recentLogs.length
   const forecast = dash?.nextReviewForecast ?? []
   const forecastMax = Math.max(1, ...forecast.map((d) => d.count))
 
@@ -171,24 +186,7 @@ function OverviewPanel() {
       <div className="surface p-5">
         <SectionHeader title="This week" description="Correct answers versus misses, per day." />
         <div className="mt-4 h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weekly} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--popover)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '0.5rem',
-                  fontSize: 12,
-                  color: 'var(--popover-foreground)',
-                }}
-              />
-              <Bar dataKey="correct" name="Correct" stackId="a" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="incorrect" name="Missed" stackId="a" fill="var(--chart-4)" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <WeeklyChart data={weekly} />
         </div>
       </div>
 
@@ -221,27 +219,7 @@ function OverviewPanel() {
             <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row">
               {/* Decorative: the legend list below conveys the same data (W8). */}
               <div className="h-44 w-44 shrink-0" aria-hidden="true">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    {/* rootTabIndex={-1}: the chart is decorative (the legend
-                        below conveys the data) and lives inside aria-hidden, so
-                        its series layer must not be keyboard-focusable. */}
-                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={44} outerRadius={66} paddingAngle={2} strokeWidth={0} rootTabIndex={-1}>
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_TOKENS[i % PIE_TOKENS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '0.5rem',
-                        fontSize: 12,
-                        color: 'var(--popover-foreground)',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <StatusPie data={pieData} tokens={PIE_TOKENS} />
               </div>
               <ul className="w-full space-y-2">
                 {pieData.map((slice, i) => (
@@ -330,10 +308,13 @@ function OverviewPanel() {
       <div className="surface p-5">
         <SectionHeader
           title="Recent activity"
-          description={showAllLogs ? 'Latest 100 reviews' : 'Your last few answers'}
+          description={showAllLogs ? `Latest ${logs.length} of ${data.recentLogs.length} reviews` : 'Your last few answers'}
           actions={
             data.recentLogs.length > 8 ? (
-              <Button variant="ghost" size="sm" onClick={() => setShowAllLogs((s) => !s)}>
+              <Button variant="ghost" size="sm" onClick={() => {
+                setShowAllLogs((s) => !s)
+                setVisibleLogCount(25)
+              }}>
                 {showAllLogs ? 'Show less' : `Show all ${Math.min(100, data.recentLogs.length)}`}
               </Button>
             ) : null
@@ -362,6 +343,16 @@ function OverviewPanel() {
             ))}
           </ul>
         )}
+        {hasMoreLogs ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => setVisibleLogCount((n) => n + 25)}
+          >
+            Show more ({data.recentLogs.length - visibleLogCount} remaining)
+          </Button>
+        ) : null}
       </div>
 
       <div className="surface p-5">

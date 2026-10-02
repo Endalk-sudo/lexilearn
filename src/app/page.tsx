@@ -1,22 +1,48 @@
 'use client'
 
 import { useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AppSidebar, MobileTabs, MobileTopBar, ShellOverlays } from '@/components/app-shell'
 import { LaptopTopNav } from '@/components/layout/laptop-top-nav'
 import { TodayView } from '@/features/today/components/today'
 import { LearnView } from '@/features/learn/components/learn'
 import { ReviewView } from '@/features/review/components/review'
-import { QuizView } from '@/features/quiz/components/quiz'
-import { DictationView } from '@/features/dictation/components/dictation'
-import { LibraryView, DeckDetailView } from '@/features/library/components/library'
-import { ProgressView } from '@/features/progress/components/progress'
-import { CoachView } from '@/features/coach/components/coach'
+import { SessionSkeleton } from '@/components/feedback/session-skeleton'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useAppStore, VIEW_TITLES } from '@/lib/store'
 import { useRouteSync } from '@/lib/router'
 import { fadeUp, useMotionSafe } from '@/lib/motion'
 import { api } from '@/lib/api'
+
+// Today / Learn / Review stay eager: they are the first paint and the two
+// hottest session paths. Everything else splits off — previously the first
+// paint downloaded and parsed recharts, dnd-kit, canvas-confetti, the whole
+// coach lab and the dictation engine even for a user who only opens Today.
+const QuizView = dynamic(
+  () => import('@/features/quiz/components/quiz').then((m) => m.QuizView),
+  { loading: () => <SessionSkeleton /> },
+)
+const DictationView = dynamic(
+  () => import('@/features/dictation/components/dictation').then((m) => m.DictationView),
+  // The component takes a deckId prop; dynamic() forwards props through.
+  { loading: () => <SessionSkeleton /> },
+)
+const LibraryViews = dynamic(
+  () => import('@/features/library/components/library').then((m) => ({
+    default: ({ view }: { view: string }) =>
+      view === 'library-deck' ? <m.DeckDetailView /> : <m.LibraryView />,
+  })),
+  { loading: () => <SessionSkeleton /> },
+)
+const ProgressView = dynamic(
+  () => import('@/features/progress/components/progress').then((m) => m.ProgressView),
+  { loading: () => <SessionSkeleton /> },
+)
+const CoachView = dynamic(
+  () => import('@/features/coach/components/coach').then((m) => m.CoachView),
+  { loading: () => <SessionSkeleton /> },
+)
 
 function ViewContainer({ view }: { view: string }) {
   const dictationDeckId = useAppStore((s) => s.dictationDeckId)
@@ -30,9 +56,8 @@ function ViewContainer({ view }: { view: string }) {
     case 'dictation':
       return <DictationView deckId={dictationDeckId} />
     case 'library':
-      return <LibraryView />
     case 'library-deck':
-      return <DeckDetailView />
+      return <LibraryViews view={view} />
     case 'progress':
       return <ProgressView />
     case 'coach':
@@ -80,7 +105,9 @@ export default function Home() {
         <LaptopTopNav />
         <main id="main" tabIndex={-1} className="flex-1 pb-28 focus:outline-none md:pb-12">
           <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
-            <AnimatePresence mode="wait">
+            {/* sync, not wait: the old view must not hold the new one hostage
+                for a full exit animation on every tab switch. */}
+            <AnimatePresence mode="sync">
               <motion.div
                 key={`${view}-${deckId ?? ''}`}
                 variants={v(fadeUp)}

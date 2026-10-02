@@ -24,7 +24,9 @@ def rec(phase, name, ok, detail=""):
 def api(pg, action, **params):
     q = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
     q = "&" + q if q else ""
-    return pg.evaluate(f"fetch('/api/lexilearn?action={action}{q}').then(r=>r.json())")
+    # no-store: slowly-changing actions send Cache-Control (private, max-age)
+    # and assertions must read truth, not the browser HTTP cache.
+    return pg.evaluate(f"fetch('/api/lexilearn?action={action}{q}', {{cache:'no-store'}}).then(r=>r.json())")
 
 def post(pg, action, body):
     """POST helper — used by the cleanup phase to undo test-created data."""

@@ -4,6 +4,25 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   allowedDevOrigins: ["localhost", "127.0.0.1"],
+  // Barrel imports (recharts, lucide-react, framer-motion) pull far more than
+  // the used members without this — it rewrites them to per-module imports.
+  experimental: {
+    optimizePackageImports: ["recharts", "lucide-react", "framer-motion"],
+  },
+  // Hashed build assets are immutable; tell every cache in the chain so they
+  // are never revalidated. Production only: in dev, chunk URLs are rewritten
+  // on every edit and a stale immutable entry serves dead code. API responses
+  // carry their own per-action Cache-Control from the route and must not be
+  // touched here.
+  async headers() {
+    if (process.env.NODE_ENV !== "production") return [];
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
   // src/db/env.ts resolves the database path from process.cwd(), which makes
   // Turbopack's file tracer pull in the entire project — including db/custom.db
   // — for the /api/lexilearn route. That both bloats the standalone bundle and

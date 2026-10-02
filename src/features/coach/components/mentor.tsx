@@ -173,6 +173,14 @@ export function MentorView() {
     nextQuestion(branchId)
   }, [branchId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Latest render values, mirrored for the keydown listener below without
+  // re-subscribing. The old effect had no dep array, so every keystroke in the
+  // answer box (each re-render) paid add/removeEventListener plus closure churn.
+  const keyStateRef = useRef({ node, feedback, selfCorrecting, requestHint, nextQuestion })
+  useEffect(() => {
+    keyStateRef.current = { node, feedback, selfCorrecting, requestHint, nextQuestion }
+  })
+
   // 'h' for a hint and 'r' for the next challenge are deliberately ignored while
   // the user is typing in any field, and never fire with modifiers held.
   useEffect(() => {
@@ -180,11 +188,12 @@ export function MentorView() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.tagName === 'SELECT')) return
-      if (e.key.toLowerCase()==='h' && node && !feedback && !selfCorrecting) { e.preventDefault(); requestHint() }
-      if (e.key.toLowerCase()==='r' && feedback) { e.preventDefault(); nextQuestion() }
+      const s = keyStateRef.current
+      if (e.key.toLowerCase()==='h' && s.node && !s.feedback && !s.selfCorrecting) { e.preventDefault(); s.requestHint() }
+      if (e.key.toLowerCase()==='r' && s.feedback) { e.preventDefault(); s.nextQuestion() }
     }
     window.addEventListener('keydown', onKey); return ()=>window.removeEventListener('keydown', onKey)
-  })
+  }, [])
 
   useEffect(() => {
     if (selfCorrecting) setTimeout(()=>correctionRef.current?.focus(), 60)

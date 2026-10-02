@@ -11,8 +11,14 @@ const buckets = new Map<string, Bucket>()
 const WINDOW_MS = 60_000 // 1 minute
 const MAX_REQUESTS = 100 // per window
 
-/** Clean up expired buckets to prevent memory leaks. */
-function cleanup() {
+/**
+ * Expired buckets are dropped lazily: the caller's own bucket is checked on
+ * every call (O(1)), and a full sweep runs amortized every 64 calls instead of
+ * scanning the whole map per request (O(ips) on every API call).
+ */
+let callsSinceSweep = 0
+
+function sweep() {
   const now = Date.now()
   for (const [key, bucket] of buckets) {
     if (bucket.resetAt < now) buckets.delete(key)
@@ -21,7 +27,10 @@ function cleanup() {
 
 export function isRateLimited(key: string): boolean {
   const now = Date.now()
-  cleanup()
+  if (++callsSinceSweep >= 64) {
+    callsSinceSweep = 0
+    sweep()
+  }
 
   const bucket = buckets.get(key)
   if (!bucket || bucket.resetAt < now) {
