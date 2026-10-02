@@ -387,6 +387,9 @@ function OverviewPanel() {
 function SettingsPanel() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [saved, setSaved] = useState<Settings | null>(null)
+  // Focus mode applies instantly (local chrome state); text scale saves with
+  // the rest of the form so it stays in sync with the server.
+  const focusMode = useAppStore((s) => s.focusMode)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [saving, setSaving] = useState(false)
   const [sound, setSound] = useState(() => isSoundEnabled())
@@ -436,7 +439,10 @@ function SettingsPanel() {
     try {
       await api.updateSettings(settings)
       setSaved(settings)
-      useAppStore.getState().setAutoSpeak(settings.autoSpeak)
+      const s = useAppStore.getState()
+      s.setAutoSpeak(settings.autoSpeak)
+      // Keep the instantly-applied chrome state in sync with what we saved.
+      s.setStudyText(settings.studyText)
       playSound('correct')
       toast.success('Preferences saved')
     } catch {
@@ -569,6 +575,60 @@ function SettingsPanel() {
           </Button>
 
           <TtsDiagnostics voiceCount={voices.length} voices={voices} />
+        </div>
+      </div>
+
+      <div className="surface p-5">
+        <SectionHeader title="Reading" description="How big study text renders in Learn, Review, Quiz and Dictation." />
+        <div className="mt-4 space-y-4">
+          <div>
+            <Label>Text size</Label>
+            <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Study text size">
+              {([
+                { value: 'comfortable', label: 'Comfortable', hint: '48px heads' },
+                { value: 'large', label: 'Large', hint: '56px heads' },
+                { value: 'largest', label: 'Largest', hint: '64px heads' },
+              ] as const).map((option) => {
+                const active = settings.studyText === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setSettings({ ...settings, studyText: option.value })}
+                    className={cn(
+                      'rounded-xl border p-3 text-left transition-all cursor-pointer',
+                      active
+                        ? 'border-primary bg-primary-soft/60 ring-1 ring-primary/40'
+                        : 'border-border hover:border-primary-line'
+                    )}
+                  >
+                    <span className="block text-sm font-semibold">{option.label}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{option.hint}</span>
+                    <span
+                      aria-hidden="true"
+                      className="mt-2 block truncate font-bold tracking-tight"
+                      style={{ fontSize: option.value === 'comfortable' ? 20 : option.value === 'large' ? 24 : 28 }}
+                    >
+                      Abduct
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3.5">
+            <div className="min-w-0">
+              <div className="text-sm font-medium">Focus mode</div>
+              <div className="text-xs text-muted-foreground">Dim the sidebar and headers while studying (toggle with F)</div>
+            </div>
+            <Switch
+              checked={focusMode}
+              aria-label="Focus mode"
+              onCheckedChange={(next) => useAppStore.getState().setFocusMode(next)}
+            />
+          </div>
         </div>
       </div>
 

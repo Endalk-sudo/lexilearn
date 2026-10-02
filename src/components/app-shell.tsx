@@ -8,7 +8,7 @@ import {
 import { motion } from 'framer-motion'
 import { SearchPalette } from '@/components/search-palette'
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog'
-import { ACCENT_THEMES, syncAccentHue, useAppStore, type ViewName } from '@/lib/store'
+import { ACCENT_THEMES, syncAccentHue, syncStudyPrefs, useAppStore, type ViewName } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { isSoundEnabled, playSound, toggleSound } from '@/lib/feel'
@@ -171,6 +171,7 @@ export function AppSidebar() {
     <aside
       data-testid="app-sidebar"
       data-collapsed={sidebarCollapsed}
+      data-focus-chrome="sidebar"
       className={cn(
         'sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-sidebar/70 backdrop-blur-xl md:flex transition-[width] duration-200 ease-in-out',
         sidebarCollapsed ? 'w-16' : 'w-60'
@@ -487,6 +488,7 @@ function AccentThemePicker() {
 
   useEffect(() => {
     syncAccentHue()
+    syncStudyPrefs()
   }, [])
 
   return (
@@ -530,6 +532,7 @@ export function MobileTopBar() {
 
   return (
     <header
+      data-focus-chrome="topbar"
       className={cn(
         'sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-background/92 px-4 py-2.5 backdrop-blur-xl transition-[box-shadow,border-color] duration-200 md:hidden',
         scrolled ? 'border-border shadow-sm' : 'border-transparent'
@@ -564,6 +567,7 @@ export function MobileTabs() {
   return (
     <nav
       aria-label="Primary"
+      data-focus-chrome="tabs"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <ul className="grid grid-cols-5">

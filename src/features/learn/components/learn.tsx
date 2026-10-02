@@ -11,6 +11,7 @@ import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
 import { WordCard } from '@/components/word-card'
 import { SpellingInput } from '@/features/learn/components/spelling-input'
+import { studyColClassName, useFirstCardHints, useStudyPrefs } from '@/features/study/ui/study-scale'
 import { SessionComplete } from '@/components/feedback/session-complete'
 import { SessionSkeleton } from '@/components/feedback/session-skeleton'
 import { EmptyState } from '@/components/feedback/empty-state'
@@ -55,6 +56,10 @@ export function LearnView() {
   const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
+  const { focusMode, setFocusMode } = useStudyPrefs()
+  // First card of the tab session teaches the keys; the rest stay clean.
+  // `dismissHints` fires on the first primary action of each card flow.
+  const [showHints, dismissHints] = useFirstCardHints()
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const primaryRef = useRef<HTMLButtonElement>(null)
@@ -122,20 +127,22 @@ export function LearnView() {
     if (!current) return
     playSound('tap')
     buzz('light')
+    dismissHints()
     setStage('meaning')
     if (!speak(current.word.word, { voice: ttsVoice, rate: ttsRate })) {
       toast.error('Pronunciation is unavailable in this browser.')
     }
-  }, [current, ttsRate, ttsVoice])
+  }, [current, ttsRate, ttsVoice, dismissHints])
 
   const startSpelling = useCallback(() => {
     if (!current) return
     playSound('tap')
     buzz('light')
+    dismissHints()
     setStage('spell')
     setSpelling('')
     setAttempts(0)
-  }, [current])
+  }, [current, dismissHints])
 
   const finishCard = useCallback(
     async (correct: boolean) => {
@@ -234,6 +241,15 @@ export function LearnView() {
 
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
+      // F: focus mode. Learn, Review and Quiz each own this key via their
+      // shared keydown listeners; nothing else claims it.
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        const next = !useAppStore.getState().focusMode
+        useAppStore.getState().setFocusMode(next)
+        return
+      }
+
       // Stage recall
       if (stage === 'recall') {
         if (e.key === ' ' || e.key === 'Enter') {
@@ -279,7 +295,7 @@ export function LearnView() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className={studyColClassName()}>
         <SessionSkeleton />
       </div>
     )
@@ -287,7 +303,7 @@ export function LearnView() {
 
   if (done) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className={studyColClassName("space-y-4")}>
         <SessionComplete
           title="New words locked in"
           correct={correctCount}
@@ -327,7 +343,7 @@ export function LearnView() {
 
   if (!cards.length) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className={studyColClassName("space-y-6")}>
         <StudyScopeBanner />
         <PageHeader
           eyebrow="Learn"
@@ -372,9 +388,20 @@ export function LearnView() {
   const progressPct = ((idx + (stage === 'result' ? 1 : 0)) / cards.length) * 100
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={studyColClassName()}>
       <XpPopLayer pops={pops} />
       <StudyScopeBanner />
+      {focusMode ? (
+        <div className="mb-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="rounded-full border border-border/70 bg-card/80 px-3.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground cursor-pointer"
+          >
+            Focus · Esc to exit
+          </button>
+        </div>
+      ) : null}
 
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -459,10 +486,11 @@ export function LearnView() {
                 Reveal meaning & listen
                 <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
-              <p className="mt-3 text-xs text-muted-foreground">
-                <span className="hidden sm:inline">Press Space to reveal meaning · swipe left</span>
-                <span className="sm:hidden">Tap to reveal meaning</span>
-              </p>
+              {showHints ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Press Space to reveal meaning · swipe left
+                </p>
+              ) : null}
             </motion.div>
           </motion.div>
         ) : null}
@@ -504,10 +532,11 @@ export function LearnView() {
                   <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                <span className="hidden sm:inline">Press Space or Enter to open typing · swipe left</span>
-                <span className="sm:hidden">Tap Start spelling to continue</span>
-              </p>
+              {showHints ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Press Space or Enter to open typing · swipe left
+                </p>
+              ) : null}
             </motion.div>
           </motion.div>
         ) : null}

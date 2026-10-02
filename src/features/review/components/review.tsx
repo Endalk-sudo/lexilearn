@@ -20,6 +20,7 @@ import { resumeIndexFor, saveResume } from '@/lib/resume'
 import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { studyColClassName, useFirstCardHints, useStudyPrefs } from '@/features/study/ui/study-scale'
 
 const GRADES: { grade: Grade; key: string; label: string; hint: string; borderCls: string; badgeCls: string; activeCls: string }[] = [
   {
@@ -113,6 +114,9 @@ export function ReviewView() {
   })
   const navigate = useAppStore((s) => s.navigate)
   const autoSpeak = useAppStore((s) => s.autoSpeak)
+  const { focusMode, setFocusMode } = useStudyPrefs()
+  // First card of the tab session teaches the keys; reveal/grade dismisses.
+  const [showHints, dismissHints] = useFirstCardHints()
   const studyCategory = useAppStore((s) => s.studyCategory)
   const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const { pops, pop } = useXpPops()
@@ -265,8 +269,25 @@ export function ReviewView() {
     if (!current) return
     playSound('flip')
     buzz('light')
+    dismissHints()
     setRevealed(true)
-  }, [current])
+  }, [current, dismissHints])
+
+  // F: focus mode — see the same handler on Learn/Quiz. One listener per
+  // mounted study page is fine: switching views unmounts the old listener.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        useAppStore.getState().setFocusMode(!useAppStore.getState().focusMode)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const undoGrade = useCallback(() => {
     if (done || history.length === 0) return
@@ -497,9 +518,20 @@ export function ReviewView() {
     : ''
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className={studyColClassName('pb-24')}>
       <XpPopLayer pops={pops} />
       <StudyScopeBanner />
+      {focusMode ? (
+        <div className="mb-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="rounded-full border border-border/70 bg-card/80 px-3.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground cursor-pointer"
+          >
+            Focus · Esc to exit
+          </button>
+        </div>
+      ) : null}
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
@@ -564,18 +596,18 @@ export function ReviewView() {
             }}
             className="touch-pan-y preserve-3d"
           >
-            <div className={cn('surface p-5 sm:p-6 transition-all duration-300', cefrGlow)}>
-              <div className="flex items-start justify-between gap-3">
+            <div className={cn('surface p-6 sm:p-8 transition-all duration-300', cefrGlow)}>
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h1 className="study-head break-words text-foreground">
                       {current.word.word}
                     </h1>
                     {current.word.cefr ? (
                       <Badge
                         variant="outline"
                         className={cn(
-                          'font-mono text-xs font-semibold px-2 py-0.5 rounded-md',
+                          'font-mono text-sm font-semibold px-2.5 py-1 rounded-md',
                           current.word.cefr.startsWith('A') && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
                           current.word.cefr.startsWith('B') && 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
                           current.word.cefr.startsWith('C') && 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400'
@@ -585,11 +617,13 @@ export function ReviewView() {
                       </Badge>
                     ) : null}
                   </div>
-                  {current.word.ipa ? (
-                    <p className="mt-1.5 font-mono text-sm text-muted-foreground">{current.word.ipa}</p>
-                  ) : null}
-                  {current.word.pos ? (
-                    <p className="mt-0.5 text-sm italic text-muted-foreground">{current.word.pos}</p>
+                  {current.word.ipa || current.word.pos ? (
+                    <p className="study-meta mt-2.5 text-muted-foreground">
+                      {current.word.pos ? (
+                        <span className="mr-3 font-semibold lowercase italic">{current.word.pos}</span>
+                      ) : null}
+                      {current.word.ipa ? <span className="font-mono">{current.word.ipa}</span> : null}
+                    </p>
                   ) : null}
                 </div>
 
@@ -630,15 +664,15 @@ export function ReviewView() {
               </div>
 
               {!revealed ? (
-                <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft text-primary shadow-xs" aria-hidden="true">
-                    <BrainCircuit className="h-5 w-5" />
+                <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 p-7 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-soft text-primary shadow-xs" aria-hidden="true">
+                    <BrainCircuit className="h-6 w-6" />
                   </div>
-                  <p className="mt-3.5 text-base font-semibold tracking-tight">Recall it before you reveal</p>
-                  <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-4 text-xl font-semibold tracking-tight">Recall it before you reveal</p>
+                  <p className="mx-auto mt-1.5 max-w-md text-base leading-relaxed text-muted-foreground">
                     Say the meaning or picture it clearly in your head, then check yourself.
                   </p>
-                  <Button size="lg" onClick={reveal} data-testid="review-reveal" className="mt-5 w-full sm:w-auto sm:px-10 cursor-pointer shadow-sm">
+                  <Button size="lg" onClick={reveal} data-testid="review-reveal" className="mt-6 h-12 w-full px-10 text-base cursor-pointer shadow-sm sm:w-auto">
                     Reveal answer
                     <kbd className="ml-2 rounded border border-primary-foreground/30 bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[10px] uppercase font-semibold">
                       Space
@@ -646,14 +680,14 @@ export function ReviewView() {
                   </Button>
                 </div>
               ) : (
-                <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="mt-5 space-y-4 border-t border-border pt-5">
+                <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="mt-6 space-y-[var(--study-gap)] border-t border-border pt-6">
                   {current.word.definitions.length > 0 ? (
                     <motion.div variants={v(listItem)} transition={t()}>
                       <div className="label text-muted-foreground">Meaning</div>
-                      <ul className="mt-2 space-y-1.5">
-                        {current.word.definitions.slice(0, 2).map((d, i) => (
-                          <li key={i} className="text-[15px] leading-relaxed">
-                            {d.pos ? <span className="mr-1.5 italic text-muted-foreground">{d.pos}</span> : null}
+                      <ul className="mt-2.5 space-y-2">
+                        {current.word.definitions.map((d, i) => (
+                          <li key={i} className="study-body">
+                            {d.pos ? <span className="mr-2 text-[0.85em] italic text-muted-foreground">{d.pos}</span> : null}
                             {d.text}
                           </li>
                         ))}
@@ -662,9 +696,9 @@ export function ReviewView() {
                   ) : null}
 
                   {current.word.amharic ? (
-                    <motion.div variants={v(listItem)} transition={t()} className="rounded-lg border border-border/60 bg-muted/40 p-3.5">
+                    <motion.div variants={v(listItem)} transition={t()} className="rounded-xl border border-border/60 bg-muted/40 p-4 sm:p-5">
                       <div className="label text-muted-foreground">Amharic (አማርኛ)</div>
-                      <div className="mt-1 text-[15px] font-medium" lang="am">{current.word.amharic}</div>
+                      <div className="study-amharic mt-1.5 font-medium" lang="am">{current.word.amharic}</div>
                     </motion.div>
                   ) : null}
 
@@ -672,18 +706,18 @@ export function ReviewView() {
                     <motion.blockquote
                       variants={v(listItem)}
                       transition={t()}
-                      className="border-l-2 border-primary-line bg-primary-soft rounded-r-lg px-3.5 py-3 text-sm italic leading-relaxed"
+                      className="border-l-2 border-primary-line bg-primary-soft rounded-r-xl px-4 py-3.5 study-example italic"
                     >
                       “{current.word.examples[0]}”
                     </motion.blockquote>
                   ) : null}
 
                   <motion.div variants={v(listItem)} transition={t()}>
-                    <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="label text-muted-foreground">How well did you recall it?</div>
-                      <span className="text-xs text-muted-foreground hidden sm:inline">Press 1–4</span>
+                      <span className="text-sm text-muted-foreground">Press 1–4</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {GRADES.map((g, i) => {
                         const interval = previewInterval(current.srs, g.grade)
                         return (
@@ -696,24 +730,24 @@ export function ReviewView() {
                             data-testid={`grade-${g.label.toLowerCase()}`}
                             onClick={(e) => void grade(g.grade, e, i)}
                             className={cn(
-                              'group relative flex min-h-[82px] flex-col justify-between rounded-xl border bg-card p-3 text-left shadow-xs transition-all duration-150 cursor-pointer active:scale-[.97]',
+                              'group relative flex min-h-[96px] flex-col justify-between rounded-xl border bg-card p-3.5 text-left shadow-xs transition-all duration-150 cursor-pointer active:scale-[.97]',
                               g.borderCls,
                               g.activeCls
                             )}
                           >
                             <div className="flex items-start justify-between w-full">
-                              <span className="text-sm font-bold tracking-tight">{g.label}</span>
+                              <span className="text-base font-bold tracking-tight">{g.label}</span>
                               <kbd className="flex h-5 w-5 items-center justify-center rounded-md border border-border/60 bg-muted/70 font-mono text-[11px] font-semibold text-muted-foreground">
                                 {g.key}
                               </kbd>
                             </div>
-                            
-                            <div className="mt-1">
-                              <span className="block text-[11px] text-muted-foreground/90 font-medium">{g.hint}</span>
+
+                            <div className="mt-1.5">
+                              <span className="block text-xs text-muted-foreground/90 font-medium">{g.hint}</span>
                               <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[11px] font-semibold text-primary/90">+{GRADE_XP[g.grade]} XP</span>
+                                <span className="text-xs font-semibold text-primary/90">+{GRADE_XP[g.grade]} XP</span>
                                 {interval ? (
-                                  <span className={cn('text-[10px] font-medium px-1.5 py-0.2 rounded', g.badgeCls)}>
+                                  <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', g.badgeCls)}>
                                     {interval}
                                   </span>
                                 ) : null}
@@ -738,48 +772,55 @@ export function ReviewView() {
         </AnimatePresence>
       </div>
 
-      {/* Floating Laptop Keyboard HUD Bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
-        <div className="flex items-center gap-3.5 flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              Space / Enter
-            </kbd>
-            <span>{revealed ? 'Good (Pass)' : 'Reveal'}</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              1–4
-            </kbd>
-            <span>Grade</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              R
-            </kbd>
-            <span>Audio</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              S
-            </kbd>
-            <span>Slow</span>
-          </span>
+      {/* Sticky keyboard HUD: pinned to the viewport bottom so the keys never
+          scroll away mid-session. First card shows the full cheat sheet;
+          after that it collapses to the essentials. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-background/90 backdrop-blur-md">
+        <div className="study-col mx-auto flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-muted-foreground sm:px-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                Space
+              </kbd>
+              <span>{revealed ? 'Good' : 'Reveal'}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                1–4
+              </kbd>
+              <span>Grade</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                R
+              </kbd>
+              <span>Audio</span>
+            </span>
+            {showHints ? (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                    S
+                  </kbd>
+                  <span>Slow</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                    M
+                  </kbd>
+                  <span>Star</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                    ⌘Z
+                  </kbd>
+                  <span>Undo</span>
+                </span>
+              </>
+            ) : null}
+          </div>
+          <span className="hidden lg:inline text-xs">Swipe card left to reveal</span>
         </div>
-        {history.length > 0 ? (
-          <button
-            type="button"
-            onClick={undoGrade}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-            title="Undo previous review (⌘Z / Ctrl+Z)"
-          >
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              ⌘Z
-            </kbd>
-            <Undo2 className="h-3 w-3" />
-            <span>Undo</span>
-          </button>
-        ) : null}
       </div>
     </div>
   )

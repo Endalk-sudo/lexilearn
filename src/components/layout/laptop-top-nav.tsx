@@ -42,12 +42,18 @@ export function LaptopTopNav() {
     return () => window.removeEventListener('lexilearn-feel', sync)
   }, [])
 
-  // Keyboard Escape navigation: go back to parent view
+  // Keyboard Escape navigation: exit focus mode first, then go back to the
+  // parent view. Focus mode wins while active — it is the modal-looking mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         const target = e.target as HTMLElement | null
         if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
+        const s = useAppStore.getState()
+        if (s.focusMode) {
+          s.setFocusMode(false)
+          return
+        }
         if (view === 'library-deck') {
           navigate('library', { libraryTab: 'decks' })
         } else if (view === 'dictation') {
@@ -69,7 +75,7 @@ export function LaptopTopNav() {
   ]
 
   return (
-    <header className="sticky top-0 z-20 hidden md:flex h-14 w-full items-center justify-between border-b border-border/70 bg-background/85 px-6 backdrop-blur-xl transition-[border-color,background-color] duration-200">
+    <header data-focus-chrome="topbar" className="sticky top-0 z-20 hidden md:flex h-14 w-full items-center justify-between border-b border-border/70 bg-background/85 px-6 backdrop-blur-xl transition-[border-color,background-color] duration-200">
       {/* Sidebar toggle & Breadcrumb Hierarchy */}
       <div className="flex items-center gap-2">
         <button

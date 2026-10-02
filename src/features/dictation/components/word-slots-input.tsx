@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { typeFeelFromKey } from '@/lib/feel'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tokenize } from '@/features/dictation/lib/dictation'
+import { spellFitClass } from '@/features/study/ui/study-scale'
 
 export type WordSlotsInputProps = {
   target: string
@@ -66,6 +67,11 @@ export function WordSlotsInput({
   }, [autoFocus, disabled, target])
 
   const currentWord = typedWords[activeIdx] ?? ''
+  // Auto-size from the longest target word so long sentences shrink to one
+  // centered line instead of wrapping or overflowing (same tiers as Learn's
+  // spelling boxes in globals.css).
+  const longestWordLen = targetWords.reduce((m, w) => Math.max(m, w.length), 0)
+  const fit = spellFitClass(longestWordLen)
 
   // Clamp cursor position when word length changes — use a ref to avoid
   // synchronous setState in effect (React 19 best practice).
@@ -172,11 +178,13 @@ export function WordSlotsInput({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-4', className)}>
+      {/* One centered line: slots never wrap mid-sentence, and the fit tier
+          shrinks long sentences instead of overflowing the card. */}
       <div
         role="group"
         aria-label="Word slots"
-        className="flex flex-wrap justify-center gap-2 sm:gap-2.5 py-1 cursor-text"
+        className={cn('spell-row spell-row-inner py-2 cursor-text', fit)}
       >
         {targetWords.map((tw, i) => {
           const typed = typedWords[i] ?? ''
@@ -193,14 +201,15 @@ export function WordSlotsInput({
               tabIndex={-1}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => focusSlot(Math.min(i, maxClickable))}
-              aria-label={`Word slot ${i + 1}${typed ? `: ${typed}` : ''}`}
+              aria-label={`Word slot ${i + 1} of ${targetWords.length}${typed ? `: ${typed}` : ''}`}
               className={cn(
-                'relative min-w-[4.5rem] sm:min-w-[5.5rem] rounded-xl border-2 px-3 py-2.5 font-mono text-base sm:text-lg font-semibold transition-all duration-150 text-center select-none cursor-pointer',
+                'spell-box relative rounded-xl border-2 px-3 font-mono font-semibold transition-all duration-150 text-center select-none cursor-pointer leading-none flex items-center justify-center',
                 isActive && 'border-primary bg-primary-soft ring-[3px] ring-primary/20 scale-[1.03] shadow-md z-10',
                 isPast && typed && 'border-success/60 bg-success-soft/40 text-foreground',
                 !isActive && !isPast && 'border-border bg-card text-muted-foreground/50 hover:border-border/80',
                 disabled && 'opacity-60 cursor-not-allowed'
               )}
+              style={{ width: 'auto', minWidth: 'var(--spell-box)' }}
             >
               {typed ? (
                 masked ? (
@@ -276,8 +285,8 @@ export function WordSlotsInput({
         aria-label={`Type word ${activeIdx + 1} of ${targetWords.length}`}
         className="sr-only"
       />
-      <p className="text-center text-xs text-muted-foreground">
-        Space locks word · Backspace or arrows navigate · Click slot to jump · Enter checks
+      <p className="text-center text-sm text-muted-foreground">
+        Word {Math.min(activeIdx + 1, targetWords.length)} of {targetWords.length} · Space locks word · Backspace or arrows navigate · Click a slot to jump · Enter checks
       </p>
     </div>
   )

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { api, type QuizMode, type QuizQuestion } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { studyColClassName } from '@/features/study/ui/study-scale'
 import { StudyScopeBanner } from '@/components/study-scope-banner'
 import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
@@ -49,7 +50,7 @@ export function QuizView() {
   const { v, t } = useMotionSafe()
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={studyColClassName('space-y-6')}>
       <StudyScopeBanner />
       {!mode ? (
         <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="space-y-6">
@@ -276,6 +277,12 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       if (target?.tagName === 'INPUT') return
+      // F: focus mode — the shared study-page shortcut.
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        useAppStore.getState().setFocusMode(!useAppStore.getState().focusMode)
+        return
+      }
       if (graded !== null || !current) return
       const options = current.options
       if (!options) return
@@ -530,16 +537,16 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
               ) : mode === 'reverse_mc' || mode === 'typing' ? (
                 <div>
                   <div className="label text-muted-foreground">Definition</div>
-                  <p className="mt-1.5 text-base leading-relaxed">{current.prompt}</p>
+                  <p className="study-body mt-2">{current.prompt}</p>
                 </div>
               ) : (
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">
+                    <h2 className="study-head break-words text-foreground">
                       {current.promptWord?.word ?? current.prompt}
                     </h2>
                     {current.promptWord?.ipa ? (
-                      <p className="mt-1 font-mono text-sm text-muted-foreground">{current.promptWord.ipa}</p>
+                      <p className="study-meta mt-2 font-mono text-muted-foreground">{current.promptWord.ipa}</p>
                     ) : null}
                   </div>
                   {current.promptWord ? (
@@ -576,7 +583,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                       }}
                       data-testid={`quiz-option-${i}`}
                       className={cn(
-                        'flex min-h-13 w-full items-center gap-3.5 rounded-xl border bg-card px-4 py-3 text-left text-sm shadow-xs transition-all duration-150 cursor-pointer active:scale-[.98]',
+                        'flex min-h-13 w-full items-center gap-3.5 rounded-xl border bg-card px-4 py-3.5 text-left text-base shadow-xs transition-all duration-150 cursor-pointer active:scale-[.98]',
                         graded === null && 'border-border hover:border-primary-line hover:bg-primary-soft/40',
                         graded !== null && isRight && 'border-success/60 bg-success-soft text-foreground ring-1 ring-success',
                         graded !== null && isPicked && !isRight && 'border-destructive/60 bg-destructive-soft text-foreground ring-1 ring-destructive'
@@ -610,7 +617,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
-                  className="w-full rounded-md border border-input bg-card p-4 text-center font-mono text-lg outline-none transition-colors focus-visible:border-primary-line"
+                  className="w-full rounded-md border border-input bg-card p-4 text-center font-mono study-body outline-none transition-colors focus-visible:border-primary-line"
                   onKeyDown={(e) => {
                     typeFeelFromKey(e)
                     if (e.key === 'Enter' && graded === null && answer.trim()) {

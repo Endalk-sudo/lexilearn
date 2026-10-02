@@ -796,13 +796,15 @@ export async function GET(req: NextRequest) {
       }
 
       case 'settings': {
-        const sStats = await getStats(['ttsVoice', 'ttsRate', 'dailyGoal', 'theme', 'autoSpeak'])
+        const sStats = await getStats(['ttsVoice', 'ttsRate', 'dailyGoal', 'theme', 'autoSpeak', 'studyText'])
+        const studyText = sStats.get('studyText')
         return NextResponse.json({
           ttsVoice: sStats.get('ttsVoice') ?? '',
           ttsRate: parseFloat(sStats.get('ttsRate') ?? '1') || 1,
           dailyGoal: parseInt(sStats.get('dailyGoal') ?? '20', 10) || 20,
           theme: sStats.get('theme') ?? 'system',
           autoSpeak: (sStats.get('autoSpeak') ?? 'false') === 'true',
+          studyText: studyText === 'large' || studyText === 'largest' ? studyText : 'comfortable',
         }, { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
@@ -916,6 +918,7 @@ const SettingsPatch = z.object({
   dailyGoal: z.number().int().min(1).max(50).optional(),
   theme: z.enum(['light', 'dark', 'system']).optional(),
   autoSpeak: z.boolean().optional(),
+  studyText: z.enum(['comfortable', 'large', 'largest']).optional(),
 })
 
 // Bulk-import shapes. `words` is capped so one request cannot pin the local
@@ -1327,6 +1330,7 @@ export async function POST(req: NextRequest) {
         if (patch.dailyGoal !== undefined) await setStat('dailyGoal', String(patch.dailyGoal))
         if (patch.theme !== undefined) await setStat('theme', patch.theme)
         if (patch.autoSpeak !== undefined) await setStat('autoSpeak', String(patch.autoSpeak))
+        if (patch.studyText !== undefined) await setStat('studyText', patch.studyText)
         return NextResponse.json({ ok: true })
       }
 

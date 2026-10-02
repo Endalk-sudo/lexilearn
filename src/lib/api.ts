@@ -204,12 +204,15 @@ export type Analytics = {
   quizSessions: { id: string; mode: string; total: number; correct: number; xpEarned: number; completedAt: string | null }[]
 }
 
+export type StudyTextScale = 'comfortable' | 'large' | 'largest'
+
 export type Settings = {
   ttsVoice: string
   ttsRate: number
   dailyGoal: number
   theme: string
   autoSpeak: boolean
+  studyText: StudyTextScale
 }
 
 export type DeckSummary = {

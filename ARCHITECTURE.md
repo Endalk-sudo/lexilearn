@@ -25,7 +25,8 @@ src/
 │   ├── library/          #   decks, dictionary, CSV import, word forms
 │   ├── progress/         #   stats, contribution calendar, settings
 │   ├── coach/            #   AI mentor (also owns server-side agent code)
-│   └── onboarding/       #   first-run onboarding flow
+│   ├── onboarding/       #   first-run onboarding flow
+│   └── study/            #   cross-page study UI (text scale, focus mode, fit tiers)
 ├── db/                   # drizzle schema, env, id helpers
 ├── server/               # server-only helpers (stats aggregation for the API)
 ├── hooks/                # shared React hooks

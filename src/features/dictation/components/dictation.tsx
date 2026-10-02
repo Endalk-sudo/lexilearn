@@ -19,6 +19,7 @@ import {
 } from '@/features/dictation/lib/dictation-audio'
 import { api, type CardWithWord, type WordDTO } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { studyColClassName } from '@/features/study/ui/study-scale'
 import { PageHeader } from '@/components/layout/page-header'
 import { NextStep } from '@/components/layout/next-step'
 import { Button } from '@/components/ui/button'
@@ -99,7 +100,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
   )
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={studyColClassName('space-y-6')}>
       <motion.div variants={v(fadeUp)} initial="hidden" animate="show" transition={t()}>
         <PageHeader
           eyebrow="Dictation"

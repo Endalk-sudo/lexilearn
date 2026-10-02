@@ -85,8 +85,12 @@ export default function Home() {
 
   useEffect(() => {
     api.getSettings().then((s) => {
-      if (s && typeof s.autoSpeak === 'boolean') {
-        useAppStore.getState().setAutoSpeak(s.autoSpeak)
+      if (!s) return
+      const st = useAppStore.getState()
+      if (typeof s.autoSpeak === 'boolean') st.setAutoSpeak(s.autoSpeak)
+      // Server wins over the localStorage guess applied by syncStudyPrefs.
+      if (s.studyText === 'large' || s.studyText === 'largest' || s.studyText === 'comfortable') {
+        st.setStudyText(s.studyText)
       }
     }).catch(() => {})
   }, [])

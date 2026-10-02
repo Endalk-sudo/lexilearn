@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils'
 import { typeFeelFromKey } from '@/lib/feel'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { spellFitClass, splitTargetWords } from '@/features/study/ui/study-scale'
 
 export type SpellingInputProps = {
   value: string
@@ -22,12 +23,6 @@ export type SpellingInputProps = {
   testId?: string
 }
 
-const SIZE = {
-  md: { box: 'h-11 w-9 sm:h-12 sm:w-10 text-lg', gap: 'gap-1.5' },
-  lg: { box: 'h-14 w-11 sm:h-16 sm:w-12 text-2xl', gap: 'gap-2' },
-  xl: { box: 'h-16 w-12 sm:h-20 sm:w-14 text-3xl', gap: 'gap-2.5' },
-} as const
-
 export function SpellingInput({
   value, onChange, target, disabled, autoFocus, onSubmit, placeholder,
   guided = false, masked = false, className, size = 'lg', testId,
@@ -37,8 +32,26 @@ export function SpellingInput({
   const [isFocused, setIsFocused] = useState<boolean>(() => !!autoFocus && !disabled)
   const targetLower = target.toLowerCase()
   const valueLower = value.toLowerCase()
-  const chars = targetLower.split('')
-  const s = SIZE[size]
+  // (`size` is kept in props for API compatibility — box sizing now comes
+  // from the target-length fit tier in globals.css, shared with dictation.)
+  void size
+  // Word groups + auto-size: multi-word targets render as grouped runs with
+  // a visible gutter, and the whole row scales down a tier per length band so
+  // a 4-letter and a 16-letter answer both fit one centered line.
+  const groups = splitTargetWords(targetLower)
+  const letterCount = targetLower.replace(/\s/g, '').length
+  const fit = spellFitClass(letterCount)
+  const multiWord = groups.length > 1
+  // Flat index of each group's first letter inside the target string, for
+  // mapping the shared cursor position onto grouped boxes.
+  const groupOffsets: number[] = []
+  {
+    let at = 0
+    for (const g of groups) {
+      groupOffsets.push(at)
+      at += g.length + 1 // +1 for the space between words
+    }
+  }
 
   useEffect(() => {
     if (autoFocus && !disabled) {
@@ -86,62 +99,75 @@ export function SpellingInput({
     }
   }
 
+  // One letter box. `flatIndex` is the position inside the whole target
+  // (spaces included) so clicks, carets and correctness keep working across
+  // word-group boundaries exactly as before.
+  const renderBox = (ch: string, flatIndex: number, guideIndex: number) => {
+    const typed = valueLower[flatIndex] ?? ''
+    const isFilled = typed !== ''
+    const isAtInsertion = isFocused && !disabled && cursorPos === flatIndex
+    const isCorrect = isFilled && typed === ch
+    const isWrong = isFilled && typed !== ch
+    const showGuide = guided && !isFilled && !isAtInsertion
+
+    return (
+      <div
+        key={flatIndex}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => handleBoxClick(flatIndex, e)}
+        className={cn(
+          'spell-box relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs cursor-pointer select-none',
+          !isFilled && !isAtInsertion && 'bg-card border-border/80 text-muted-foreground/30 hover:border-border',
+          isAtInsertion && !isFilled && 'bg-primary-soft border-primary ring-[3px] ring-primary/25 scale-105 shadow-md z-10',
+          isAtInsertion && isFilled && 'border-primary ring-[3px] ring-primary/30 scale-105 shadow-md z-10',
+          !isAtInsertion && isCorrect && 'border-success bg-success-soft text-success shadow-sm',
+          !isAtInsertion && isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
+          !isAtInsertion && isFilled && !isCorrect && !isWrong && 'border-border/90 bg-card text-foreground'
+        )}
+      >
+        {masked && isFilled ? (
+          <span className="opacity-70">•</span>
+        ) : isAtInsertion && isFilled ? (
+          <div className="relative flex items-center justify-center">
+            <span className="absolute -left-1 sm:-left-1.5 h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
+            <span className="text-foreground">{typed}</span>
+            <span className="absolute -bottom-2 inset-x-0 h-1 rounded-full bg-primary shadow-xs" />
+          </div>
+        ) : isAtInsertion && !isFilled ? (
+          <span className="inline-block h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
+        ) : isFilled ? (
+          typed
+        ) : showGuide && guideIndex === 0 ? (
+          <span className="text-muted-foreground/50 font-semibold">{ch}</span>
+        ) : showGuide ? (
+          <span className="text-muted-foreground/35 text-base">·</span>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className={cn('space-y-4', className)}>
       <div
         role="group"
         aria-label="Spelling boxes"
         onClick={focusInput}
-        className={cn('flex flex-wrap justify-center py-2 select-none cursor-text', s.gap)}
+        className={cn('spell-row spell-row-inner py-2 select-none cursor-text', fit)}
       >
-        {chars.map((ch, i) => {
-          const isSpace = ch === ' '
-          const typed = valueLower[i] ?? ''
-          const isFilled = !isSpace && typed !== ''
-          const isAtInsertion = !isSpace && isFocused && !disabled && cursorPos === i
-          const isCorrect = isFilled && typed === ch
-          const isWrong = isFilled && typed !== ch
-          const showGuide = guided && !isFilled && !isAtInsertion && !isSpace
-
-          return (
+        {groups.map((letters, gi) => (
+          <div key={gi} className="contents">
+            {gi > 0 ? (
+              <div className="spell-gap" aria-hidden="true" title="Word break" />
+            ) : null}
             <div
-              key={i}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => handleBoxClick(i, e)}
-              className={cn(
-                'relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs cursor-pointer select-none',
-                s.box,
-                isSpace && 'border-transparent bg-transparent w-4 sm:w-5 shadow-none cursor-default',
-                !isSpace && !isFilled && !isAtInsertion && 'bg-card border-border/80 text-muted-foreground/30 hover:border-border',
-                isAtInsertion && !isFilled && 'bg-primary-soft border-primary ring-[3px] ring-primary/25 scale-105 shadow-md z-10',
-                isAtInsertion && isFilled && 'border-primary ring-[3px] ring-primary/30 scale-105 shadow-md z-10',
-                !isAtInsertion && isCorrect && 'border-success bg-success-soft text-success shadow-sm',
-                !isAtInsertion && isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
-                !isAtInsertion && isFilled && !isCorrect && !isWrong && 'border-border/90 bg-card text-foreground'
-              )}
+              className="spell-group spell-row-inner"
+              role="group"
+              aria-label={multiWord ? `Word ${gi + 1} of ${groups.length}` : undefined}
             >
-              {isSpace ? (
-                '\u00A0'
-              ) : masked && isFilled ? (
-                <span className="opacity-70">•</span>
-              ) : isAtInsertion && isFilled ? (
-                <div className="relative flex items-center justify-center">
-                  <span className="absolute -left-1 sm:-left-1.5 h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
-                  <span className="text-foreground">{typed}</span>
-                  <span className="absolute -bottom-2 inset-x-0 h-1 rounded-full bg-primary shadow-xs" />
-                </div>
-              ) : isAtInsertion && !isFilled ? (
-                <span className="inline-block h-6 sm:h-7 w-0.5 rounded-full bg-primary animate-caret-blink shadow-xs" />
-              ) : isFilled ? (
-                typed
-              ) : showGuide && i === 0 ? (
-                <span className="text-muted-foreground/50 font-semibold">{ch}</span>
-              ) : showGuide ? (
-                <span className="text-muted-foreground/35 text-base">·</span>
-              ) : null}
+              {letters.map((ch, li) => renderBox(ch, groupOffsets[gi] + li, groupOffsets[gi] + li))}
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
       <input
         ref={inputRef}
@@ -197,9 +223,13 @@ export function SpellingInput({
           type="button"
           onClick={focusInput}
           disabled={disabled}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline cursor-pointer"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline cursor-pointer"
         >
-          {value ? `${value.length} / ${target.replace(/\s/g, '').length} letters (click letter to jump)` : 'Click boxes or start typing'}
+          {value
+            ? `${value.length} / ${letterCount} letters${multiWord ? ` · ${groups.length} words` : ''} (click a letter to jump)`
+            : multiWord
+              ? `${groups.length} words · click boxes or start typing`
+              : 'Click boxes or start typing'}
         </button>
       </div>
     </div>

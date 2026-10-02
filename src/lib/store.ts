@@ -57,6 +57,28 @@ export function syncAccentHue() {
   } catch {}
 }
 
+/**
+ * Apply persisted study preferences (text scale + focus mode) before first
+ * paint-dependent renders. Called once from the app shell; mirrors the
+ * accentHue sync above. Server values (from getSettings) win when they
+ * arrive — see the boot effect in app/page.tsx.
+ */
+export function syncStudyPrefs() {
+  if (typeof window === 'undefined') return
+  try {
+    const studyText = localStorage.getItem('lexilearn-study-text')
+    if (studyText === 'large' || studyText === 'largest') {
+      document.documentElement.dataset.studyText = studyText
+      useAppStore.setState({ studyText })
+    } else {
+      document.documentElement.dataset.studyText = 'comfortable'
+    }
+    const focusMode = localStorage.getItem('lexilearn-focus-mode') === 'true'
+    document.documentElement.dataset.focusMode = focusMode ? 'on' : 'off'
+    if (focusMode) useAppStore.setState({ focusMode })
+  } catch {}
+}
+
 export type NavigateOptions = {
   deckId?: string | null
   quizMode?: QuizMode | null
@@ -86,6 +108,10 @@ type AppState = RouteState & {
   shortcutsOpen: boolean
   accentHue: number
   autoSpeak: boolean
+  /** Study text scale — global preference applied to Learn/Review/Quiz/Dictation. */
+  studyText: 'comfortable' | 'large' | 'largest'
+  /** Focus mode: dims surrounding chrome and widens the study column. */
+  focusMode: boolean
   sidebarCollapsed: boolean
   navigate: (view: ViewName, opts?: NavigateOptions) => void
   applyRoute: (route: RouteState) => void
@@ -100,6 +126,8 @@ type AppState = RouteState & {
   setShortcutsOpen: (open: boolean) => void
   setAccentHue: (hue: number) => void
   setAutoSpeak: (autoSpeak: boolean) => void
+  setStudyText: (studyText: 'comfortable' | 'large' | 'largest') => void
+  setFocusMode: (focusMode: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleSidebar: () => void
 }
@@ -118,6 +146,8 @@ export const useAppStore = create<AppState>((set) => ({
   shortcutsOpen: false,
   accentHue: 259,
   autoSpeak: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-auto-speak') === 'true' : false,
+  studyText: 'comfortable',
+  focusMode: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-focus-mode') === 'true' : false,
   sidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-sidebar-collapsed') === 'true' : false,
 
   navigate: (view, opts = {}) =>
@@ -153,6 +183,20 @@ export const useAppStore = create<AppState>((set) => ({
       window.dispatchEvent(new CustomEvent('lexilearn-settings-changed', { detail: { autoSpeak } }))
     }
     set({ autoSpeak })
+  },
+  setStudyText: (studyText) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lexilearn-study-text', studyText)
+      document.documentElement.dataset.studyText = studyText
+    }
+    set({ studyText })
+  },
+  setFocusMode: (focusMode) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lexilearn-focus-mode', String(focusMode))
+      document.documentElement.dataset.focusMode = focusMode ? 'on' : 'off'
+    }
+    set({ focusMode })
   },
   setSidebarCollapsed: (sidebarCollapsed) => {
     if (typeof window !== 'undefined') {
