@@ -459,7 +459,7 @@ export function LearnView() {
             word={current.word}
             ttsVoice={ttsVoice}
             ttsRate={ttsRate}
-            showDefinition={stage !== 'recall'}
+            showDefinition={stage !== 'recall' && stage !== 'spell'}
             hideWord={stage === 'spell'}
             onReveal={revealMeaning}
             // Single TTS owner: Learn's own stage-aware effect above speaks

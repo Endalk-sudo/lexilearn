@@ -240,20 +240,40 @@ export function WordCard({
             </AnimatePresence>
           </>
         ) : (
-          <div className="flex items-center justify-between gap-3 py-1">
-            <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">Audio Prompt</span>
-            <Button size="sm" variant="outline" onClick={hear} className="h-9 text-sm px-3.5 cursor-pointer">
-              <Volume2 className="h-4 w-4 mr-1.5" />
-              Listen
-            </Button>
+          <div className="space-y-4 py-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">Audio Prompt</span>
+              <Button size="sm" variant="outline" onClick={hear} className="h-9 text-sm px-3.5 cursor-pointer">
+                <Volume2 className="h-4 w-4 mr-1.5" />
+                Listen
+              </Button>
+            </div>
+
+            {/* Leak-safe hint during spelling: POS, first letter and length
+              * scaffolded recall without revealing the word. No definition,
+              * no example, no Amharic — those all contain the answer. */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              {word.pos ? (
+                <span className="font-semibold lowercase italic">{word.pos}</span>
+              ) : null}
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-amber-500 shrink-0" aria-hidden="true" />
+                Starts with <strong className="font-semibold text-foreground uppercase">{word.word[0]}</strong>
+              </span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground/80">
+                {word.word.length} letters
+              </span>
+            </div>
           </div>
         )}
 
         {/* Revealed Content: everything stacked — meaning, examples, Amharic,
             then synonyms / antonyms / origin. No tabs: on a desktop you read
-            with your eyes, and the global study scale keeps it legible. */}
+            with your eyes, and the global study scale keeps it legible.
+            Gated on !hideWord: during spelling the hideWord branch above is
+            the whole card, so no peeking at the answer. */}
         <AnimatePresence mode="wait" initial={false}>
-          {revealed ? (
+          {!hideWord && revealed ? (
             <motion.div
               key="answer"
               variants={v(revealBlock)}
@@ -370,7 +390,7 @@ export function WordCard({
                 ) : null}
               </div>
             </motion.div>
-          ) : (
+          ) : !hideWord ? (
             <motion.div
               key="hidden"
               variants={v(fadeInish)}
@@ -391,7 +411,7 @@ export function WordCard({
                 <span className="ml-auto hidden font-mono text-xs text-muted-foreground sm:inline">SPACE</span>
               </Button>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </div>
     </Card>
