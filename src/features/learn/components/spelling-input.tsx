@@ -116,13 +116,13 @@ export function SpellingInput({
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => handleBoxClick(flatIndex, e)}
         className={cn(
-          'spell-box relative flex items-center justify-center rounded-xl border-2 font-mono font-bold transition-all duration-150 shadow-xs cursor-pointer select-none',
-          !isFilled && !isAtInsertion && 'bg-card border-border/80 text-muted-foreground/30 hover:border-border',
-          isAtInsertion && !isFilled && 'bg-primary-soft border-primary ring-[3px] ring-primary/25 scale-105 shadow-md z-10',
-          isAtInsertion && isFilled && 'border-primary ring-[3px] ring-primary/30 scale-105 shadow-md z-10',
-          !isAtInsertion && isCorrect && 'border-success bg-success-soft text-success shadow-sm',
-          !isAtInsertion && isWrong && 'border-destructive bg-destructive-soft text-destructive animate-shake',
-          !isAtInsertion && isFilled && !isCorrect && !isWrong && 'border-border/90 bg-card text-foreground'
+          'spell-box relative flex items-center justify-center rounded-2xl font-mono font-bold transition-all duration-150 cursor-pointer select-none',
+          !isFilled && !isAtInsertion && 'bg-card/80 border border-border/70 text-muted-foreground/30 shadow-neu-sm hover:shadow-neu hover:border-primary-line/40',
+          isAtInsertion && !isFilled && 'bg-primary-soft/50 border-2 border-primary shadow-neu-primary scale-105 z-10 ring-2 ring-primary/25',
+          isAtInsertion && isFilled && 'border-2 border-primary shadow-neu-primary scale-105 z-10 ring-2 ring-primary/30',
+          !isAtInsertion && isCorrect && 'border-2 border-success/60 bg-success-soft text-success shadow-neu-sm',
+          !isAtInsertion && isWrong && 'border-2 border-destructive/60 bg-destructive-soft text-destructive shadow-neu-sm animate-shake',
+          !isAtInsertion && isFilled && !isCorrect && !isWrong && 'border border-border/80 bg-card text-foreground shadow-neu-sm'
         )}
       >
         {masked && isFilled ? (

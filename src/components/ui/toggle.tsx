@@ -7,18 +7,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const toggleVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap",
+  "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-150 outline-none select-none cursor-pointer disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 whitespace-nowrap active:scale-[0.98] motion-reduce:active:scale-100",
   {
     variants: {
       variant: {
-        default: "bg-transparent",
+        default:
+          "text-muted-foreground hover:bg-card hover:shadow-neu-sm hover:text-foreground data-[state=on]:surface-inset data-[state=on]:border data-[state=on]:border-primary-line data-[state=on]:bg-primary-soft/50 data-[state=on]:text-primary data-[state=on]:shadow-neu-inset-sm",
         outline:
-          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "surface border border-border/70 text-foreground shadow-neu-sm hover:shadow-neu data-[state=on]:surface-inset data-[state=on]:border-primary-line data-[state=on]:bg-primary-soft/50 data-[state=on]:text-primary data-[state=on]:shadow-neu-inset-sm",
       },
       size: {
-        default: "h-9 px-2 min-w-9",
-        sm: "h-8 px-1.5 min-w-8",
-        lg: "h-10 px-2.5 min-w-10",
+        default: "h-9 px-3 min-w-9",
+        sm: "h-8 px-2.5 min-w-8 text-xs",
+        lg: "h-10 px-4 min-w-10 text-base",
       },
     },
     defaultVariants: {

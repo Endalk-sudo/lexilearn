@@ -78,11 +78,11 @@ export function DeckView() {
           onAction={() => navigate('library')}
         />
       ) : (
-        <div className="grid gap-2.5">
+        <div className="grid gap-3">
           <button
             type="button"
             onClick={() => setSelected({ id: null, name: 'Whole library' })}
-            className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary-line/60 hover:bg-primary-soft/40 cursor-pointer"
+            className="surface lift flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl p-4 text-left transition-all duration-150 border-none hover:shadow-neu active:shadow-neu-pressed cursor-pointer"
           >
             <span>
               <span className="block text-sm font-semibold">Whole library</span>
@@ -97,7 +97,7 @@ export function DeckView() {
               key={d.id}
               type="button"
               onClick={() => setSelected({ id: d.id, name: d.name })}
-              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary-line/60 hover:bg-primary-soft/40 cursor-pointer"
+              className="surface lift flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl p-4 text-left transition-all duration-150 border-none hover:shadow-neu active:shadow-neu-pressed cursor-pointer"
             >
               <span>
                 <span className="block text-sm font-semibold">{d.name}</span>

@@ -114,10 +114,28 @@ itself so the server can read config at runtime, and every variable in it has a
 code-level fallback (`features/coach/server/ollama.ts`, `db/env.ts`). Keep real
 secrets out of `.env` and pass those through the environment instead.
 
+## UI & Neumorphic Design System Architecture
+
+LexiLearn uses a **dual-lighting, soft-embossed Neumorphic (Soft UI)** design system across all primitives and screens:
+
+- **Global Lighting Tokens (`src/app/globals.css`)**:
+  - A single virtual light source at 135° (top-left) casts soft ambient highlights (`-3px -3px 8px`) and gentle drop shadows (`3px 3px 10px`).
+  - Dark mode transitions smoothly from white rim reflections to subtle specular highlights (`rgba(255,255,255,0.06)`) and deep obsidian drop shadows (`rgba(0,0,0,0.55)`).
+- **Core Structural Classes**:
+  - `.surface` / `.surface-convex`: Extruded baseline for cards, modals, sheets, popovers, and navigation rails.
+  - `.surface-inset` / `.input-neu`: Debossed concave wells for text inputs, textareas, switch tracks, progress tracks, and writing canvases.
+  - `shadow-neu-sm` / `shadow-neu` / `shadow-neu-lg`: 3-tier elevation system for controls, cards, and floating overlays.
+  - `shadow-neu-primary`: Illuminated glow for primary accent CTAs.
+  - `active:shadow-neu-pressed`: Tactile physical press-in feedback on interactive controls.
+- **SSR Hydration & Extension Shield**:
+  - External browser extensions (e.g. Dark Reader) that inject `data-darkreader-inline-*` attributes are blocked from mutating the theme via `<meta name="darkreader-lock" />` in `src/app/layout.tsx`.
+  - SVG icons and client-hydrated tags include `suppressHydrationWarning` to eliminate attribute discrepancy warnings.
+  - Client state hooks (`useSoundState`) use `useSyncExternalStore` to ensure identical server and client initial render trees.
+
 ## Testing
 
 ```bash
-pnpm test              # unit tests (vitest run)
+pnpm test              # unit tests (vitest run — 11 test suites, 76 tests)
 pnpm test:watch        # unit tests in watch mode
 pnpm test:coverage     # unit tests with coverage report
 pnpm e2e:isolated      # ALL four e2e suites against a throwaway db clone
@@ -133,8 +151,9 @@ day keys (`lib/date.ts`), the keyset cursor (`lib/paging.ts`), the hash router
 (`lib/router.ts`), the shared shortcut classifier (`hooks/use-shortcuts.ts`),
 the per-IP rate limiter (`server/rate-limit.ts`), the dictation diff/grade
 ladder (`features/dictation/lib/dictation.ts`), the CSV parser and POS key
-(`features/library/lib/`), and the spelling fit tiers
-(`features/study/ui/study-scale.ts`).
+(`features/library/lib/`), the AI coach provider contract
+(`features/coach/__tests__/ai-provider.test.ts`), and the spelling fit tiers
+(`features/study/ui/study-scale.ts`). All 76 unit tests run cleanly in ~2 seconds.
 
 `scripts/e2e-isolated.sh` clones `db/custom.db` to a temp file and boots the
 standalone server with `LEXILEARN_DB_URL` pointed at the clone, so grading real

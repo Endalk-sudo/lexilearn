@@ -202,7 +202,7 @@ export function TodayView() {
         {/* Left Column: Primary Mission + Resume + Secondary routes */}
         <div className="space-y-5 lg:col-span-7">
           {/* 1. The single primary action for this screen */}
-          <motion.section variants={v(listItem)} transition={t()} className="surface overflow-hidden relative">
+          <motion.section variants={v(listItem)} transition={t()} className="surface rounded-3xl overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-32 bg-primary/5 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
             <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <ProgressRing
@@ -217,16 +217,16 @@ export function TodayView() {
               <Button
                 size="lg"
                 onClick={startMission}
-                className="w-full shrink-0 sm:w-auto shadow-sm active:scale-95 transition-all duration-150 font-medium cursor-pointer gap-2"
+                className="w-full shrink-0 sm:w-auto shadow-neu-primary active:shadow-neu-pressed font-medium cursor-pointer gap-2 rounded-xl"
               >
                 <span>{mission.cta}</span>
-                <kbd className="hidden sm:inline-flex rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
+                <kbd className="hidden sm:inline-flex rounded-md border border-primary-foreground/30 bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
                   Space
                 </kbd>
                 <ChevronRight className="h-4 w-4 ml-0.5 transition-transform group-hover:translate-x-0.5" />
               </Button>
             </div>
-            <div className="grid grid-cols-3 gap-2 border-t border-border bg-muted/30 p-3">
+            <div className="grid grid-cols-3 gap-2 border-t border-border/60 bg-muted/20 p-3 surface-inset">
               <StatTile
                 icon={BrainCircuit}
                 label="Due"
@@ -260,9 +260,9 @@ export function TodayView() {
           {/* 2. Resume - only when there is something to resume */}
           {resume ? (
             <motion.div variants={v(listItem)} transition={t()}>
-              <Pressable onTap={goResume} className="surface lift w-full p-4" ariaLabel={`Resume ${resume.label}`}>
+              <Pressable onTap={goResume} className="surface lift w-full p-4 rounded-2xl" ariaLabel={`Resume ${resume.label}`}>
                 <span className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-neu-primary" aria-hidden="true">
                     <Play className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -271,7 +271,7 @@ export function TodayView() {
                       {resume.label} · {resume.detail}
                     </span>
                   </span>
-                  <kbd className="hidden sm:inline-flex rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground mr-1">
+                  <kbd className="hidden sm:inline-flex rounded-lg border border-border bg-card shadow-neu-sm px-2 py-0.5 font-mono text-[10px] text-muted-foreground mr-1">
                     R
                   </kbd>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -305,22 +305,22 @@ export function TodayView() {
         {/* Right Column: Level Momentum + Daily Challenge + Streak Shield */}
         <div className="space-y-5 lg:col-span-5">
           {/* 3. Momentum: level + challenge */}
-          <motion.section variants={v(listItem)} transition={t()} className="surface p-5 relative overflow-hidden">
+          <motion.section variants={v(listItem)} transition={t()} className="surface rounded-3xl p-6 relative overflow-hidden">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-card shadow-neu-sm text-primary">
                   <Zap className="h-4 w-4 shrink-0" aria-hidden="true" />
                 </span>
                 <div>
                   <span className="truncate text-sm font-semibold block leading-none">{stats.level.name}</span>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">Rank & Milestone</span>
+                  <span className="text-[11px] text-muted-foreground mt-1 block">Rank & Milestone</span>
                 </div>
               </div>
-              <span className="shrink-0 text-xs font-semibold text-primary num bg-primary-soft border border-primary-line/40 px-2.5 py-1 rounded-full">
+              <span className="shrink-0 text-xs font-semibold text-primary num bg-card shadow-neu-sm px-3 py-1 rounded-full">
                 {stats.totalXp} XP
               </span>
             </div>
-            <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-muted/80" role="progressbar" aria-label="Level progress" aria-valuenow={levelPct} aria-valuemin={0} aria-valuemax={100}>
+            <div className="mt-4 h-3 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm p-0.5" role="progressbar" aria-label="Level progress" aria-valuenow={levelPct} aria-valuemin={0} aria-valuemax={100}>
               <motion.div
                 className="h-full rounded-full bg-primary"
                 initial={{ width: 0 }}
@@ -333,16 +333,16 @@ export function TodayView() {
               <span className="num font-medium">{levelPct}%</span>
             </div>
 
-            <div className="mt-5 border-t border-border pt-4">
+            <div className="mt-6 border-t border-border/60 pt-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-card shadow-neu-sm text-amber-600 dark:text-amber-400">
                     <Target className="h-4 w-4 shrink-0" aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="truncate text-sm font-semibold">{challenge.title}</div>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-full shadow-neu-sm border-amber-500/30 text-amber-600 dark:text-amber-400">
                         +{challenge.reward} XP
                       </Badge>
                     </div>
@@ -351,7 +351,7 @@ export function TodayView() {
                 </div>
                 {challengeDone ? <CircleCheck className="h-5 w-5 shrink-0 text-success animate-in zoom-in-50 duration-200" aria-hidden="true" /> : null}
               </div>
-              <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-muted/80" role="progressbar" aria-label="Challenge progress" aria-valuenow={challenge.progress} aria-valuemin={0} aria-valuemax={challenge.target}>
+              <div className="mt-3.5 h-3 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm p-0.5" role="progressbar" aria-label="Challenge progress" aria-valuenow={challenge.progress} aria-valuemin={0} aria-valuemax={challenge.target}>
                 <motion.div
                   className={cn(
                     'h-full rounded-full transition-colors',
@@ -372,8 +372,8 @@ export function TodayView() {
                   disabled={!challengeDone || challengeClaimed}
                   onClick={claimChallenge}
                   className={cn(
-                    'cursor-pointer transition-all',
-                    challengeDone && !challengeClaimed && 'shadow-sm shadow-primary/25 hover:brightness-105 active:scale-95'
+                    'cursor-pointer transition-all rounded-xl',
+                    challengeDone && !challengeClaimed && 'shadow-neu-primary active:shadow-neu-pressed'
                   )}
                 >
                   {challengeClaimed ? 'Claimed today' : challengeDone ? `Claim +${challenge.reward} XP` : 'In progress'}
@@ -382,7 +382,7 @@ export function TodayView() {
             </div>
 
             {stats.streakShieldAvailable ? (
-              <div className="mt-4 flex items-center justify-between gap-3 rounded-md border border-primary-line bg-primary-soft p-3">
+              <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl surface-inset p-4 border-none">
                 <div className="flex min-w-0 items-start gap-2">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   <div className="min-w-0">
@@ -390,7 +390,7 @@ export function TodayView() {
                     <p className="text-xs text-muted-foreground">Protect your {stats.streak}-day streak.</p>
                   </div>
                 </div>
-                <Button size="sm" variant="soft" onClick={repairStreak} className="shrink-0">
+                <Button size="sm" variant="soft" onClick={repairStreak} className="shrink-0 rounded-xl shadow-neu-sm active:shadow-neu-pressed">
                   Use shield
                 </Button>
               </div>
@@ -417,9 +417,9 @@ function QuietLink({
     <button
       type="button"
       onClick={onClick}
-      className="surface lift flex min-h-12 items-center gap-3 p-3.5 text-left transition-all duration-150 group cursor-pointer"
+      className="surface lift flex min-h-12 items-center gap-3.5 p-4 rounded-2xl text-left transition-all duration-150 group cursor-pointer active:shadow-neu-pressed"
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary-soft group-hover:text-primary transition-colors">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card shadow-neu-sm text-muted-foreground group-hover:text-primary transition-all">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">

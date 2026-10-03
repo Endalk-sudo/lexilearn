@@ -267,7 +267,7 @@ function DictationStart({
         </div>
 
         {readiness.status === 'unavailable' ? (
-          <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft p-3.5 text-sm leading-relaxed">
+          <div className="surface mt-4 rounded-2xl border border-warning/30 bg-warning-soft/50 p-4 text-sm leading-relaxed shadow-neu-sm">
             <span className="font-semibold text-warning">Dictation cannot run without audio.</span>{' '}
             <span className="text-muted-foreground">
               Your browser reported no English speech voice. Try Firefox, install a system voice, or pick one
@@ -605,8 +605,10 @@ function DictationSession({
                   aria-checked={preset === option}
                   onClick={() => onPreset(option)}
                   className={cn(
-                    'flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors duration-150',
-                    preset === option ? 'border-primary-line bg-primary-soft text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                    'flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer',
+                    preset === option
+                      ? 'surface-inset border-primary-line bg-primary-soft/50 text-primary shadow-neu-inset-sm'
+                      : 'surface border-border/70 text-muted-foreground shadow-neu-sm hover:text-foreground hover:shadow-neu active:shadow-neu-pressed'
                   )}
                 >
                   {option === 'slow' ? <Snail className="h-3.5 w-3.5" aria-hidden="true" /> : <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -633,7 +635,7 @@ function DictationSession({
                 <div className="mt-3 text-base font-semibold">{verdict}</div>
                 <p className="mt-1 text-sm text-muted-foreground num">{result.accuracy}% of the words right</p>
               </motion.div>
-              <motion.div variants={v(listItem)} transition={t()} className="mt-4 rounded-md border border-border bg-muted/30 p-4" aria-live="polite">
+              <motion.div variants={v(listItem)} transition={t()} className="surface-inset mt-4 rounded-2xl border border-border/50 p-4 shadow-neu-inset-sm" aria-live="polite">
                 <div className="label text-muted-foreground">Your version</div>
                 <p className="mt-2 text-[15px] leading-loose">
                   {segments.map((seg, i) =>
@@ -650,7 +652,7 @@ function DictationSession({
                   )}
                 </p>
               </motion.div>
-              <motion.div variants={v(listItem)} transition={t()} className="mt-3 rounded-md bg-muted/40 p-4">
+              <motion.div variants={v(listItem)} transition={t()} className="surface-inset mt-3 rounded-2xl border border-border/50 p-4 shadow-neu-inset-sm">
                 <div className="label text-muted-foreground">What it was</div>
                 <p className="mt-1.5 text-[15px] leading-relaxed">“{item.text}”</p>
                 <p className="mt-1.5 text-sm text-muted-foreground">
@@ -670,11 +672,11 @@ function DictationSession({
       </AnimatePresence>
 
       {/* Laptop Keyboard HUD Bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 surface rounded-2xl border border-border/60 px-4 py-2.5 text-xs text-muted-foreground shadow-neu-sm">
         <div className="flex items-center gap-3.5 flex-wrap">
           {result ? (
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                 Enter / Space
               </kbd>
               <span>Next item</span>
@@ -682,25 +684,25 @@ function DictationSession({
           ) : (
             <>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Enter
                 </kbd>
                 <span>Submit</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Alt+R / ⌃Space
                 </kbd>
                 <span>Replay</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Alt+S
                 </kbd>
                 <span>Slow</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Alt+H
                 </kbd>
                 <span>Hint</span>
@@ -723,9 +725,9 @@ function DictationSession({
 function DictationProgressBar({ value }: { value: number }) {
   const { t } = useMotionSafe()
   return (
-    <div className="mb-4 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Dictation progress" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
+    <div className="mb-4 h-2.5 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm border border-border/50 p-0.5" role="progressbar" aria-label="Dictation progress" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
       <motion.div
-        className="h-full rounded-full bg-primary"
+        className="h-full rounded-full bg-primary shadow-neu-primary"
         animate={{ width: `${value}%` }}
         transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
       />
@@ -856,12 +858,12 @@ function DictationItemAnswer({
         )}
       </div>
       {attempts > 0 ? (
-        <p role="status" aria-live="polite" className="mt-3 rounded-md border border-warning/30 bg-warning-soft p-3 text-center text-sm font-medium text-warning">
+        <p role="status" aria-live="polite" className="surface mt-3 rounded-2xl border border-warning/30 bg-warning-soft/50 p-3.5 text-center text-sm font-semibold text-warning shadow-neu-sm">
           Not quite — listen once more and compare. Replays are always free.
         </p>
       ) : null}
       {hintStage > 0 ? (
-        <p id="dictation-hint" className="mt-3 rounded-md bg-muted/50 p-3 font-mono text-sm leading-relaxed text-muted-foreground">
+        <p id="dictation-hint" className="surface-inset mt-3 rounded-2xl border border-border/50 p-3.5 font-mono text-sm leading-relaxed text-muted-foreground shadow-neu-inset-sm">
           {hintPreview(item.text, hintStage)}{' '}
           <span className="font-sans">— hints are free, grades stay fair</span>
         </p>

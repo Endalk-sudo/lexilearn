@@ -10,45 +10,45 @@
 :root {
   --accent-hue: 259;
 
-  --background: oklch(0.991 0.002 var(--accent-hue));
-  --foreground: oklch(0.22 0.02 var(--accent-hue));
-  --card: oklch(1 0 0);
+  --background: oklch(0.932 0.009 var(--accent-hue));
+  --foreground: oklch(0.24 0.025 var(--accent-hue));
+  --card: oklch(0.938 0.009 var(--accent-hue));
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.942 0.009 var(--accent-hue));
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.968 0.005 var(--accent-hue));
-  --muted-foreground: oklch(0.52 0.015 var(--accent-hue));
-  --border: oklch(0.915 0.006 var(--accent-hue));
-  --input: oklch(0.9 0.006 var(--accent-hue));
+  --muted: oklch(0.908 0.012 var(--accent-hue));
+  --muted-foreground: oklch(0.48 0.02 var(--accent-hue));
+  --border: oklch(0.885 0.012 var(--accent-hue));
+  --input: oklch(0.905 0.012 var(--accent-hue));
 
-  --primary: oklch(0.47 0.13 var(--accent-hue));
+  --primary: oklch(0.50 0.18 var(--accent-hue));
   --primary-foreground: oklch(0.995 0.002 var(--accent-hue));
-  --primary-soft: color-mix(in oklab, var(--primary) 9%, var(--card));
-  --primary-line: color-mix(in oklab, var(--primary) 26%, transparent);
-  --secondary: oklch(0.96 0.006 var(--accent-hue));
+  --primary-soft: color-mix(in oklab, var(--primary) 12%, var(--card));
+  --primary-line: color-mix(in oklab, var(--primary) 30%, transparent);
+  --secondary: oklch(0.925 0.01 var(--accent-hue));
   --secondary-foreground: var(--foreground);
-  --accent: oklch(0.955 0.01 var(--accent-hue));
+  --accent: oklch(0.92 0.012 var(--accent-hue));
   --accent-foreground: var(--foreground);
   --ring: var(--primary);
 
-  --success: oklch(0.47 0.12 155);
+  --success: oklch(0.50 0.15 155);
   --success-foreground: oklch(0.995 0.002 155);
-  --success-soft: color-mix(in oklab, var(--success) 11%, var(--card));
-  --warning: oklch(0.5 0.12 70);
-  --warning-soft: color-mix(in oklab, var(--warning) 13%, var(--card));
-  --destructive: oklch(0.52 0.19 25);
+  --success-soft: color-mix(in oklab, var(--success) 14%, var(--card));
+  --warning: oklch(0.54 0.14 70);
+  --warning-soft: color-mix(in oklab, var(--warning) 15%, var(--card));
+  --destructive: oklch(0.54 0.21 25);
   --destructive-foreground: oklch(0.995 0.002 25);
-  --destructive-soft: color-mix(in oklab, var(--destructive) 11%, var(--card));
-  --streak: oklch(0.57 0.155 45);
-  --streak-soft: color-mix(in oklab, var(--streak) 13%, var(--card));
+  --destructive-soft: color-mix(in oklab, var(--destructive) 14%, var(--card));
+  --streak: oklch(0.60 0.17 45);
+  --streak-soft: color-mix(in oklab, var(--streak) 15%, var(--card));
 
-  --chart-1: oklch(0.52 0.13 var(--accent-hue));
-  --chart-2: oklch(0.47 0.12 155);
-  --chart-3: oklch(0.62 0.12 70);
-  --chart-4: oklch(0.55 0.15 45);
-  --chart-5: oklch(0.5 0.14 320);
+  --chart-1: oklch(0.52 0.15 var(--accent-hue));
+  --chart-2: oklch(0.50 0.14 155);
+  --chart-3: oklch(0.62 0.13 70);
+  --chart-4: oklch(0.58 0.16 45);
+  --chart-5: oklch(0.52 0.16 320);
 
-  --sidebar: oklch(0.985 0.003 var(--accent-hue));
+  --sidebar: oklch(0.932 0.009 var(--accent-hue));
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -61,16 +61,29 @@
   --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
 
-  --radius: 0.75rem;
+  --radius: 1rem;
 
-  --shadow-2xs: 0 1px 2px -1px oklch(0.22 0.02 var(--accent-hue) / 0.05);
-  --shadow-xs: 0 1px 2px 0 oklch(0.22 0.02 var(--accent-hue) / 0.05);
-  --shadow-sm: 0 1px 3px 0 oklch(0.22 0.02 var(--accent-hue) / 0.07), 0 1px 2px -1px oklch(0.22 0.02 var(--accent-hue) / 0.05);
-  --shadow: 0 2px 6px -1px oklch(0.22 0.02 var(--accent-hue) / 0.08), 0 1px 2px -1px oklch(0.22 0.02 var(--accent-hue) / 0.05);
-  --shadow-md: 0 4px 12px -2px oklch(0.22 0.02 var(--accent-hue) / 0.1), 0 2px 4px -2px oklch(0.22 0.02 var(--accent-hue) / 0.06);
-  --shadow-lg: 0 12px 32px -6px oklch(0.22 0.02 var(--accent-hue) / 0.14), 0 4px 8px -4px oklch(0.22 0.02 var(--accent-hue) / 0.07);
-  --shadow-xl: 0 20px 48px -12px oklch(0.22 0.02 var(--accent-hue) / 0.16);
-  --shadow-2xl: 0 28px 64px -16px oklch(0.22 0.02 var(--accent-hue) / 0.2);
+  /* Neumorphic Dual-Lighting Shadow Engine */
+  --neu-light: oklch(1 0 0 / 0.95);
+  --neu-dark: oklch(0.68 0.028 var(--accent-hue) / 0.44);
+  --neu-flat-sm: 3px 3px 7px var(--neu-dark), -3px -3px 7px var(--neu-light);
+  --neu-flat: 6px 6px 14px var(--neu-dark), -6px -6px 14px var(--neu-light);
+  --neu-flat-lg: 12px 12px 28px oklch(0.66 0.032 var(--accent-hue) / 0.48), -10px -10px 24px var(--neu-light);
+  --neu-inset-sm: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
+  --neu-inset: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
+  --neu-inset-lg: inset 5px 5px 12px var(--neu-dark), inset -5px -5px 12px var(--neu-light);
+  --neu-pressed: inset 3px 3px 6px oklch(0.65 0.032 var(--accent-hue) / 0.52), inset -3px -3px 6px var(--neu-light);
+  --neu-primary: 4px 4px 14px color-mix(in oklab, var(--primary) 42%, transparent), -4px -4px 12px var(--neu-light), inset 1px 1px 1.5px oklch(1 0 0 / 0.45);
+  --neu-primary-pressed: inset 3px 3px 6px color-mix(in oklab, black 28%, var(--primary)), inset -3px -3px 6px color-mix(in oklab, white 35%, var(--primary));
+
+  --shadow-2xs: var(--neu-flat-sm);
+  --shadow-xs: var(--neu-flat-sm);
+  --shadow-sm: var(--neu-flat-sm);
+  --shadow: var(--neu-flat);
+  --shadow-md: var(--neu-flat);
+  --shadow-lg: var(--neu-flat-lg);
+  --shadow-xl: var(--neu-flat-lg);
+  --shadow-2xl: var(--neu-flat-lg);
 
   --z-header: 30;
   --z-nav: 40;
@@ -81,53 +94,66 @@
 }
 
 .dark {
-  --background: oklch(0.168 0.008 var(--accent-hue));
-  --foreground: oklch(0.955 0.005 var(--accent-hue));
-  --card: oklch(0.21 0.01 var(--accent-hue));
+  --background: oklch(0.198 0.015 var(--accent-hue));
+  --foreground: oklch(0.96 0.006 var(--accent-hue));
+  --card: oklch(0.215 0.016 var(--accent-hue));
   --card-foreground: var(--foreground);
-  --popover: oklch(0.23 0.01 var(--accent-hue));
+  --popover: oklch(0.23 0.018 var(--accent-hue));
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.25 0.01 var(--accent-hue));
-  --muted-foreground: oklch(0.68 0.012 var(--accent-hue));
-  --border: oklch(0.3 0.012 var(--accent-hue));
-  --input: oklch(0.32 0.012 var(--accent-hue));
+  --muted: oklch(0.245 0.015 var(--accent-hue));
+  --muted-foreground: oklch(0.70 0.015 var(--accent-hue));
+  --border: oklch(0.285 0.018 var(--accent-hue));
+  --input: oklch(0.175 0.014 var(--accent-hue));
 
-  --primary: oklch(0.72 0.125 var(--accent-hue));
-  --primary-foreground: oklch(0.18 0.02 var(--accent-hue));
-  --primary-soft: color-mix(in oklab, var(--primary) 16%, var(--card));
-  --primary-line: color-mix(in oklab, var(--primary) 34%, transparent);
-  --secondary: oklch(0.26 0.01 var(--accent-hue));
+  --primary: oklch(0.74 0.14 var(--accent-hue));
+  --primary-foreground: oklch(0.17 0.02 var(--accent-hue));
+  --primary-soft: color-mix(in oklab, var(--primary) 18%, var(--card));
+  --primary-line: color-mix(in oklab, var(--primary) 36%, transparent);
+  --secondary: oklch(0.25 0.015 var(--accent-hue));
   --secondary-foreground: var(--foreground);
-  --accent: oklch(0.27 0.012 var(--accent-hue));
+  --accent: oklch(0.26 0.016 var(--accent-hue));
   --accent-foreground: var(--foreground);
 
-  --success: oklch(0.72 0.13 155);
+  --success: oklch(0.74 0.14 155);
   --success-foreground: oklch(0.16 0.02 155);
-  --success-soft: color-mix(in oklab, var(--success) 18%, var(--card));
-  --warning: oklch(0.78 0.13 75);
-  --warning-soft: color-mix(in oklab, var(--warning) 18%, var(--card));
-  --destructive: oklch(0.68 0.17 25);
+  --success-soft: color-mix(in oklab, var(--success) 20%, var(--card));
+  --warning: oklch(0.80 0.14 75);
+  --warning-soft: color-mix(in oklab, var(--warning) 20%, var(--card));
+  --destructive: oklch(0.70 0.18 25);
   --destructive-foreground: oklch(0.16 0.02 25);
-  --destructive-soft: color-mix(in oklab, var(--destructive) 18%, var(--card));
-  --streak: oklch(0.74 0.15 50);
-  --streak-soft: color-mix(in oklab, var(--streak) 18%, var(--card));
+  --destructive-soft: color-mix(in oklab, var(--destructive) 20%, var(--card));
+  --streak: oklch(0.76 0.16 50);
+  --streak-soft: color-mix(in oklab, var(--streak) 20%, var(--card));
 
-  --chart-1: oklch(0.72 0.125 var(--accent-hue));
-  --chart-2: oklch(0.72 0.13 155);
-  --chart-3: oklch(0.78 0.13 75);
-  --chart-4: oklch(0.74 0.15 50);
-  --chart-5: oklch(0.68 0.13 320);
+  --chart-1: oklch(0.74 0.14 var(--accent-hue));
+  --chart-2: oklch(0.74 0.14 155);
+  --chart-3: oklch(0.80 0.14 75);
+  --chart-4: oklch(0.76 0.16 50);
+  --chart-5: oklch(0.70 0.14 320);
 
-  --sidebar: oklch(0.19 0.009 var(--accent-hue));
+  --sidebar: oklch(0.190 0.014 var(--accent-hue));
 
-  --shadow-2xs: 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow: 0 2px 6px -1px rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 12px 32px -6px rgb(0 0 0 / 0.55), 0 4px 8px -4px rgb(0 0 0 / 0.45);
-  --shadow-xl: 0 20px 48px -12px rgb(0 0 0 / 0.6);
-  --shadow-2xl: 0 28px 64px -16px rgb(0 0 0 / 0.65);
+  /* Dark Neumorphism (Obsidian & Specular Lighting) */
+  --neu-light: oklch(0.32 0.022 var(--accent-hue) / 0.32);
+  --neu-dark: rgba(0, 0, 0, 0.65);
+  --neu-flat-sm: 3px 3px 8px var(--neu-dark), -3px -3px 8px var(--neu-light);
+  --neu-flat: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light);
+  --neu-flat-lg: 12px 12px 30px rgba(0, 0, 0, 0.75), -10px -10px 24px oklch(0.33 0.025 var(--accent-hue) / 0.35);
+  --neu-inset-sm: inset 2px 2px 5px rgba(0, 0, 0, 0.7), inset -2px -2px 5px oklch(0.30 0.02 var(--accent-hue) / 0.22);
+  --neu-inset: inset 3px 3px 7px rgba(0, 0, 0, 0.78), inset -3px -3px 7px oklch(0.30 0.02 var(--accent-hue) / 0.25);
+  --neu-inset-lg: inset 5px 5px 12px rgba(0, 0, 0, 0.85), inset -5px -5px 12px oklch(0.32 0.02 var(--accent-hue) / 0.28);
+  --neu-pressed: inset 3px 3px 7px rgba(0, 0, 0, 0.82), inset -3px -3px 7px oklch(0.30 0.02 var(--accent-hue) / 0.25);
+  --neu-primary: 4px 4px 16px rgba(0, 0, 0, 0.65), -4px -4px 14px oklch(0.36 0.025 var(--accent-hue) / 0.3), inset 1px 1px 1.5px oklch(1 0 0 / 0.25);
+  --neu-primary-pressed: inset 3px 3px 6px rgba(0, 0, 0, 0.7), inset -3px -3px 6px color-mix(in oklab, var(--primary) 50%, white);
+
+  --shadow-2xs: var(--neu-flat-sm);
+  --shadow-xs: var(--neu-flat-sm);
+  --shadow-sm: var(--neu-flat-sm);
+  --shadow: var(--neu-flat);
+  --shadow-md: var(--neu-flat);
+  --shadow-lg: var(--neu-flat-lg);
+  --shadow-xl: var(--neu-flat-lg);
+  --shadow-2xl: var(--neu-flat-lg);
 }
 
 @theme inline {
@@ -178,11 +204,12 @@
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -192,6 +219,16 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+
+  --shadow-neu-sm: var(--neu-flat-sm);
+  --shadow-neu: var(--neu-flat);
+  --shadow-neu-lg: var(--neu-flat-lg);
+  --shadow-neu-inset-sm: var(--neu-inset-sm);
+  --shadow-neu-inset: var(--neu-inset);
+  --shadow-neu-inset-lg: var(--neu-inset-lg);
+  --shadow-neu-pressed: var(--neu-pressed);
+  --shadow-neu-primary: var(--neu-primary);
+  --shadow-neu-primary-pressed: var(--neu-primary-pressed);
 
   --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -215,7 +252,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    background-image: radial-gradient(120% 55% at 50% -12%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 62%);
+    background-image: radial-gradient(100% 60% at 30% -10%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 70%);
     background-attachment: fixed;
   }
   h1, h2, h3 { text-wrap: balance; }
@@ -250,31 +287,127 @@
     font-weight: 600;
   }
 
-  /* The one card surface */
+  /* Neumorphic Extruded Surface (Cards & Panels) */
   .surface {
     background-color: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm), inset 0 1px 0 0 color-mix(in oklab, white 60%, transparent);
-    transition: transform 0.16s var(--ease-out-quint), box-shadow 0.16s var(--ease-out-quint), border-color 0.16s var(--ease-out-quint);
+    border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--neu-flat);
+    transition: transform 0.18s var(--ease-out-quint), box-shadow 0.18s var(--ease-out-quint), border-color 0.18s var(--ease-out-quint);
   }
   .dark .surface {
-    box-shadow: var(--shadow-sm), inset 0 1px 0 0 color-mix(in oklab, white 5%, transparent);
+    border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+    box-shadow: var(--neu-flat);
+  }
+
+  /* Neumorphic Inset / Debossed Surface (Wells, Input Trays, Tracks) */
+  .surface-inset {
+    background-color: color-mix(in oklab, var(--muted) 45%, var(--card));
+    border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--neu-inset);
+  }
+  .dark .surface-inset {
+    background-color: color-mix(in oklab, var(--muted) 35%, var(--card));
+    border: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
+    box-shadow: var(--neu-inset);
+  }
+
+  /* Neumorphic Convex Surface (Tactile Smooth Curvature) */
+  .surface-convex {
+    background: linear-gradient(145deg, color-mix(in oklab, white 8%, var(--card)), color-mix(in oklab, black 3%, var(--card)));
+    border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--neu-flat);
+  }
+  .dark .surface-convex {
+    background: linear-gradient(145deg, color-mix(in oklab, white 4%, var(--card)), color-mix(in oklab, black 6%, var(--card)));
+    border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+    box-shadow: var(--neu-flat);
+  }
+
+  /* Neumorphic Physical Keycaps */
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+    background: linear-gradient(180deg, color-mix(in oklab, white 20%, var(--card)), var(--card));
+    box-shadow: 0 2px 0 0 color-mix(in oklab, var(--border) 90%, black), 0 3px 6px -1px rgba(0, 0, 0, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    line-height: 1;
+  }
+  .dark kbd {
+    background: linear-gradient(180deg, color-mix(in oklab, white 7%, var(--card)), var(--card));
+    box-shadow: 0 2px 0 0 color-mix(in oklab, black 70%, var(--card)), 0 3px 8px -1px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
   }
 
   /* Quiet hover for interactive surfaces */
   .lift {
-    transition: transform 0.16s var(--ease-out-quint), box-shadow 0.16s var(--ease-out-quint), border-color 0.16s var(--ease-out-quint);
+    transition: transform 0.18s var(--ease-out-quint), box-shadow 0.18s var(--ease-out-quint), border-color 0.18s var(--ease-out-quint);
   }
   @media (hover: hover) {
     .lift:hover {
       transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--neu-flat-lg);
       border-color: var(--primary-line);
     }
   }
   .lift:active {
     transform: scale(0.985);
+    box-shadow: var(--neu-pressed);
+  }
+
+  /* Neumorphic Button Base */
+  .btn-neu {
+    background-color: var(--card);
+    border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+    box-shadow: var(--neu-flat-sm);
+    border-radius: var(--radius-lg);
+    transition: transform 0.15s var(--ease-out-quint), box-shadow 0.15s var(--ease-out-quint), border-color 0.15s var(--ease-out-quint), background-color 0.15s;
+  }
+  .btn-neu:hover {
+    box-shadow: var(--neu-flat);
+    border-color: var(--primary-line);
+  }
+  .btn-neu:active {
+    box-shadow: var(--neu-pressed);
+    transform: scale(0.98);
+  }
+
+  /* Neumorphic Primary Button */
+  .btn-neu-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border: 1px solid color-mix(in oklab, white 30%, transparent);
+    box-shadow: var(--neu-primary);
+    border-radius: var(--radius-lg);
+    transition: transform 0.15s var(--ease-out-quint), box-shadow 0.15s var(--ease-out-quint), filter 0.15s;
+  }
+  .btn-neu-primary:hover {
+    filter: brightness(1.04);
+    box-shadow: var(--neu-primary), 0 0 16px -2px color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+  .btn-neu-primary:active {
+    box-shadow: var(--neu-primary-pressed);
+    transform: scale(0.98);
+  }
+
+  /* Neumorphic Inset Input Field */
+  .input-neu {
+    background-color: color-mix(in oklab, var(--muted) 40%, var(--card));
+    border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+    box-shadow: var(--neu-inset-sm);
+    border-radius: var(--radius-lg);
+    transition: box-shadow 0.18s, border-color 0.18s;
+  }
+  .input-neu:focus, .input-neu:focus-visible {
+    border-color: var(--primary);
+    box-shadow: var(--neu-inset), 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
   }
 
   .pressable-wrap {

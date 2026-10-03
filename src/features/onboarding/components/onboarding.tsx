@@ -103,7 +103,7 @@ export function Onboarding() {
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-foreground/45 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to LexiLearn"
@@ -113,11 +113,11 @@ export function Onboarding() {
         initial="hidden"
         animate="show"
         transition={t()}
-        className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+        className="w-full max-w-md overflow-hidden surface rounded-3xl border border-white/60 dark:border-white/10 shadow-neu-lg"
       >
-        <div className="h-1 bg-muted">
+        <div className="surface-inset h-2.5 w-full overflow-hidden p-0.5 shadow-neu-inset-sm border-b border-border/40">
           <motion.div
-            className="h-full bg-primary"
+            className="h-full rounded-full bg-primary shadow-neu-primary"
             animate={{ width: `${pct}%` }}
             transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
           />
@@ -141,7 +141,7 @@ export function Onboarding() {
                       variants={v(listItem)}
                       transition={t()}
                       className={cn(
-                        'mx-auto flex h-14 w-14 items-center justify-center rounded-full',
+                        'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl surface shadow-neu-sm border border-white/60 dark:border-white/10',
                         STEPS[step].tone
                       )}
                       aria-hidden="true"
@@ -205,7 +205,7 @@ export function Onboarding() {
                 exit="exit"
                 className="text-center"
               >
-                <motion.div variants={v(listItem)} transition={t()} className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary" aria-hidden="true">
+                <motion.div variants={v(listItem)} transition={t()} className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl surface shadow-neu-sm border border-white/60 dark:border-white/10 bg-primary-soft text-primary" aria-hidden="true">
                   <BookOpen className="h-6 w-6" />
                 </motion.div>
                 <motion.h2 variants={v(listItem)} transition={t()} className="mt-4 text-lg font-semibold tracking-tight">
@@ -214,7 +214,7 @@ export function Onboarding() {
                 <motion.p variants={v(listItem)} transition={t()} className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
                   Small and daily beats big and rare. You can change this any time in Settings.
                 </motion.p>
-                <motion.div variants={v(listItem)} transition={t()} className="mt-5 grid grid-cols-3 gap-2">
+                <motion.div variants={v(listItem)} transition={t()} className="mt-5 grid grid-cols-3 gap-2.5">
                   {GOALS.map((option) => (
                     <button
                       key={option.value}
@@ -225,15 +225,15 @@ export function Onboarding() {
                         playSound('tap')
                       }}
                       className={cn(
-                        'min-h-11 rounded-lg border p-3 transition-colors duration-150',
+                        'min-h-12 rounded-2xl p-3.5 transition-all text-center cursor-pointer select-none',
                         goal === option.value
-                          ? 'border-primary-line bg-primary-soft text-primary'
-                          : 'border-border bg-card hover:border-primary-line'
+                          ? 'surface-inset border border-primary-line bg-primary-soft/40 text-primary shadow-neu-inset-sm font-semibold'
+                          : 'surface border border-border/70 text-foreground shadow-neu-sm hover:shadow-neu hover:border-primary-line/50 active:shadow-neu-pressed'
                       )}
                     >
-                      <span className="block text-xl font-semibold leading-none num">{option.value}</span>
-                      <span className="label mt-1.5 block text-muted-foreground">{option.label}</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{option.hint}</span>
+                      <span className="block text-xl font-bold leading-none num">{option.value}</span>
+                      <span className="label mt-1.5 block text-xs font-medium text-muted-foreground">{option.label}</span>
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground/80">{option.hint}</span>
                     </button>
                   ))}
                 </motion.div>

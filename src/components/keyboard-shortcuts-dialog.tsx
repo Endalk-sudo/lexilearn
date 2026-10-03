@@ -135,10 +135,10 @@ export function KeyboardShortcutsDialog({
                 {group.items.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs"
+                    className="surface-inset flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5 text-xs shadow-neu-inset-sm"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground truncate">{item.description}</div>
+                      <div className="font-semibold text-foreground truncate">{item.description}</div>
                       {item.note ? (
                         <div className="text-[10px] text-muted-foreground truncate">{item.note}</div>
                       ) : null}
@@ -152,7 +152,7 @@ export function KeyboardShortcutsDialog({
                         ) : (
                           <kbd
                             key={kIdx}
-                            className="inline-flex min-w-5 h-5 items-center justify-center rounded border border-border bg-card px-1.5 font-mono text-[11px] font-semibold text-foreground shadow-2xs"
+                            className="inline-flex min-w-5 h-5 items-center justify-center rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm"
                           >
                             {k}
                           </kbd>
@@ -166,9 +166,9 @@ export function KeyboardShortcutsDialog({
           ))}
         </div>
 
-        <div className="border-t border-border/80 bg-muted/30 px-6 py-3 text-xs text-muted-foreground flex items-center justify-between">
+        <div className="border-t border-border/60 bg-muted/20 px-6 py-3 text-xs text-muted-foreground flex items-center justify-between">
           <span>
-            Press <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px]">?</kbd> anywhere to open this guide.
+            Press <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[10px] text-foreground shadow-neu-sm">?</kbd> anywhere to open this guide.
           </span>
           <span className="text-[11px] font-medium">LexiLearn Touch-Free</span>
         </div>

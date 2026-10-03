@@ -120,25 +120,25 @@ export function BulkAddWordsDialog({ deckId, deckName, open, onOpenChange, onImp
 
           {/* Preview */}
           {parsed.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="text-xs font-medium px-3 py-2 bg-muted/50 border-b">
+            <div className="surface rounded-2xl border border-border/70 shadow-neu-sm overflow-hidden">
+              <div className="text-xs font-semibold px-4 py-2.5 bg-muted/20 border-b border-border/50 text-foreground">
                 Preview — {parsed.length} word{parsed.length === 1 ? '' : 's'} parsed
               </div>
               <div className="max-h-48 overflow-y-auto text-xs">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left px-3 py-1.5 font-medium">Word</th>
-                      <th className="text-left px-3 py-1.5 font-medium">POS</th>
-                      <th className="text-left px-3 py-1.5 font-medium">Definition</th>
-                      <th className="text-left px-3 py-1.5 font-medium">IPA</th>
-                      <th className="text-left px-3 py-1.5 font-medium">አማርኛ</th>
-                      <th className="text-left px-3 py-1.5 font-medium">Categories</th>
+                    <tr className="border-b border-border/50 text-muted-foreground">
+                      <th className="text-left px-3 py-2 font-semibold">Word</th>
+                      <th className="text-left px-3 py-2 font-semibold">POS</th>
+                      <th className="text-left px-3 py-2 font-semibold">Definition</th>
+                      <th className="text-left px-3 py-2 font-semibold">IPA</th>
+                      <th className="text-left px-3 py-2 font-semibold">አማርኛ</th>
+                      <th className="text-left px-3 py-2 font-semibold">Categories</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsed.slice(0, 20).map((w, i) => (
-                      <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-primary-soft/25 transition-colors">
                         <td className="px-3 py-1.5 font-medium">{w.word}</td>
                         <td className="px-3 py-1.5 text-muted-foreground">{w.pos ?? '—'}</td>
                         <td className="px-3 py-1.5 text-muted-foreground max-w-[200px] truncate">{w.definition ?? '—'}</td>

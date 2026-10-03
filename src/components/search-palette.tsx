@@ -193,42 +193,44 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
       aria-label="Search words and jump to a section"
       onKeyDown={onKeyDown}
     >
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in-0 duration-150" onClick={onClose} />
-      <div ref={cardRef} className="relative flex max-h-[72vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150">
-        <div className="flex items-center gap-2 border-b border-border p-2.5">
-          {selected ? (
-            <Button size="icon" variant="ghost" onClick={() => setSelected(null)} aria-label="Back to results">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Search className="ml-1.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          )}
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setSelected(null)
-              setActive(0)
-            }}
-            placeholder="Search words, or jump to a section…"
-            aria-label="Search words"
-            role="combobox"
-            aria-expanded={!selected}
-            aria-controls="palette-results"
-            aria-activedescendant={showOptions ? `palette-item-${active}` : undefined}
-            autoComplete="off"
-            spellCheck={false}
-            className="h-10 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-          />
-          <kbd className="mr-1 hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground sm:block">
-            ESC
-          </kbd>
+      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-md animate-in fade-in-0 duration-150" onClick={onClose} />
+      <div ref={cardRef} className="surface relative flex max-h-[72vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/60 dark:border-white/10 shadow-neu-lg animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className="p-3 pb-1">
+          <div className="surface-inset flex items-center gap-2.5 rounded-xl border border-border/50 px-3 py-1 shadow-neu-inset-sm">
+            {selected ? (
+              <Button size="icon" variant="ghost" onClick={() => setSelected(null)} aria-label="Back to results" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            )}
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setSelected(null)
+                setActive(0)
+              }}
+              placeholder="Search words, or jump to a section…"
+              aria-label="Search words"
+              role="combobox"
+              aria-expanded={!selected}
+              aria-controls="palette-results"
+              aria-activedescendant={showOptions ? `palette-item-${active}` : undefined}
+              autoComplete="off"
+              spellCheck={false}
+              className="h-10 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/70"
+            />
+            <kbd className="mr-1 hidden shrink-0 sm:inline-flex text-xs">
+              ESC
+            </kbd>
+          </div>
         </div>
 
         {/* Container keeps its stable id for aria-controls; the listbox role sits
             on the results list itself so quick/selected branches stay plain UI. */}
-        <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-2">
+        <div id="palette-results" className="min-h-40 flex-1 overflow-y-auto overscroll-contain p-3 pt-2">
           {selected ? (
             <div className="p-1">
               <WordCard word={selected} autoSpeak={false} />
@@ -244,7 +246,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                         key={term}
                         type="button"
                         onClick={() => setQuery(term)}
-                        className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary-line hover:text-foreground"
+                        className="rounded-full border border-border/60 bg-card px-3 py-1 text-xs text-muted-foreground shadow-neu-sm hover:shadow-neu hover:text-foreground active:shadow-neu-pressed transition-all cursor-pointer"
                       >
                         {term}
                       </button>
@@ -254,7 +256,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
               ) : null}
               <div>
                 <div className="label px-2 py-1.5 text-muted-foreground">Jump to</div>
-                <ul>
+                <ul className="space-y-1">
                   {QUICK.map((quick, i) => {
                     const Icon = quick.icon
                     return (
@@ -264,16 +266,18 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                           onMouseEnter={() => setActive(i)}
                           onClick={() => go(quick)}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors',
-                            active === i ? 'bg-primary-soft text-primary' : 'hover:bg-accent'
+                            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer',
+                            active === i
+                              ? 'bg-card text-primary shadow-neu-sm border border-white/60 dark:border-white/10'
+                              : 'hover:bg-card/50 text-muted-foreground hover:text-foreground'
                           )}
                         >
                           <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{quick.label}</span>
+                            <span className="block truncate text-sm font-semibold text-foreground">{quick.label}</span>
                             <span className="block truncate text-xs text-muted-foreground">{quick.hint}</span>
                           </span>
-                          {active === i ? <CornerDownLeft className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" /> : null}
+                          {active === i ? <CornerDownLeft className="h-3.5 w-3.5 shrink-0 opacity-70 text-primary" aria-hidden="true" /> : null}
                         </button>
                       </li>
                     )

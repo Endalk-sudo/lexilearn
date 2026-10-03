@@ -29,36 +29,36 @@ const GRADES: { grade: Grade; key: string; label: string; hint: string; borderCl
     key: '1',
     label: 'Again',
     hint: 'Forgot completely',
-    borderCls: 'border-destructive/30 hover:border-destructive/80 hover:bg-destructive-soft/50 text-destructive',
-    badgeCls: 'bg-destructive/10 text-destructive',
-    activeCls: 'active:bg-destructive-soft',
+    borderCls: 'border-destructive/40 bg-card text-destructive shadow-neu-sm hover:shadow-neu hover:border-destructive/80 active:shadow-neu-pressed',
+    badgeCls: 'bg-destructive/15 text-destructive font-bold',
+    activeCls: 'active:scale-[.97]',
   },
   {
     grade: 3,
     key: '2',
     label: 'Hard',
     hint: 'Tough recall',
-    borderCls: 'border-warning/30 hover:border-warning/80 hover:bg-warning-soft/50 text-warning',
-    badgeCls: 'bg-warning/10 text-warning',
-    activeCls: 'active:bg-warning-soft',
+    borderCls: 'border-warning/40 bg-card text-warning shadow-neu-sm hover:shadow-neu hover:border-warning/80 active:shadow-neu-pressed',
+    badgeCls: 'bg-warning/15 text-warning font-bold',
+    activeCls: 'active:scale-[.97]',
   },
   {
     grade: 4,
     key: '3',
     label: 'Good',
     hint: 'Clean recall',
-    borderCls: 'border-success/30 hover:border-success/80 hover:bg-success-soft/50 text-success',
-    badgeCls: 'bg-success/10 text-success',
-    activeCls: 'active:bg-success-soft',
+    borderCls: 'border-success/40 bg-card text-success shadow-neu-sm hover:shadow-neu hover:border-success/80 active:shadow-neu-pressed',
+    badgeCls: 'bg-success/15 text-success font-bold',
+    activeCls: 'active:scale-[.97]',
   },
   {
     grade: 5,
     key: '4',
     label: 'Easy',
     hint: 'Instant & clear',
-    borderCls: 'border-primary/30 hover:border-primary/80 hover:bg-primary-soft/50 text-primary',
-    badgeCls: 'bg-primary/10 text-primary',
-    activeCls: 'active:bg-primary-soft',
+    borderCls: 'border-primary/40 bg-card text-primary shadow-neu-sm hover:shadow-neu hover:border-primary/80 active:shadow-neu-pressed',
+    badgeCls: 'bg-primary/15 text-primary font-bold',
+    activeCls: 'active:scale-[.97]',
   },
 ]
 
@@ -591,16 +591,16 @@ export function ReviewView() {
               Undo
             </Button>
           ) : null}
-          <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+          <span className="surface rounded-full border border-white/60 dark:border-white/10 px-3 py-1 text-xs font-semibold text-muted-foreground shadow-neu-sm">
             <span className="hidden sm:inline">Space to flip · 1–4 to grade</span>
             <span className="sm:hidden">Tap to flip</span>
           </span>
         </div>
       </div>
 
-      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Review progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
+      <div className="mb-4 h-2.5 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm border border-border/50 p-0.5" role="progressbar" aria-label="Review progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
         <motion.div
-          className="h-full rounded-full bg-primary"
+          className="h-full rounded-full bg-primary shadow-neu-primary"
           animate={{ width: `${progressPct}%` }}
           transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
         />
@@ -690,23 +690,23 @@ export function ReviewView() {
               </div>
 
               {!revealed ? (
-                <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 p-7 text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-soft text-primary shadow-xs" aria-hidden="true">
+                <div className="mt-6 rounded-2xl surface-inset p-7 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-card shadow-neu-sm text-primary" aria-hidden="true">
                     <BrainCircuit className="h-6 w-6" />
                   </div>
                   <p className="mt-4 text-xl font-semibold tracking-tight">Recall it before you reveal</p>
                   <p className="mx-auto mt-1.5 max-w-md text-base leading-relaxed text-muted-foreground">
                     Say the meaning or picture it clearly in your head, then check yourself.
                   </p>
-                  <Button size="lg" onClick={reveal} data-testid="review-reveal" className="mt-6 h-12 w-full px-10 text-base cursor-pointer shadow-sm sm:w-auto">
+                  <Button size="lg" onClick={reveal} data-testid="review-reveal" className="mt-6 h-12 w-full px-10 text-base cursor-pointer shadow-neu-primary active:shadow-neu-pressed sm:w-auto">
                     Reveal answer
-                    <kbd className="ml-2 rounded border border-primary-foreground/30 bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[10px] uppercase font-semibold">
+                    <kbd className="ml-2 rounded-lg border border-primary-foreground/30 bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[10px] uppercase font-semibold">
                       Space
                     </kbd>
                   </Button>
                 </div>
               ) : (
-                <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="mt-6 space-y-[var(--study-gap)] border-t border-border pt-6">
+                <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="mt-6 space-y-[var(--study-gap)] border-t border-border/60 pt-6">
                   {current.word.definitions.length > 0 ? (
                     <motion.div variants={v(listItem)} transition={t()}>
                       <div className="label text-muted-foreground">Meaning</div>
@@ -722,7 +722,7 @@ export function ReviewView() {
                   ) : null}
 
                   {current.word.amharic ? (
-                    <motion.div variants={v(listItem)} transition={t()} className="rounded-xl border border-border/60 bg-muted/40 p-4 sm:p-5">
+                    <motion.div variants={v(listItem)} transition={t()} className="rounded-2xl surface-inset p-4 sm:p-5">
                       <div className="label text-muted-foreground">Amharic (አማርኛ)</div>
                       <div className="study-amharic mt-1.5 font-medium" lang="am">{current.word.amharic}</div>
                     </motion.div>
@@ -732,7 +732,7 @@ export function ReviewView() {
                     <motion.blockquote
                       variants={v(listItem)}
                       transition={t()}
-                      className="border-l-2 border-primary-line bg-primary-soft rounded-r-xl px-4 py-3.5 study-example italic"
+                      className="border-l-2 border-primary-line bg-primary-soft rounded-r-2xl px-4 py-3.5 study-example italic shadow-neu-inset-sm"
                     >
                       “{current.word.examples[0]}”
                     </motion.blockquote>
@@ -756,14 +756,14 @@ export function ReviewView() {
                             data-testid={`grade-${g.label.toLowerCase()}`}
                             onClick={(e) => void grade(g.grade, e, i)}
                             className={cn(
-                              'group relative flex min-h-[96px] flex-col justify-between rounded-xl border bg-card p-3.5 text-left shadow-xs transition-all duration-150 cursor-pointer active:scale-[.97]',
+                              'group relative flex min-h-[96px] flex-col justify-between rounded-2xl bg-card p-3.5 text-left shadow-neu-sm transition-all duration-150 cursor-pointer hover:shadow-neu active:shadow-neu-pressed',
                               g.borderCls,
                               g.activeCls
                             )}
                           >
                             <div className="flex items-start justify-between w-full">
                               <span className="text-base font-bold tracking-tight">{g.label}</span>
-                              <kbd className="flex h-5 w-5 items-center justify-center rounded-md border border-border/60 bg-muted/70 font-mono text-[11px] font-semibold text-muted-foreground">
+                              <kbd className="flex h-5 w-5 items-center justify-center rounded-lg border border-white/60 dark:border-white/10 bg-card font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                                 {g.key}
                               </kbd>
                             </div>
@@ -773,7 +773,7 @@ export function ReviewView() {
                               <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                                 <span className="text-xs font-semibold text-primary/90">+{GRADE_XP[g.grade]} XP</span>
                                 {interval ? (
-                                  <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', g.badgeCls)}>
+                                  <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full shadow-neu-sm', g.badgeCls)}>
                                     {interval}
                                   </span>
                                 ) : null}
@@ -801,23 +801,23 @@ export function ReviewView() {
       {/* Sticky keyboard HUD: pinned to the viewport bottom so the keys never
           scroll away mid-session. First card shows the full cheat sheet;
           after that it collapses to the essentials. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-background/90 backdrop-blur-md">
-        <div className="study-col mx-auto flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-muted-foreground sm:px-6">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/60 dark:border-white/10 surface backdrop-blur-md shadow-neu-lg">
+        <div className="study-col mx-auto flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm text-muted-foreground sm:px-6">
           <div className="flex items-center gap-4 flex-wrap">
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                 Space
               </kbd>
               <span>{revealed ? 'Good' : 'Reveal'}</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                 1–4
               </kbd>
               <span>Grade</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                 R
               </kbd>
               <span>Audio</span>
@@ -825,19 +825,19 @@ export function ReviewView() {
             {showHints ? (
               <>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                     S
                   </kbd>
                   <span>Slow</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                     M
                   </kbd>
                   <span>Star</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                     ⌘Z
                   </kbd>
                   <span>Undo</span>

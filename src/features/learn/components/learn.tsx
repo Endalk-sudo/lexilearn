@@ -509,9 +509,9 @@ export function LearnView({
         </ol>
       </div>
 
-      <div className="mb-5 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Session progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
+      <div className="mb-5 h-2.5 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm border border-border/50 p-0.5" role="progressbar" aria-label="Session progress" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100}>
         <motion.div
-          className="h-full rounded-full bg-primary"
+          className="h-full rounded-full bg-primary shadow-neu-primary"
           animate={{ width: `${progressPct}%` }}
           transition={t({ duration: 0.3, ease: [0.16, 1, 0.3, 1] })}
         />
@@ -598,7 +598,7 @@ export function LearnView({
                 >
                   <Volume2 className="h-4 w-4 mr-1.5" />
                   Hear again
-                  <kbd className="ml-2 hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+                  <kbd className="ml-2 hidden rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground shadow-neu-sm sm:inline">
                     R
                   </kbd>
                 </Button>
@@ -655,7 +655,7 @@ export function LearnView({
                 <p
                   role="status"
                   aria-live="polite"
-                  className="mt-4 rounded-md border border-warning/30 bg-warning-soft p-3 text-center text-sm font-medium text-warning"
+                  className="surface mt-4 rounded-2xl border border-warning/30 bg-warning-soft/50 p-3.5 text-center text-sm font-semibold text-warning shadow-neu-sm"
                 >
                   Try again — check the spelling. One more attempt.
                 </p>
@@ -702,10 +702,10 @@ export function LearnView({
       </AnimatePresence>
 
       {/* Laptop Keyboard HUD Bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground backdrop-blur-xs">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 surface rounded-2xl border border-border/60 px-4 py-2.5 text-xs text-muted-foreground shadow-neu-sm">
         <div className="flex items-center gap-3.5 flex-wrap">
           <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+            <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
               {stage === 'spell' ? 'Enter' : 'Space / Enter'}
             </kbd>
             <span>
@@ -720,7 +720,7 @@ export function LearnView({
           </span>
           {stage === 'recall' || stage === 'meaning' ? (
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+              <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                 R
               </kbd>
               <span>Hear again</span>
@@ -728,13 +728,13 @@ export function LearnView({
           ) : stage === 'spell' ? (
             <>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Alt+R / ⌃Space
                 </kbd>
                 <span>Replay audio</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                <kbd className="rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground shadow-neu-sm">
                   Alt+H
                 </kbd>
                 <span>Hint / Skip</span>

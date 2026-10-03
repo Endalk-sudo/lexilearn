@@ -128,7 +128,7 @@ export function WordCard({
   const cefrStyle = word.cefr ? CEFR_STYLES[word.cefr] ?? 'border-border bg-muted/40 text-muted-foreground' : null
 
   return (
-    <Card className="overflow-hidden border border-border/80 bg-card/95 shadow-xs">
+    <Card className="overflow-hidden surface rounded-3xl border-none">
       <div className="p-5 sm:p-7">
         {!hideWord ? (
           <>
@@ -142,7 +142,7 @@ export function WordCard({
                   {word.cefr ? (
                     <span
                       className={cn(
-                        'rounded px-2 py-0.5 font-mono text-xs font-bold tracking-wider uppercase border',
+                        'rounded-lg px-2.5 py-0.5 font-mono text-xs font-bold tracking-wider uppercase border shadow-neu-sm',
                         cefrStyle
                       )}
                     >
@@ -170,14 +170,14 @@ export function WordCard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 self-start">
+              <div className="flex items-center gap-2 shrink-0 self-start">
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => setHint((v) => !v)}
                   className={cn(
-                    'h-10 w-10 text-muted-foreground/70 hover:text-foreground transition-colors cursor-pointer',
-                    hint && 'text-amber-500 bg-amber-500/10'
+                    'h-10 w-10 rounded-xl bg-card shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed text-muted-foreground/70 hover:text-foreground transition-all cursor-pointer',
+                    hint && 'text-amber-500 bg-amber-500/10 shadow-neu-pressed'
                   )}
                   title={hint ? 'Hide hint' : 'Show structural hint'}
                   aria-label="Toggle word hint"
@@ -191,7 +191,7 @@ export function WordCard({
                   variant="ghost"
                   onClick={toggleBookmark}
                   className={cn(
-                    'h-10 w-10 text-muted-foreground/70 hover:text-amber-500 transition-colors cursor-pointer',
+                    'h-10 w-10 rounded-xl bg-card shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed text-muted-foreground/70 hover:text-amber-500 transition-all cursor-pointer',
                     bookmarked && 'text-amber-500'
                   )}
                   title={bookmarked ? 'Remove from favorites' : 'Save to favorites'}
@@ -205,8 +205,8 @@ export function WordCard({
                   variant={speaking ? 'soft' : 'outline'}
                   onClick={hear}
                   className={cn(
-                    'h-10 w-10 transition-all cursor-pointer',
-                    speaking && 'text-primary border-primary bg-primary/10'
+                    'h-10 w-10 rounded-xl bg-card shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed transition-all cursor-pointer',
+                    speaking && 'text-primary border-primary bg-primary/10 shadow-neu-pressed'
                   )}
                   aria-label={`Pronounce ${word.word}`}
                 >
@@ -226,7 +226,7 @@ export function WordCard({
                   transition={t()}
                   className="overflow-hidden"
                 >
-                  <div className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
+                    <div className="mt-3 flex items-center justify-between rounded-2xl surface-inset px-4 py-2.5 text-sm text-muted-foreground border-none">
                     <span className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-amber-500 shrink-0" aria-hidden="true" />
                       Starts with <strong className="font-semibold text-foreground uppercase">{word.word[0]}</strong>
@@ -243,7 +243,7 @@ export function WordCard({
           <div className="space-y-4 py-1">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">Audio Prompt</span>
-              <Button size="sm" variant="outline" onClick={hear} className="h-9 text-sm px-3.5 cursor-pointer">
+              <Button size="sm" variant="outline" onClick={hear} className="h-9 text-sm px-3.5 cursor-pointer shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed rounded-xl">
                 <Volume2 className="h-4 w-4 mr-1.5" />
                 Listen
               </Button>
@@ -252,7 +252,7 @@ export function WordCard({
             {/* Leak-safe hint during spelling: POS, first letter and length
               * scaffolded recall without revealing the word. No definition,
               * no example, no Amharic — those all contain the answer. */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-2xl surface-inset px-4 py-3 text-sm text-muted-foreground border-none">
               {word.pos ? (
                 <span className="font-semibold lowercase italic">{word.pos}</span>
               ) : null}
@@ -306,7 +306,7 @@ export function WordCard({
                 ) : null}
 
                 {word.examples.length ? (
-                  <section aria-label="Examples" className="border-l-2 border-primary-line bg-primary-soft/40 rounded-r-xl px-5 py-4">
+                  <section aria-label="Examples" className="border-l-2 border-primary-line bg-primary-soft/40 rounded-r-2xl px-5 py-4 shadow-neu-inset-sm">
                     <h3 className="label text-muted-foreground">In context</h3>
                     <div className="mt-2 space-y-2.5">
                       {word.examples.slice(0, 3).map((example, i) => (
@@ -319,9 +319,9 @@ export function WordCard({
                 ) : null}
 
                 {word.amharic ? (
-                  <section aria-label="Amharic translation">
+                  <section aria-label="Amharic translation" className="surface-inset rounded-2xl p-4 border-none">
                     <h3 className="label text-muted-foreground">አማርኛ</h3>
-                    <p className="study-amharic mt-2 text-foreground font-medium" lang="am">
+                    <p className="study-amharic mt-1 text-foreground font-medium" lang="am">
                       {word.amharic}
                     </p>
                   </section>
@@ -334,11 +334,11 @@ export function WordCard({
                         <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                           Synonyms
                         </span>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {word.synonyms.map((s) => (
                             <span
                               key={s}
-                              className="rounded-md bg-muted/60 px-2 py-1 text-sm text-foreground/90 font-mono"
+                              className="rounded-xl bg-card shadow-neu-sm px-2.5 py-1 text-sm text-foreground/90 font-mono"
                             >
                               {s}
                             </span>
@@ -352,11 +352,11 @@ export function WordCard({
                         <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                           Antonyms
                         </span>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {word.antonyms.map((a) => (
                             <span
                               key={a}
-                              className="rounded-md border border-border/60 px-2 py-1 text-sm text-muted-foreground font-mono"
+                              className="rounded-xl bg-card shadow-neu-sm px-2.5 py-1 text-sm text-muted-foreground font-mono"
                             >
                               {a}
                             </span>
@@ -381,7 +381,7 @@ export function WordCard({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                      className="h-8 text-sm text-muted-foreground hover:text-foreground cursor-pointer rounded-xl hover:shadow-neu-sm"
                       onClick={() => setLocalRevealedWordId(null)}
                     >
                       Hide answer
@@ -405,7 +405,7 @@ export function WordCard({
                   onReveal?.()
                 }}
                 data-testid="wordcard-reveal"
-                className="mt-5 h-12 w-full text-sm font-semibold cursor-pointer border-border hover:bg-muted/40 transition-colors"
+                className="mt-5 h-12 w-full text-base font-semibold cursor-pointer shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed rounded-2xl bg-card border-none transition-all"
               >
                 Reveal meaning
                 <span className="ml-auto hidden font-mono text-xs text-muted-foreground sm:inline">SPACE</span>

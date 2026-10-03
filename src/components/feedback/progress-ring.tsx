@@ -30,16 +30,16 @@ export function ProgressRing({
   return (
     <div className={cn('flex items-center gap-4', className)}>
       <div
-        className="relative shrink-0"
-        style={{ width: size, height: size }}
+        className="relative shrink-0 rounded-full p-1.5 shadow-neu-inset border border-border/40 bg-muted/40"
+        style={{ width: size + 12, height: size + 12 }}
         role="progressbar"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={label}
       >
-        <svg width={size} height={size} className="-rotate-90 drop-shadow-xs" aria-hidden="true">
-          <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="stroke-muted/60" fill="none" />
+        <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="stroke-muted/40" fill="none" />
           <motion.circle
             cx={size / 2}
             cy={size / 2}
@@ -57,12 +57,12 @@ export function ProgressRing({
             transition={t({ type: 'spring', stiffness: 90, damping: 20 })}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold tabular-nums leading-none num tracking-tight">
+        <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-card shadow-neu-sm border border-white/70 dark:border-white/10">
+          <span className="text-xl font-bold tabular-nums leading-none num tracking-tight text-foreground">
             {shown}%
           </span>
           {pct >= 100 ? (
-            <span className="text-[10px] font-semibold text-success uppercase tracking-wider mt-0.5">Done</span>
+            <span className="text-[10px] font-bold text-success uppercase tracking-wider mt-0.5">Done</span>
           ) : null}
         </div>
       </div>

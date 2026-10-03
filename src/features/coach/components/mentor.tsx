@@ -447,7 +447,7 @@ export function MentorView() {
 
       <BranchMaker show={showBranchMaker} overview={overview} state={{ branchTitle, focusTag, branchMode, difficulty }} setters={{ setBranchTitle, setFocusTag, setBranchMode, setDifficulty }} creating={creating} onCreate={createBranch}/>
 
-      <Card className="overflow-hidden border border-border shadow-xs rounded-xl">
+      <Card className="overflow-hidden surface rounded-3xl border-none">
         <CardContent className="p-5 sm:p-7">
           {!node ? (
             <div className="space-y-4" aria-live="polite">
@@ -455,7 +455,7 @@ export function MentorView() {
                 <Loader2 className="h-4 w-4 animate-spin text-primary"/>
                 <span>{thinkingLine}</span>
               </div>
-              <div className="space-y-3 rounded-lg border bg-card p-6 shadow-sm">
+              <div className="space-y-3 rounded-2xl surface-inset p-6">
                 <Skeleton className="h-5 w-full max-w-md"/>
                 <Skeleton className="h-5 w-2/3"/>
                 <Skeleton className="mt-6 h-24 w-full"/>
@@ -474,7 +474,7 @@ export function MentorView() {
               {/* Challenge Studio Header with Snapped Step Progress */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
                 <div className="flex flex-wrap items-center gap-2.5 text-xs">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 font-semibold text-primary">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-card shadow-neu-sm px-3 py-1 font-semibold text-primary">
                     <Target className="h-3.5 w-3.5" />
                     Challenge
                   </span>
@@ -488,10 +488,10 @@ export function MentorView() {
                           const step = selfCorrecting ? 1 : 0
                           return (
                             <div key={label} className="flex items-center gap-1.5">
-                              {i > 0 && <span className="h-px w-3 bg-border" aria-hidden="true"/>}
+                              {i > 0 && <span className="h-px w-3 bg-border/60" aria-hidden="true"/>}
                               <span className={cn(
                                 'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
-                                i === step ? 'bg-primary-soft text-primary font-semibold' : i < step ? 'text-success font-semibold' : 'text-muted-foreground'
+                                i === step ? 'bg-primary-soft text-primary font-semibold shadow-neu-sm' : i < step ? 'text-success font-semibold' : 'text-muted-foreground'
                               )}>
                                 {i < step ? <Check className="h-2.5 w-2.5"/> : <span className="tabular-nums">{i+1}</span>}
                                 {label}
@@ -507,7 +507,7 @@ export function MentorView() {
                   variant="outline"
                   size="sm"
                   onClick={() => speak(node.prompt)}
-                  className="gap-1.5 h-8 text-xs font-medium cursor-pointer shrink-0 self-end sm:self-auto"
+                  className="gap-1.5 h-8 text-xs font-medium cursor-pointer shrink-0 self-end sm:self-auto rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
                   title="Listen to challenge"
                 >
                   <Volume2 className="h-3.5 w-3.5 text-primary" />
@@ -531,7 +531,7 @@ export function MentorView() {
                     className="space-y-2 overflow-hidden"
                   >
                     {hintsList.map((h) => (
-                      <div key={h.level} className="flex gap-3 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5 text-sm">
+                      <div key={h.level} className="flex gap-3 rounded-2xl surface-inset p-4 text-sm border-none">
                         <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                         <div className="min-w-0 flex-1">
                           <div className="font-semibold text-warning-foreground text-xs uppercase tracking-wider">
@@ -548,7 +548,7 @@ export function MentorView() {
               {!feedback ? (
                 <div className="space-y-4">
                   {/* Integrated Editorial Writing Canvas (Container Dissolution) */}
-                  <div className="rounded-lg border border-border/80 bg-muted/15 p-3.5 shadow-2xs focus-within:border-primary-line focus-within:bg-card focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                  <div className="rounded-2xl surface-inset p-4 shadow-neu-inset transition-all border-none">
                     <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b border-border/40">
                       <span className="font-medium text-foreground">
                         {selfCorrecting ? 'Your first attempt (read only)' : 'Your response'}
@@ -573,7 +573,7 @@ export function MentorView() {
                           }
                         }}
                         placeholder="Write your sentence here…"
-                        className="mt-2 min-h-[104px] border-0 bg-transparent p-0 text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 resize-none"
+                        className="mt-2 min-h-[104px] border-0 bg-transparent p-0 text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 resize-none shadow-none"
                         aria-label="Your answer"
                       />
                     )}
@@ -581,7 +581,7 @@ export function MentorView() {
 
                   {selfCorrecting && (
                     <motion.div variants={v(revealBlock)} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-                      <div className="rounded-lg border border-primary-line bg-primary-soft/90 p-3.5">
+                      <div className="rounded-2xl surface-inset p-4 border-none">
                         <div className="text-xs font-semibold text-primary uppercase tracking-wider">
                           Self-Correction — Polish or confirm before evaluation
                         </div>
@@ -597,7 +597,7 @@ export function MentorView() {
                             }
                           }}
                           placeholder="Correct yourself before the Mentor evaluates…"
-                          className="mt-2 min-h-[72px] border-0 bg-transparent p-0 text-base focus-visible:ring-0 resize-none"
+                          className="mt-2 min-h-[72px] border-0 bg-transparent p-0 text-base focus-visible:ring-0 resize-none shadow-none"
                           aria-label="Your corrected answer"
                         />
                       </div>
@@ -611,7 +611,7 @@ export function MentorView() {
                         Confidence: <span className="font-semibold text-foreground num">{confidence}</span>
                         <span className="text-muted-foreground/70 text-[11px] hidden sm:inline"> · {CONFIDENCE_OPTIONS.find(o => o.level === confidence)?.label}</span>
                       </span>
-                      <div role="radiogroup" aria-label="Confidence" className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shrink-0">
+                      <div role="radiogroup" aria-label="Confidence" className="inline-flex items-center gap-1 rounded-2xl surface-inset p-1 shrink-0">
                         {CONFIDENCE_OPTIONS.map((opt) => (
                           <button
                             key={opt.level}
@@ -622,10 +622,10 @@ export function MentorView() {
                             title={`${opt.level} — ${opt.label}`}
                             aria-label={`Confidence level ${opt.level}: ${opt.label}`}
                             className={cn(
-                              'h-8 w-8 inline-flex items-center justify-center rounded-md font-mono text-xs font-semibold tabular-nums transition-all cursor-pointer select-none',
+                              'h-8 w-8 inline-flex items-center justify-center rounded-xl font-mono text-xs font-semibold tabular-nums transition-all cursor-pointer select-none',
                               confidence === opt.level
-                                ? 'bg-primary text-primary-foreground font-bold shadow-xs ring-1 ring-primary/40'
-                                : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                                ? 'bg-primary text-primary-foreground font-bold shadow-neu-primary'
+                                : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground active:shadow-neu-pressed'
                             )}
                           >
                             {opt.level}
@@ -641,7 +641,7 @@ export function MentorView() {
                           size="sm"
                           onClick={requestHint}
                           disabled={hintLevel >= 4}
-                          className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+                          className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
                         >
                           <Lightbulb className="h-3.5 w-3.5 text-warning" />
                           <span>Hint</span>
@@ -652,7 +652,7 @@ export function MentorView() {
                         size="sm"
                         onClick={submit}
                         disabled={submitting || !answer.trim() || (selfCorrecting && !selfCorrection.trim())}
-                        className="h-8 gap-2 text-xs font-semibold cursor-pointer shadow-xs"
+                        className="h-9 gap-2 px-4 rounded-xl text-xs font-semibold cursor-pointer shadow-neu-primary active:shadow-neu-pressed"
                       >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                         <span>{selfCorrecting ? 'Evaluate' : 'Submit'}</span>
@@ -696,11 +696,11 @@ function MemoryPanel({ overview }: { overview: Overview }) {
         {overview.dueErrors.length ? (
           <div className="mt-2 space-y-1.5">
             {overview.dueErrors.slice(0, 5).map(e => (
-              <div key={e.id} className="rounded-md bg-muted/50 p-2 text-xs">
-                <span className="font-medium line-through decoration-destructive/60">{e.wrong}</span>
+              <div key={e.id} className="surface-inset rounded-xl border border-border/50 p-2.5 text-xs shadow-neu-inset-sm">
+                <span className="font-semibold line-through decoration-destructive/60">{e.wrong}</span>
                 <span className="mx-1 text-muted-foreground">→</span>
-                <span className="font-semibold text-success">{e.right}</span>
-                <span className="block text-muted-foreground">{fmtTag(e.errorType)}</span>
+                <span className="font-bold text-success">{e.right}</span>
+                <span className="block mt-0.5 text-muted-foreground">{fmtTag(e.errorType)}</span>
               </div>
             ))}
           </div>
@@ -742,8 +742,8 @@ function MapPanel({ overview, activeBranchId, onPick, onNew }: {
             key={b.id}
             onTap={() => onPick(b.id)}
             ariaLabel={`Switch to ${b.title}`}
-            className={cn('w-full rounded-lg border p-3 text-left transition-colors',
-              active ? 'border-primary-line bg-primary-soft shadow-xs' : 'border-border hover:border-primary-line/60 hover:bg-muted/50')}
+            className={cn('w-full rounded-2xl border p-3.5 text-left transition-all',
+              active ? 'surface-inset border-primary-line bg-primary-soft/40 shadow-neu-inset-sm' : 'surface border-border/70 shadow-neu-sm hover:shadow-neu hover:border-primary-line/50 active:shadow-neu-pressed')}
           >
             <div className="flex items-start justify-between gap-2">
               <span className="text-sm font-semibold">{b.title}</span>
@@ -755,7 +755,7 @@ function MapPanel({ overview, activeBranchId, onPick, onNew }: {
           </Pressable>
         )
       })}
-      <Button variant="outline" size="sm" onClick={onNew} className="w-full gap-2"><GitBranch className="h-3.5 w-3.5"/>New branch</Button>
+      <Button variant="outline" size="sm" onClick={onNew} className="w-full gap-2 rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"><GitBranch className="h-3.5 w-3.5"/>New branch</Button>
     </div>
   )
 }
@@ -785,9 +785,9 @@ function FeedbackView({
   return (
     <div className="space-y-5">
       {/* Hero Score Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl surface p-5 border-none shadow-neu">
         <div className="flex items-center gap-3">
-          <div className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border text-xl font-bold tabular-nums shadow-xs', scoreTone)}>
+          <div className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-card shadow-neu-sm text-xl font-bold tabular-nums', scoreTone)}>
             {avg}%
           </div>
           <div>
@@ -795,7 +795,7 @@ function FeedbackView({
             <div className="text-base font-semibold text-foreground">{ratingLabel}</div>
           </div>
         </div>
-        <Button onClick={onNext} className="gap-2 cursor-pointer shrink-0">
+        <Button onClick={onNext} className="gap-2 cursor-pointer shrink-0 rounded-xl shadow-neu-primary active:shadow-neu-pressed">
           <span>Next challenge</span>
           <kbd className="rounded border border-primary-foreground/30 bg-primary-foreground/20 px-1 py-0.2 font-mono text-[10px] text-primary-foreground">R</kbd>
           <ArrowRight className="h-4 w-4" />
@@ -805,14 +805,14 @@ function FeedbackView({
       {/* Side-by-side or stacked attempts */}
       <div className="space-y-3">
         {/* Your Attempt */}
-        <div className="rounded-xl border border-border bg-muted/20 p-4">
+        <div className="rounded-2xl surface-inset p-4 border-none">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Your attempt</div>
           <div className="text-sm leading-relaxed text-foreground font-medium">{answer}</div>
         </div>
 
         {/* Native Polish */}
         {feedback.native_version && (
-          <div className="rounded-xl border border-primary-line bg-primary-soft/80 p-4 space-y-2.5">
+          <div className="rounded-2xl bg-primary-soft/80 p-4 space-y-2.5 shadow-neu-inset-sm border-l-2 border-primary-line">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -822,7 +822,7 @@ function FeedbackView({
                 variant="ghost"
                 size="sm"
                 onClick={() => onSpeak(feedback.native_version)}
-                className="h-7 gap-1 px-2 text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer"
+                className="h-7 gap-1 px-2 text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer rounded-lg hover:shadow-neu-sm"
                 title="Read aloud"
               >
                 <Volume2 className="h-3.5 w-3.5" />
@@ -838,15 +838,15 @@ function FeedbackView({
 
         {/* Granular correction diffs */}
         {feedback.corrections.length > 0 && (
-          <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-2 rounded-2xl surface p-4 border-none">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Corrections</div>
             <div className="flex flex-wrap gap-2 pt-1">
               {feedback.corrections.map((c, i) => (
-                <div key={i} className="inline-flex items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-xs">
+                <div key={i} className="inline-flex items-center gap-2 rounded-xl bg-card shadow-neu-sm px-3 py-1.5 text-xs">
                   <span className="line-through text-destructive decoration-destructive/60 font-medium">{c.wrong}</span>
                   <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                   <span className="font-semibold text-success">{c.right}</span>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">{c.type.replaceAll('_', ' ')}</span>
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">{c.type.replaceAll('_', ' ')}</span>
                 </div>
               ))}
             </div>
@@ -855,7 +855,7 @@ function FeedbackView({
 
         {/* Diagnosis / Root cause */}
         {diagnosis?.root_cause && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-relaxed">
+          <div className="flex items-start gap-3 rounded-2xl surface-inset p-4 text-xs leading-relaxed border-none">
             <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
             <div>
               <span className="font-semibold text-amber-900 dark:text-amber-200">Why this keeps happening: </span>
@@ -874,7 +874,7 @@ function FeedbackView({
 
       {/* Follow-up retrieval reinforcement */}
       {feedback.follow_up && (
-        <div className="rounded-xl border border-dashed border-primary/40 bg-card p-4 space-y-2">
+        <div className="rounded-2xl surface-inset p-4 space-y-2 border-none">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <MessageCircle className="h-3.5 w-3.5 text-primary" />
             <span>Reinforcement Drill</span>
@@ -899,16 +899,16 @@ function FeedbackView({
                   }
                 }}
                 placeholder="Answer in one sentence…"
-                className="h-9 text-sm"
+                className="h-10 text-sm rounded-xl"
                 aria-label="Your answer to the follow-up question"
               />
-              <Button size="sm" onClick={onSendFollowUp} disabled={!followUpAnswer.trim()} className="shrink-0 gap-1.5 cursor-pointer">
+              <Button size="sm" onClick={onSendFollowUp} disabled={!followUpAnswer.trim()} className="shrink-0 gap-1.5 cursor-pointer rounded-xl shadow-neu-primary active:shadow-neu-pressed">
                 <Send className="h-3.5 w-3.5" />
                 <span>Send</span>
               </Button>
             </div>
           ) : (
-            <div className="mt-2 flex items-center gap-2 rounded-md bg-success-soft p-2.5 text-sm text-success font-medium">
+            <div className="mt-2 flex items-center gap-2 rounded-xl bg-success-soft p-3 text-sm text-success font-medium shadow-neu-sm">
               <Check className="h-4 w-4 shrink-0" />
               <span>Reinforcement registered! Active recall cements long-term mastery.</span>
             </div>
@@ -930,10 +930,16 @@ function FeedbackView({
               }
             }}
             placeholder="Ask the Mentor to explain further…"
-            className="h-9 text-sm"
+            className="h-10 text-sm rounded-xl"
             aria-label="Ask a follow-up question"
           />
-          <Button variant="outline" size="sm" onClick={onExplain} disabled={explainLoading || !explainMore.trim()} className="shrink-0 gap-1.5 cursor-pointer">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExplain}
+            disabled={explainLoading || !explainMore.trim()}
+            className="shrink-0 gap-1.5 cursor-pointer rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
+          >
             {explainLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
             <span>Ask</span>
           </Button>
@@ -946,12 +952,12 @@ function FeedbackView({
 
 function Metric({label,value}:{label:string;value:number}) {
   return (
-    <div className="rounded-lg border p-2.5">
+    <div className="rounded-2xl surface p-3.5 border-none">
       <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground font-medium">{label}</span>
         <span className="tabular-nums font-semibold">{Math.round(value*100)}%</span>
       </div>
-      <Progress value={value*100} className="mt-2 h-1"/>
+      <Progress value={value*100} className="mt-2.5 h-1.5"/>
     </div>
   )
 }

@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        'flex w-full gap-1 rounded-lg border border-border bg-card p-1 shadow-xs',
+        'surface-inset flex w-full gap-1.5 rounded-2xl p-1.5 shadow-neu-inset border border-border/50',
         className
       )}
     >
@@ -54,15 +54,15 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              'relative flex min-w-0 flex-1 items-center justify-center gap-2 rounded-md font-medium transition-colors duration-150',
-              size === 'sm' ? 'h-8 px-2.5 text-xs' : 'h-10 px-3 text-sm',
+              'relative flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 cursor-pointer select-none',
+              size === 'sm' ? 'h-8 px-2.5 text-xs' : 'h-10 px-3.5 text-sm',
               active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {active ? (
               <motion.span
                 layoutId={reduce ? undefined : `segment-${id}`}
-                className="absolute inset-0 rounded-md border border-primary-line bg-primary-soft"
+                className="absolute inset-0 rounded-xl bg-card border border-white/60 dark:border-white/10 shadow-neu-sm"
                 transition={t(transition.fast)}
                 aria-hidden="true"
               />
@@ -72,8 +72,8 @@ export function SegmentedControl<T extends string>({
             {option.badge !== undefined && option.badge !== 0 && option.badge !== null ? (
               <span
                 className={cn(
-                  'relative flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold num',
-                  active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  'relative flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold num shadow-2xs',
+                  active ? 'bg-primary text-primary-foreground' : 'bg-muted/80 text-muted-foreground'
                 )}
               >
                 {option.badge}

@@ -203,7 +203,7 @@ function OverviewPanel() {
         />
       ) : null}
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="This week" description="Correct answers versus misses, per day." />
         <div className="mt-4 h-56 w-full">
           <WeeklyChart data={weekly} />
@@ -211,16 +211,16 @@ function OverviewPanel() {
       </div>
 
       {forecast.some((d) => d.count > 0) ? (
-        <div className="surface p-5">
+        <div className="surface rounded-3xl p-6 border-none">
           <SectionHeader title="Next 7 days" description="Cards coming due, day by day." />
-          <ul className="mt-4 grid grid-cols-7 gap-1.5">
+          <ul className="mt-4 grid grid-cols-7 gap-2">
             {forecast.map((d) => (
-              <li key={d.date} className="flex flex-col items-center gap-1.5 rounded-md border border-border p-2">
+              <li key={d.date} className="flex flex-col items-center gap-1.5 rounded-2xl surface-inset p-2.5 border-none">
                 <span className="label text-muted-foreground">
                   {new Date(d.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' })}
                 </span>
                 <span className="text-sm font-semibold num">{d.count}</span>
-                <span className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <span className="h-1.5 w-full overflow-hidden rounded-full surface-inset shadow-neu-inset-sm p-0.2">
                   <span
                     className="block h-full rounded-full bg-primary"
                     style={{ width: `${Math.round((d.count / forecastMax) * 100)}%` }}
@@ -232,8 +232,8 @@ function OverviewPanel() {
         </div>
       ) : null}
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="surface p-5">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="surface rounded-3xl p-6 border-none">
           <SectionHeader title="Word status" description="Where your vocabulary currently sits." />
           {pieData.length ? (
             <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row">
@@ -244,9 +244,9 @@ function OverviewPanel() {
               <ul className="w-full space-y-2">
                 {pieData.map((slice, i) => (
                   <li key={slice.name} className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PIE_TOKENS[i % PIE_TOKENS.length] }} aria-hidden="true" />
+                    <span className="h-3 w-3 shrink-0 rounded-full shadow-neu-sm" style={{ background: PIE_TOKENS[i % PIE_TOKENS.length] }} aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">{slice.name}</span>
-                    <span className="font-medium num">{slice.value}</span>
+                    <span className="font-semibold num">{slice.value}</span>
                   </li>
                 ))}
               </ul>
@@ -256,7 +256,7 @@ function OverviewPanel() {
           )}
         </div>
 
-        <div className="surface p-5">
+        <div className="surface rounded-3xl p-6 border-none">
           <SectionHeader title="How you grade" description="Again through Easy, across all reviews." />
           {data.gradeDistribution.length ? (
             <ul className="mt-4 space-y-3">
@@ -266,7 +266,7 @@ function OverviewPanel() {
                     <span className="font-medium">{GRADE_LABELS[grade.grade] ?? `Grade ${grade.grade}`}</span>
                     <span className="text-muted-foreground num">{grade.count}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-2.5 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm p-0.2">
                     <motion.div
                       className="h-full rounded-full"
                       style={{ background: GRADE_TOKENS[i % GRADE_TOKENS.length] }}
@@ -284,14 +284,14 @@ function OverviewPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Consistency" description="Every square is a day you showed up." />
         <div className="mt-4">
           <ContributionCalendar data={data.heatmap} />
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Per deck" description="How each deck is progressing." />
         <div
           className="mt-4 overflow-x-auto"
@@ -302,7 +302,7 @@ function OverviewPanel() {
           <table className="w-full text-sm">
             <caption className="sr-only">Per-deck progress</caption>
             <thead>
-              <tr className="border-b border-border text-left">
+              <tr className="border-b border-border/60 text-left">
                 <th scope="col" className="label py-2 pr-4 text-muted-foreground">Deck</th>
                 <th scope="col" className="label px-2 py-2 text-right text-muted-foreground">Total</th>
                 <th scope="col" className="label px-2 py-2 text-right text-muted-foreground">Mastered</th>
@@ -312,12 +312,12 @@ function OverviewPanel() {
             </thead>
             <tbody>
               {data.perDeck.map((deck) => (
-                <tr key={deck.id} className="border-b border-border last:border-0">
-                  <td className="py-2.5 pr-4 font-medium">{deck.name}</td>
-                  <td className="px-2 py-2.5 text-right num">{deck.total}</td>
-                  <td className="px-2 py-2.5 text-right text-success num">{deck.mastered}</td>
-                  <td className="px-2 py-2.5 text-right text-warning num">{deck.learning + deck.reviewing}</td>
-                  <td className="px-2 py-2.5 text-right num">{deck.accuracy}%</td>
+                <tr key={deck.id} className="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+                  <td className="py-3 pr-4 font-semibold">{deck.name}</td>
+                  <td className="px-2 py-3 text-right num">{deck.total}</td>
+                  <td className="px-2 py-3 text-right text-success font-semibold num">{deck.mastered}</td>
+                  <td className="px-2 py-3 text-right text-warning font-semibold num">{deck.learning + deck.reviewing}</td>
+                  <td className="px-2 py-3 text-right font-medium num">{deck.accuracy}%</td>
                 </tr>
               ))}
             </tbody>
@@ -325,7 +325,7 @@ function OverviewPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader
           title="Recent activity"
           description={showAllLogs ? `Latest ${logs.length} of ${data.recentLogs.length} reviews` : 'Your last few answers'}
@@ -486,7 +486,7 @@ function SettingsPanel() {
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Voice" description="Pronunciation is generated by your device. Nothing is sent anywhere." />
         <div className="mt-4 space-y-4">
           <div>
@@ -522,6 +522,7 @@ function SettingsPanel() {
                 variant="outline"
                 aria-label="Slower"
                 onClick={() => setSettings({ ...settings, ttsRate: Math.max(0.5, Number((settings.ttsRate - 0.1).toFixed(1))) })}
+                className="rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -540,6 +541,7 @@ function SettingsPanel() {
                 variant="outline"
                 aria-label="Faster"
                 onClick={() => setSettings({ ...settings, ttsRate: Math.min(2, Number((settings.ttsRate + 0.1).toFixed(1))) })}
+                className="rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -547,7 +549,7 @@ function SettingsPanel() {
           </div>
 
           {/* Auto-pronounce words toggle */}
-          <div className="flex items-center justify-between rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
+          <div className="flex items-center justify-between rounded-2xl surface-inset p-4 border-none">
             <div className="space-y-0.5 pr-4">
               <div className="flex items-center gap-2">
                 <Volume2 className="h-4 w-4 text-primary" />
@@ -557,14 +559,14 @@ function SettingsPanel() {
                 <Badge
                   variant={settings.autoSpeak ? 'default' : 'secondary'}
                   className={cn(
-                    'text-[10px] px-1.5 py-0.2 font-semibold',
-                    settings.autoSpeak ? 'bg-primary/20 text-primary border-primary/30' : 'text-muted-foreground'
+                    'text-[10px] px-2 py-0.5 font-semibold rounded-full shadow-neu-sm',
+                    settings.autoSpeak ? 'bg-primary text-primary-foreground shadow-neu-primary' : 'text-muted-foreground bg-card'
                   )}
                 >
                   {settings.autoSpeak ? 'ON' : 'OFF'}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Automatically read words aloud whenever they appear in Learn, Review, or Dictionary.
               </p>
             </div>
@@ -591,6 +593,7 @@ function SettingsPanel() {
               })
               if (!ok) toast.error('Pronunciation is unavailable in this browser.')
             }}
+            className="rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
           >
             <Volume2 className="h-4 w-4" />
             Test this voice
@@ -600,7 +603,7 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader
           title="AI Mentor Engine"
           description="Choose your AI engine: OpenRouter (Claude, GPT-4o, Llama 3, DeepSeek), Google Gemini (Gemini 2.5 Flash), or local Ollama."
@@ -610,12 +613,12 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Reading" description="How big study text renders in Learn, Review and Dictation." />
         <div className="mt-4 space-y-4">
           <div>
             <Label>Text size</Label>
-            <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Study text size">
+            <div className="mt-2.5 grid grid-cols-3 gap-3" role="radiogroup" aria-label="Study text size">
               {([
                 { value: 'comfortable', label: 'Comfortable', hint: '48px heads' },
                 { value: 'large', label: 'Large', hint: '56px heads' },
@@ -630,10 +633,10 @@ function SettingsPanel() {
                     aria-checked={active}
                     onClick={() => setSettings({ ...settings, studyText: option.value })}
                     className={cn(
-                      'rounded-xl border p-3 text-left transition-all cursor-pointer',
+                      'rounded-2xl p-4 text-left transition-all cursor-pointer border-none',
                       active
-                        ? 'border-primary bg-primary-soft/60 ring-1 ring-primary/40'
-                        : 'border-border hover:border-primary-line'
+                        ? 'shadow-neu-pressed bg-card ring-1 ring-primary/40'
+                        : 'bg-card shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed'
                     )}
                   >
                     <span className="block text-sm font-semibold">{option.label}</span>
@@ -650,7 +653,7 @@ function SettingsPanel() {
               })}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3.5">
+          <div className="flex items-center justify-between gap-3 rounded-2xl surface-inset p-4 border-none">
             <div className="min-w-0">
               <div className="text-sm font-medium">Focus mode</div>
               <div className="text-xs text-muted-foreground">Dim the sidebar and headers while studying (toggle with F)</div>
@@ -664,7 +667,7 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Daily rhythm" description="Small and daily beats big and rare." />
         <div className="mt-4">
           <Label htmlFor="daily-goal">Words per day — {settings.dailyGoal}</Label>
@@ -686,10 +689,10 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Feel" description="Feedback you can switch off at any time." />
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3.5">
+          <div className="flex items-center justify-between gap-3 rounded-2xl surface-inset p-4 border-none">
             <div className="min-w-0">
               <div className="text-sm font-medium">Sound</div>
               <div className="text-xs text-muted-foreground">A short chime when an answer is graded</div>
@@ -704,7 +707,7 @@ function SettingsPanel() {
               }}
             />
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3.5">
+          <div className="flex items-center justify-between gap-3 rounded-2xl surface-inset p-4 border-none">
             <div className="min-w-0">
               <div className="text-sm font-medium">Haptics</div>
               <div className="text-xs text-muted-foreground">Gentle vibration on tap (mobile only)</div>
@@ -721,9 +724,9 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Appearance" description="Match your system, or pick a mood." />
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
           {([
             { value: 'light', label: 'Light', icon: Sun },
             { value: 'dark', label: 'Dark', icon: Moon },
@@ -740,19 +743,19 @@ function SettingsPanel() {
                   setTheme(option.value)
                   void api.updateSettings({ theme: option.value }).catch(() => {})
                 }}
-                className="h-auto flex-col gap-1.5 py-3.5"
+                className={cn('h-auto flex-col gap-1.5 py-4 rounded-2xl', active ? 'shadow-neu-primary' : 'shadow-neu-sm hover:shadow-neu')}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
-                <span className="text-xs font-medium">{option.label}</span>
+                <span className="text-xs font-semibold">{option.label}</span>
               </Button>
             )
           })}
         </div>
 
-        <div className="mt-5 border-t border-border/50 pt-4">
+        <div className="mt-6 border-t border-border/50 pt-5">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accent Palette</Label>
           <p className="text-xs text-muted-foreground mt-0.5 mb-3">Custom color mood for highlights, focus rings, and primary actions.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             {ACCENT_THEMES.map((t) => {
               const active = accentHue === t.hue
               return (
@@ -761,8 +764,8 @@ function SettingsPanel() {
                   type="button"
                   onClick={() => setAccentHue(t.hue)}
                   className={cn(
-                    'flex items-center gap-2 rounded-lg border p-2.5 transition-all text-xs font-medium',
-                    active ? 'border-primary bg-primary/10 shadow-sm' : 'border-border/60 hover:border-border hover:bg-muted/30'
+                    'flex items-center gap-2 rounded-2xl p-3 transition-all text-xs font-semibold cursor-pointer border-none',
+                    active ? 'shadow-neu-pressed bg-card ring-1 ring-primary/40' : 'bg-card shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed'
                   )}
                   title={t.name}
                 >
@@ -775,24 +778,24 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="surface p-5">
+      <div className="surface rounded-3xl p-6 border-none">
         <SectionHeader title="Go deeper" description="Map your grammar and fluency with the coach." />
         <div className="mt-3">
           <GoToCoach />
         </div>
       </div>
 
-      <div className="surface border-destructive/30 p-5">
+      <div className="surface rounded-3xl border-destructive/30 p-6">
         <SectionHeader title="Danger zone" description="These actions cannot be undone." />
         <div className="mt-4">
           <AlertDialog onOpenChange={(open) => !open && setConfirmText('')}>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="text-destructive">
+              <Button variant="outline" className="text-destructive rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed">
                 <Trash2 className="h-4 w-4" />
                 Reset all progress
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="surface rounded-3xl shadow-neu-lg border-none">
               <AlertDialogHeader>
                 <AlertDialogTitle>Reset all progress?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -807,13 +810,13 @@ function SettingsPanel() {
                 aria-label="Type RESET to confirm"
                 autoComplete="off"
                 spellCheck={false}
-                className="font-mono"
+                className="font-mono rounded-xl"
               />
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-xl shadow-neu-sm">Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   disabled={confirmText.trim().toUpperCase() !== 'RESET'}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 rounded-xl"
                   onClick={async () => {
                     try {
                       await api.resetProgress()
@@ -834,13 +837,13 @@ function SettingsPanel() {
 
       {dirty ? (
         <div className="sticky bottom-20 z-30 md:bottom-4">
-          <div className="surface flex items-center justify-between gap-3 p-3 shadow-lg">
-            <span className="text-sm text-muted-foreground">Unsaved changes</span>
+          <div className="surface rounded-2xl flex items-center justify-between gap-3 p-4 shadow-neu-lg border-none">
+            <span className="text-sm font-semibold text-muted-foreground">Unsaved changes</span>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => saved && setSettings(saved)} disabled={saving}>
+              <Button variant="ghost" size="sm" onClick={() => saved && setSettings(saved)} disabled={saving} className="rounded-xl hover:shadow-neu-sm">
                 Discard
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
+              <Button size="sm" onClick={handleSave} disabled={saving} className="rounded-xl shadow-neu-primary active:shadow-neu-pressed">
                 <Save className="h-4 w-4" />
                 {saving ? 'Saving…' : 'Save changes'}
               </Button>
@@ -874,7 +877,7 @@ function TtsDiagnostics({ voiceCount, voices }: { voiceCount: number; voices: Sp
     return !!(w.SpeechRecognition || w.webkitSpeechRecognition)
   })
   return (
-    <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3.5 text-xs" aria-label="Speech diagnostics">
+    <div className="space-y-2.5 surface-inset rounded-2xl border border-border/50 p-4 text-xs shadow-neu-inset-sm" aria-label="Speech diagnostics">
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground">Speech engine</span>
         <span className={cn('font-medium', engine ? 'text-success' : 'text-destructive')}>

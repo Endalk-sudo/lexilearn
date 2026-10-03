@@ -119,7 +119,7 @@ export function ManageCategoriesDialog({
         </DialogHeader>
 
         {/* Add new category form */}
-        <div className="rounded-lg border border-border/80 bg-muted/30 p-3.5 space-y-3">
+        <div className="surface-inset rounded-2xl border border-border/50 p-4 shadow-neu-inset-sm space-y-3">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Create New Category
           </Label>
@@ -188,7 +188,7 @@ export function ManageCategoriesDialog({
               return (
                 <div
                   key={cat.id}
-                  className="surface flex items-center justify-between gap-3 p-3 rounded-lg border border-border/70 hover:border-border transition-colors"
+                  className="surface flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-border/70 shadow-neu-sm hover:shadow-neu transition-all"
                 >
                   <div className="min-w-0 flex-1">
                     {isEditing ? (

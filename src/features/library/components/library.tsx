@@ -243,7 +243,7 @@ function DecksPanel() {
             const isExpanded = expandedDeckIds.has(deck.id)
             return (
               <li key={deck.id}>
-                <div className="surface lift group flex h-full flex-col justify-between p-4.5 rounded-xl border border-border/80 bg-card hover:border-primary-line hover:shadow-md transition-all duration-200">
+                <div className="surface lift group flex h-full flex-col justify-between p-5 rounded-3xl border-none transition-all duration-200">
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <button
@@ -257,16 +257,16 @@ function DecksPanel() {
                             {deck.name}
                           </span>
                           {deck.isCustom ? (
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 shrink-0 text-muted-foreground border-border/60">
+                            <Badge variant="outline" className="text-[10px] py-0 px-2 rounded-full shrink-0 text-muted-foreground shadow-neu-sm bg-card">
                               Custom
                             </Badge>
                           ) : (
-                            <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary-soft text-primary font-semibold">
+                            <Badge variant="soft" className="text-[10px] py-0 px-2 rounded-full shrink-0 bg-primary-soft text-primary font-semibold shadow-neu-sm">
                               Curated
                             </Badge>
                           )}
                           {children.length > 0 ? (
-                            <Badge variant="soft" className="text-[10px] py-0 px-1.5 shrink-0 bg-primary/10 text-primary font-medium flex items-center gap-1">
+                            <Badge variant="soft" className="text-[10px] py-0 px-2 rounded-full shrink-0 bg-primary/10 text-primary font-medium flex items-center gap-1 shadow-neu-sm">
                               <FolderTree className="h-3 w-3" />
                               {children.length} sub-deck{children.length === 1 ? '' : 's'}
                             </Badge>
@@ -279,7 +279,7 @@ function DecksPanel() {
                       {deck.isCustom ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive-soft transition-colors cursor-pointer" aria-label={`Delete ${deck.name}`}>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive-soft transition-all cursor-pointer hover:shadow-neu-sm active:shadow-neu-pressed" aria-label={`Delete ${deck.name}`}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -312,12 +312,12 @@ function DecksPanel() {
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                           Sub-decks ({children.length})
                         </span>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           {children.map((sub) => (
                             <div
                               key={sub.id}
                               onClick={() => navigate('library-deck', { deckId: sub.id })}
-                              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/40 hover:bg-muted/80 hover:border-primary-line border border-transparent transition-all cursor-pointer group"
+                              className="flex items-center justify-between gap-2 p-2.5 rounded-2xl surface-inset border-none transition-all cursor-pointer group hover:shadow-neu-sm active:shadow-neu-pressed"
                             >
                               <div className="min-w-0 flex-1">
                                 <span className="block truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
@@ -342,7 +342,7 @@ function DecksPanel() {
                           <span className="font-normal text-muted-foreground/70">({deck.directWordCount} direct)</span>
                         ) : null}
                       </span>
-                      <div className="flex items-center gap-1 flex-wrap justify-end">
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -351,7 +351,7 @@ function DecksPanel() {
                             setCreateParentId(deck.id)
                             setCreateOpen(true)
                           }}
-                          className="h-8 px-2 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                          className="h-8 px-2.5 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground rounded-xl hover:shadow-neu-sm"
                           title="Create a sub-deck under this deck"
                         >
                           <FolderPlus className="h-3.5 w-3.5 mr-1 text-primary" />
@@ -365,7 +365,7 @@ function DecksPanel() {
                               e.stopPropagation()
                               toggleExpand(deck.id)
                             }}
-                            className="h-8 px-2 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                            className="h-8 px-2.5 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground rounded-xl hover:shadow-neu-sm"
                             title={isExpanded ? 'Hide sub-decks' : 'Show sub-decks'}
                           >
                             {isExpanded ? (
@@ -384,7 +384,7 @@ function DecksPanel() {
                             setDictationDeckId(deck.id)
                             navigate('dictation')
                           }}
-                          className="h-8 px-2 text-xs font-medium cursor-pointer"
+                          className="h-8 px-2.5 text-xs font-medium cursor-pointer rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
                           title={`Practice listening on ${deck.name}`}
                         >
                           <Ear className="h-3.5 w-3.5 mr-1 text-primary" />
@@ -398,7 +398,7 @@ function DecksPanel() {
                             setStudyDeckId(deck.id)
                             navigate('library-deck', { deckId: deck.id })
                           }}
-                          className="h-8 px-2 text-xs font-medium cursor-pointer"
+                          className="h-8 px-2.5 text-xs font-medium cursor-pointer rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"
                           title={`Study ${deck.name} endlessly`}
                         >
                           <Play className="h-3.5 w-3.5 mr-1 text-primary" />
@@ -408,7 +408,7 @@ function DecksPanel() {
                           size="sm"
                           variant="soft"
                           onClick={() => navigate('library-deck', { deckId: deck.id })}
-                          className="h-8 px-2.5 text-xs font-medium cursor-pointer"
+                          className="h-8 px-3 text-xs font-semibold cursor-pointer rounded-xl shadow-neu-primary active:shadow-neu-pressed"
                         >
                           Open deck
                         </Button>
@@ -566,7 +566,7 @@ function CreateDeckDialog({
                 id="deck-parent"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
-                className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="mt-1.5 flex h-10 w-full rounded-xl border border-border/70 bg-card px-3.5 py-2 text-sm shadow-neu-inset-sm transition-all focus-visible:border-primary focus-visible:shadow-neu-inset focus-visible:outline-none"
               >
                 <option value="">None (top-level deck)</option>
                 {parentDecks.map((p) => (
@@ -603,7 +603,7 @@ function CreateDeckDialog({
           <div className="flex items-center gap-3">
             <label
               htmlFor="deck-csv-file"
-              className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium shadow-xs transition-colors hover:border-primary-line"
+              className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border/70 bg-card px-3.5 text-sm font-semibold shadow-neu-sm transition-all hover:border-primary-line hover:shadow-neu active:shadow-neu-pressed"
             >
               <Upload className="h-3.5 w-3.5" aria-hidden="true" />
               Upload file
@@ -789,10 +789,10 @@ function DictionaryPanel() {
           aria-label="Search your dictionary"
           autoComplete="off"
           spellCheck={false}
-          className="h-11 pl-9 pr-9 shadow-2xs"
+          className="h-11 pl-9 pr-9 shadow-neu-inset-sm"
         />
         {!query ? (
-          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 items-center justify-center rounded border border-border bg-muted/60 px-1.5 font-mono text-[11px] text-muted-foreground">
+          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 items-center justify-center rounded-md border border-white/60 dark:border-white/10 bg-card px-1.5 font-mono text-[11px] font-semibold text-muted-foreground shadow-neu-sm">
             /
           </kbd>
         ) : (
@@ -812,7 +812,7 @@ function DictionaryPanel() {
 
       {/* Filter Chips Bar */}
       {results.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Level:</span>
           {(['all', 'A', 'B', 'C'] as const).map((lvl) => (
             <button
@@ -820,17 +820,17 @@ function DictionaryPanel() {
               type="button"
               onClick={() => setCefrFilter(lvl)}
               className={cn(
-                'rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+                'rounded-xl px-2.5 py-1 text-xs font-medium transition-all cursor-pointer',
                 cefrFilter === lvl
-                  ? 'bg-primary text-primary-foreground shadow-2xs font-semibold'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-neu-primary font-semibold'
+                  : 'bg-card shadow-neu-sm text-muted-foreground hover:shadow-neu hover:text-foreground active:shadow-neu-pressed'
               )}
             >
               {lvl === 'all' ? 'All' : `${lvl}-Level`}
             </button>
           ))}
 
-          <div className="h-3.5 w-px bg-border/80 mx-1 hidden sm:block" />
+          <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
 
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1 hidden sm:inline">Type:</span>
           {(['all', 'noun', 'verb', 'adj', 'adv'] as const).map((pos) => (
@@ -840,41 +840,41 @@ function DictionaryPanel() {
               onClick={() => setPosFilter(pos)}
               aria-pressed={posFilter === pos}
               className={cn(
-                'rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+                'rounded-xl px-2.5 py-1 text-xs font-medium transition-all cursor-pointer',
                 posFilter === pos
-                  ? 'bg-primary text-primary-foreground shadow-2xs font-semibold'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-neu-primary font-semibold'
+                  : 'bg-card shadow-neu-sm text-muted-foreground hover:shadow-neu hover:text-foreground active:shadow-neu-pressed'
               )}
             >
               {pos === 'all' ? 'All' : pos === 'adj' ? 'Adjective' : pos === 'adv' ? 'Adverb' : pos.charAt(0).toUpperCase() + pos.slice(1)}
             </button>
           ))}
 
-          <div className="h-3.5 w-px bg-border/80 mx-1" />
+          <div className="h-4 w-px bg-border/80 mx-1" />
 
           <button
             type="button"
             onClick={() => setOnlyStarred(!onlyStarred)}
             className={cn(
-              'flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-all cursor-pointer',
+              'flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium transition-all cursor-pointer',
               onlyStarred
-                ? 'bg-amber-500 text-white font-semibold shadow-2xs'
-                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                ? 'bg-amber-500 text-white font-semibold shadow-neu-sm'
+                : 'bg-card shadow-neu-sm text-muted-foreground hover:shadow-neu hover:text-foreground active:shadow-neu-pressed'
             )}
           >
-            <Star className={cn('h-3 w-3', onlyStarred && 'fill-current')} />
+            <Star className={cn('h-3.5 w-3.5', onlyStarred && 'fill-current')} />
             <span>Starred</span>
           </button>
 
           {categories.length > 0 && (
             <>
-              <div className="h-3.5 w-px bg-border/80 mx-1 hidden sm:block" />
+              <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1 hidden sm:inline">Category:</span>
               <select
                 aria-label="Filter by category"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-6 rounded-md border border-border/80 bg-muted/60 px-2 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+                className="h-7 rounded-xl border-none bg-card shadow-neu-sm px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
               >
                 <option value="all">All categories</option>
                 {categories.map((c) => (
@@ -896,7 +896,7 @@ function DictionaryPanel() {
       {pending ? (
         <div className="space-y-2" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-lg" />
+            <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
       ) : !query.trim() ? (
@@ -916,7 +916,7 @@ function DictionaryPanel() {
           onAction={() => navigate('library', { libraryTab: 'decks' })}
         />
       ) : filteredResults.length === 0 ? (
-        <div className="surface p-6 text-center space-y-2 rounded-xl border border-dashed border-border/70">
+        <div className="surface p-6 text-center space-y-2 rounded-2xl border-none">
           <p className="text-sm font-semibold text-foreground">No words match the selected filters.</p>
           {onlyStarred && bookmarkedList.length === 0 ? (
             <p className="text-xs text-muted-foreground">Star words with the ☆ button to build a favorites list first.</p>
@@ -949,8 +949,8 @@ function DictionaryPanel() {
                     tabIndex={0}
                     data-word-id={word.id}
                     className={cn(
-                      'surface flex items-center gap-1 p-2 transition-all duration-150 cursor-pointer',
-                      isSelected ? 'border-primary ring-1 ring-primary/40 bg-primary-soft/40 shadow-xs' : 'hover:border-primary-line'
+                      'surface flex items-center gap-1.5 p-3 rounded-2xl transition-all duration-150 cursor-pointer border-none',
+                      isSelected ? 'shadow-neu-pressed bg-card ring-1 ring-primary/40' : 'hover:shadow-neu-sm'
                     )}
                     onClick={() => {
                       playSound('tap')
@@ -1104,7 +1104,7 @@ function DeckWordRow({
   onDelete: (w: DeckWord) => void
 }) {
   return (
-    <div className="surface flex items-start justify-between gap-3 p-3.5">
+    <div className="surface flex items-start justify-between gap-3 p-4 rounded-2xl border-none">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold">{word.word}</span>
@@ -1112,12 +1112,12 @@ function DeckWordRow({
             <span className="text-xs italic text-muted-foreground">{word.pos}</span>
           ) : null}
           {word.cefr ? (
-            <Badge variant="outline" className="font-mono text-xs">
+            <Badge variant="outline" className="font-mono text-xs shadow-neu-sm bg-card">
               {word.cefr}
             </Badge>
           ) : null}
           {word.srs ? (
-            <Badge variant={STATUS_VARIANT[word.srs.status] ?? 'outline'} className="capitalize">
+            <Badge variant={STATUS_VARIANT[word.srs.status] ?? 'outline'} className="capitalize shadow-neu-sm">
               {word.srs.status}
             </Badge>
           ) : null}
@@ -1136,11 +1136,12 @@ function DeckWordRow({
           </div>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1.5">
         <Button
           size="icon"
           variant="ghost"
           aria-label={`Hear ${word.word}`}
+          className="h-8 w-8 rounded-xl hover:shadow-neu-sm active:shadow-neu-pressed transition-all"
           onClick={() => {
             if (!speak(word.word)) toast.error('Pronunciation is unavailable in this browser.')
           }}
@@ -1151,6 +1152,7 @@ function DeckWordRow({
           size="icon"
           variant="ghost"
           aria-label={`Edit ${word.word}`}
+          className="h-8 w-8 rounded-xl hover:shadow-neu-sm active:shadow-neu-pressed transition-all"
           onClick={() => onEdit(word)}
         >
           <Pencil className="h-4 w-4" />
@@ -1159,9 +1161,10 @@ function DeckWordRow({
           size="icon"
           variant="ghost"
           aria-label={`Delete ${word.word}`}
+          className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive hover:shadow-neu-sm active:shadow-neu-pressed transition-all"
           onClick={() => onDelete(word)}
         >
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -1504,7 +1507,7 @@ export function DeckDetailView() {
       />
 
       {deck.subDecks && deck.subDecks.length > 0 && (
-        <div className="space-y-2.5 rounded-lg border border-border/70 bg-card/60 p-4">
+        <div className="space-y-3 rounded-3xl surface p-5 border-none">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FolderTree className="h-4 w-4 text-primary" />
@@ -1515,26 +1518,26 @@ export function DeckDetailView() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+              className="h-8 text-xs cursor-pointer text-muted-foreground hover:text-foreground rounded-xl hover:shadow-neu-sm"
               onClick={() => setSubDeckCreateOpen(true)}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               Add sub-deck
             </Button>
           </div>
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {deck.subDecks.map((sub) => (
               <button
                 key={sub.id}
                 type="button"
                 onClick={() => navigate('library-deck', { deckId: sub.id })}
-                className="group flex flex-col text-left rounded-md border border-border bg-card p-3 shadow-xs transition-all hover:border-primary-line hover:shadow-sm cursor-pointer"
+                className="group flex flex-col text-left rounded-2xl surface-inset p-3.5 border-none transition-all hover:shadow-neu-sm active:shadow-neu-pressed cursor-pointer"
               >
                 <div className="flex w-full items-start justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                     {sub.name}
                   </span>
-                  <Badge variant="soft" className="shrink-0 text-xs">
+                  <Badge variant="soft" className="shrink-0 text-xs shadow-neu-sm bg-card">
                     {sub.wordCount} {sub.wordCount === 1 ? 'word' : 'words'}
                   </Badge>
                 </div>
@@ -1588,7 +1591,7 @@ export function DeckDetailView() {
                   aria-label="Filter deck by category"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="h-9 rounded-md border border-border/80 bg-background px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+                  className="h-9 rounded-xl border border-border/70 bg-card px-3 text-xs font-semibold text-foreground shadow-neu-sm hover:shadow-neu hover:border-primary-line/50 transition-all cursor-pointer focus:outline-hidden"
                 >
                   <option value="all">All categories</option>
                   {categories.map((c) => (

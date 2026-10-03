@@ -155,7 +155,7 @@ export function CoachLabView() {
       actions={<Button variant="outline" size="sm" onClick={load} className="gap-2"><RotateCcw className="h-4 w-4"/>Refresh</Button>}
     />
 
-    <div className="surface p-5 sm:p-6">
+    <div className="surface rounded-3xl p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="label text-muted-foreground">English mastery</div>
@@ -179,8 +179,8 @@ export function CoachLabView() {
       <motion.div variants={v(stagger(0.05))} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-3">
         {GROUPS.map(group=>(
           <motion.div key={group.name} variants={v(fadeUp)}>
-            <Card className="h-full">
-              <CardHeader className="pb-3"><CardTitle className="text-sm">{group.name}</CardTitle></CardHeader>
+            <Card className="h-full surface rounded-3xl border-none">
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">{group.name}</CardTitle></CardHeader>
               <CardContent className="space-y-3 pt-0">
                 {group.tags.map((tag,i)=>{
                   const pct=Math.round(get(tag)*100)
@@ -190,11 +190,11 @@ export function CoachLabView() {
                       key={tag}
                       onClick={()=>setCoachTab('coach')}
                       aria-label={`${fmtTag(tag)} — ${pct}% mastery. Practice in Mentor.`}
-                      className={cn('w-full rounded-lg border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm', !unlocked&&'opacity-75')}
+                      className={cn('w-full rounded-2xl surface-inset p-3.5 text-left transition-all hover:shadow-neu-sm active:shadow-neu-pressed border-none cursor-pointer', !unlocked&&'opacity-75')}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md',pct>=75?'bg-success-soft text-success':'bg-primary-soft text-primary')}>
-                          <CircleDot className="h-3.5 w-3.5"/>
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card shadow-neu-sm',pct>=75?'text-success':'text-primary')}>
+                          <CircleDot className="h-4 w-4"/>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
@@ -216,31 +216,31 @@ export function CoachLabView() {
       </motion.div>
     </section>
 
-    <Card>
+    <Card className="surface rounded-3xl border-none">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base"><CircleDot className="h-4 w-4 text-primary"/>Learning paths</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold"><CircleDot className="h-4 w-4 text-primary"/>Learning paths</CardTitle>
             <CardDescription>Every Mentor branch becomes a path you can resume or fork. Harder paths visually unlock as mastery rises.</CardDescription>
           </div>
-          <Button onClick={()=>setCoachTab('coach')} className="shrink-0 gap-2">Open Mentor <ArrowRight className="h-4 w-4"/></Button>
+          <Button onClick={()=>setCoachTab('coach')} className="shrink-0 gap-2 rounded-xl shadow-neu-primary active:shadow-neu-pressed">Open Mentor <ArrowRight className="h-4 w-4"/></Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {branches.length ? branches.map((b, i) => {
             const pct=Math.round(get(b.focusTag)*100); const gated=b.difficultyCeiling>=4 && pct<75
             return (
-              <button key={b.id} onClick={()=>setCoachTab('coach')} className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all hover:border-primary-line hover:bg-primary-soft/50">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary text-xs font-semibold tabular-nums">{i+1}</div>
+              <button key={b.id} onClick={()=>setCoachTab('coach')} className="flex w-full items-center gap-3.5 rounded-2xl surface-inset p-3.5 text-left transition-all hover:shadow-neu-sm active:shadow-neu-pressed border-none cursor-pointer">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card shadow-neu-sm text-primary text-xs font-semibold tabular-nums">{i+1}</div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-semibold">{b.title}</span>
                     {gated&&<Badge variant="outline" className="shrink-0 text-xs">Mastery gate</Badge>}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">{fmtTag(b.focusTag)} · {b.mode} · level {b.difficultyCeiling}</div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{width:`${pct}%`}}/></div>
-</div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full surface-inset shadow-neu-inset-sm"><div className="h-full rounded-full bg-primary transition-[width]" style={{width:`${pct}%`}}/></div>
+                </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground"/>
               </button>
             )
@@ -250,40 +250,40 @@ export function CoachLabView() {
     </Card>
 
     <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-      <Card>
+      <Card className="surface rounded-3xl border-none">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2 text-base"><WandSparkles className="h-4 w-4 text-primary"/>Weekly coach report</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base font-semibold"><WandSparkles className="h-4 w-4 text-primary"/>Weekly coach report</CardTitle>
               <CardDescription>Mentor analyzes the week instead of just counting activity.</CardDescription>
             </div>
-            <Button onClick={generateReport} disabled={reportLoading} className="shrink-0 gap-2">{reportLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}{report?'Refresh report':'Generate'}</Button>
+            <Button onClick={generateReport} disabled={reportLoading} className="shrink-0 gap-2 rounded-xl shadow-neu-primary active:shadow-neu-pressed">{reportLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}{report?'Refresh report':'Generate'}</Button>
           </div>
         </CardHeader>
         <CardContent>
           {!report ? (
-            <div className="rounded-lg border border-dashed p-8 text-center">
+            <div className="rounded-2xl surface-inset p-8 text-center border-none">
               <BookOpenText className="mx-auto h-8 w-8 text-muted-foreground"/>
               <p className="mt-3 font-semibold">No report for this week yet</p>
               <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">Generate one after a few Mentor sessions. It will be cached for the week.</p>
             </div>
           ) : (
             <div className="space-y-5" aria-live="polite">
-              <div className="rounded-lg bg-primary-soft p-4 text-sm leading-relaxed">{report.summary}</div>
+              <div className="rounded-2xl surface-inset p-4 text-sm leading-relaxed border-none">{report.summary}</div>
               <div className="grid gap-4 sm:grid-cols-2"><ReportList title="What is improving" items={report.strengths}/><ReportList title="What needs work" items={report.weaknesses}/></div>
               <div>
                 <div className="label mb-2 text-muted-foreground">Recurring errors</div>
                 <div className="space-y-2">
                   {report.top_errors.length?report.top_errors.map((e,i)=>(
-                    <div key={i} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
-                      <Badge variant="outline" className="tabular-nums">{e.count}×</Badge>
+                    <div key={i} className="flex items-center gap-3 rounded-2xl surface-inset p-3.5 text-sm border-none">
+                      <Badge variant="outline" className="tabular-nums shadow-neu-sm bg-card">{e.count}×</Badge>
                       <span className="font-semibold">{e.pattern}</span>
                       <span className="ml-auto text-xs text-muted-foreground">{e.example}</span>
                     </div>
                   )):<p className="text-sm text-muted-foreground">No recurring Mentor errors recorded this week.</p>}
                 </div>
               </div>
-              <div className="rounded-lg border p-4">
+              <div className="rounded-2xl surface-inset p-4 border-none">
                 <div className="flex items-center justify-between text-xs"><span className="font-semibold">Confidence</span><span className="tabular-nums">{report.confidence.average?report.confidence.average.toFixed(1):'—'} / 5</span></div>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{report.confidence.calibration}</p>
               </div>
@@ -294,56 +294,56 @@ export function CoachLabView() {
       </Card>
 
       <div className="space-y-4">
-        <Card>
+        <Card className="surface rounded-3xl border-none">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><Mic className="h-4 w-4 text-primary"/>Pronunciation Gym</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold"><Mic className="h-4 w-4 text-primary"/>Pronunciation Gym</CardTitle>
             <CardDescription>Speak a target sentence. We compare the transcript and coach what to retry.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg border bg-muted/20 p-4">
+            <div className="rounded-2xl surface-inset p-4 border-none">
               <div className="label text-muted-foreground">Target</div>
               <p className="mt-2 text-lg font-semibold leading-relaxed">{target}</p>
               <div className="mt-3 flex gap-2">
-                <Button variant="outline" size="sm" onClick={()=>speak(target)} className="gap-2"><Volume2 className="h-4 w-4"/>Listen</Button>
-                <Button variant="ghost" size="sm" onClick={()=>setTarget(SPEAK_PROMPTS[Math.floor(Math.random()*SPEAK_PROMPTS.length)])}>New sentence</Button>
+                <Button variant="outline" size="sm" onClick={()=>speak(target)} className="gap-2 rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed"><Volume2 className="h-4 w-4"/>Listen</Button>
+                <Button variant="ghost" size="sm" onClick={()=>setTarget(SPEAK_PROMPTS[Math.floor(Math.random()*SPEAK_PROMPTS.length)])} className="rounded-xl hover:shadow-neu-sm">New sentence</Button>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button onClick={startListening} disabled={listening} className="gap-2 flex-1">{listening?<><MicOff className="h-4 w-4 animate-pulse"/>Listening…</>:<><Mic className="h-4 w-4"/>Speak now</>}</Button>
-              <Button variant="outline" onClick={evaluatePron} disabled={pronLoading||!transcript.trim()} className="gap-2">{pronLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Check className="h-4 w-4"/>}<span>{pronLoading?'Evaluating…':'Evaluate'}</span></Button>
+              <Button onClick={startListening} disabled={listening} className="gap-2 flex-1 rounded-xl shadow-neu-primary active:shadow-neu-pressed">{listening?<><MicOff className="h-4 w-4 animate-pulse"/>Listening…</>:<><Mic className="h-4 w-4"/>Speak now</>}</Button>
+              <Button variant="outline" onClick={evaluatePron} disabled={pronLoading||!transcript.trim()} className="gap-2 rounded-xl shadow-neu-sm hover:shadow-neu active:shadow-neu-pressed">{pronLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Check className="h-4 w-4"/>}<span>{pronLoading?'Evaluating…':'Evaluate'}</span></Button>
             </div>
-            <Textarea value={transcript} onChange={e=>setTranscript(e.target.value)} onKeyDown={typeFeelFromKey} placeholder="Your speech transcript appears here…" className="min-h-[80px]" aria-label="Speech transcript"/>
+            <Textarea value={transcript} onChange={e=>setTranscript(e.target.value)} onKeyDown={typeFeelFromKey} placeholder="Your speech transcript appears here…" className="min-h-[80px] rounded-2xl" aria-label="Speech transcript"/>
             {pron&&(
-              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-3 rounded-lg border p-4">
+              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-3 rounded-2xl surface-inset p-4 border-none">
                 <div className="flex items-end justify-between">
                   <div>
                     <div className="text-xs text-muted-foreground">Speech match</div>
                     <div className="text-3xl font-semibold tabular-nums">{Math.round(pron.accuracy*100)}%</div>
                   </div>
-                  <Badge>{pron.verdict}</Badge>
+                  <Badge className="shadow-neu-sm">{pron.verdict}</Badge>
                 </div>
-                <Progress value={pron.accuracy*100}/>
+                <Progress value={pron.accuracy*100} className="h-1.5"/>
                 <p className="text-sm leading-relaxed">{pron.feedback}</p>
                 {pron.focus&&<div className="text-xs text-muted-foreground">Focus next: <span className="font-semibold text-foreground">{pron.focus}</span></div>}
               </motion.div>
             )}
             {typeof window !== 'undefined' && !(window as any).SpeechRecognition && !(window as any).webkitSpeechRecognition && <p className="text-xs text-muted-foreground">Speech recognition is unavailable in this browser. Chrome or Edge is recommended for the full speaking loop.</p>}
           </CardContent>
-</Card>
+        </Card>
 
-        <Card>
+        <Card className="surface rounded-3xl border-none">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><WandSparkles className="h-4 w-4 text-primary"/>Naturalness Engine</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold"><WandSparkles className="h-4 w-4 text-primary"/>Naturalness Engine</CardTitle>
             <CardDescription>Go beyond “grammatically correct” and learn what sounds natural.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Textarea value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setNatural(null)}} onKeyDown={typeFeelFromKey} placeholder="Write a sentence you would actually say…" className="min-h-[100px]" aria-label="Sentence to check for naturalness"/>
-            <Button onClick={evaluateNatural} disabled={naturalLoading||!naturalInput.trim()} className="w-full gap-2">{naturalLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}Check naturalness</Button>
+            <Textarea value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setNatural(null)}} onKeyDown={typeFeelFromKey} placeholder="Write a sentence you would actually say…" className="min-h-[100px] rounded-2xl" aria-label="Sentence to check for naturalness"/>
+            <Button onClick={evaluateNatural} disabled={naturalLoading||!naturalInput.trim()} className="w-full gap-2 rounded-xl shadow-neu-primary active:shadow-neu-pressed">{naturalLoading?<Loader2 className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}Check naturalness</Button>
             {natural&&(
-              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-3 rounded-lg border bg-muted/10 p-4">
+              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-3 rounded-2xl surface-inset p-4 border-none">
                 <div className="flex items-center justify-between">
                   <div className="text-2xl font-semibold tabular-nums">{Math.round(natural.score*100)}%</div>
-                  <Badge variant="outline">{natural.verdict}</Badge>
+                  <Badge variant="outline" className="shadow-neu-sm bg-card">{natural.verdict}</Badge>
                 </div>
                 <div>
                   <div className="label text-muted-foreground">Native version</div>
@@ -356,8 +356,8 @@ export function CoachLabView() {
                 {natural.alternatives?.length>0&&(
                   <div>
                     <div className="label text-muted-foreground">Alternatives</div>
-                    <div className="mt-1 space-y-1">
-                      {natural.alternatives.map((x,i)=><div key={i} className="rounded-md bg-background px-3 py-2 text-sm">{x}</div>)}
+                    <div className="mt-1 space-y-1.5">
+                      {natural.alternatives.map((x,i)=><div key={i} className="rounded-xl bg-card shadow-neu-sm px-3 py-2 text-sm">{x}</div>)}
                     </div>
                   </div>
                 )}
@@ -368,13 +368,13 @@ export function CoachLabView() {
       </div>
     </section>
 
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="surface rounded-3xl border-none">
+      <CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="font-semibold">Ready to turn a weakness into a skill?</div>
           <p className="text-sm text-muted-foreground">Mentor can start a focused branch from your current map.</p>
         </div>
-        <Button onClick={()=>setCoachTab('coach')} className="gap-2">Open Mentor <ArrowRight className="h-4 w-4"/></Button>
+        <Button onClick={()=>setCoachTab('coach')} className="gap-2 rounded-xl shadow-neu-primary active:shadow-neu-pressed">Open Mentor <ArrowRight className="h-4 w-4"/></Button>
       </CardContent>
     </Card>
   </div>
@@ -382,7 +382,7 @@ export function CoachLabView() {
 
 function MiniStat({icon:Icon,label,value}:{icon:any;label:string;value:string}){
   return (
-    <div className="rounded-lg border bg-background/70 p-3">
+    <div className="rounded-2xl surface-inset p-3.5 border-none">
       <Icon className="h-4 w-4 text-primary"/>
       <div className="mt-2 truncate text-sm font-semibold">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>

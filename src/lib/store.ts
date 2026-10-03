@@ -68,6 +68,10 @@ export function syncStudyPrefs() {
     const focusMode = localStorage.getItem('lexilearn-focus-mode') === 'true'
     document.documentElement.dataset.focusMode = focusMode ? 'on' : 'off'
     if (focusMode) useAppStore.setState({ focusMode })
+    const sidebarCollapsed = localStorage.getItem('lexilearn-sidebar-collapsed') === 'true'
+    if (sidebarCollapsed) useAppStore.setState({ sidebarCollapsed })
+    const autoSpeak = localStorage.getItem('lexilearn-auto-speak') === 'true'
+    if (autoSpeak) useAppStore.setState({ autoSpeak })
   } catch {}
 }
 
@@ -137,10 +141,10 @@ export const useAppStore = create<AppState>((set) => ({
   paletteOpen: false,
   shortcutsOpen: false,
   accentHue: 259,
-  autoSpeak: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-auto-speak') === 'true' : false,
+  autoSpeak: false,
   studyText: 'comfortable',
-  focusMode: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-focus-mode') === 'true' : false,
-  sidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('lexilearn-sidebar-collapsed') === 'true' : false,
+  focusMode: false,
+  sidebarCollapsed: false,
 
   navigate: (view, opts = {}) =>
     set((s) => ({

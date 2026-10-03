@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 
 const SOUND_KEY = 'lexilearn-sound-enabled'
 const HAPTIC_KEY = 'lexilearn-haptics-enabled'
@@ -9,6 +9,20 @@ export function isSoundEnabled() {
   if (typeof window === 'undefined') return true
   // Default on for rich tactile feedback; can be muted anytime (F-701).
   return localStorage.getItem(SOUND_KEY) !== 'off'
+}
+
+function subscribeSound(onChange: () => void) {
+  if (typeof window === 'undefined') return () => {}
+  window.addEventListener('lexilearn-feel', onChange)
+  return () => window.removeEventListener('lexilearn-feel', onChange)
+}
+
+export function useSoundState(): boolean {
+  return useSyncExternalStore(
+    subscribeSound,
+    () => isSoundEnabled(),
+    () => true
+  )
 }
 
 export function setSoundEnabled(on: boolean) {

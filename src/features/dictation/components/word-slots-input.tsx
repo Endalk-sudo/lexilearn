@@ -215,9 +215,8 @@ export function WordSlotsInput({
             >
               <div
                 className={cn(
-                  'spell-word-box relative rounded-xl border-2 px-2.5 py-2 font-mono font-semibold select-none cursor-pointer transition-colors duration-150',
+                  'spell-word-box relative rounded-2xl border px-3 py-2 font-mono font-semibold select-none cursor-pointer transition-all duration-150',
                   slotBoxTone(state, isActive),
-                  isActive && 'z-10 ring-[3px] ring-primary/20 shadow-md',
                   disabled && 'cursor-not-allowed opacity-60'
                 )}
                 // Sized from the target word, not the typed one, so the slot
@@ -370,17 +369,16 @@ const STATE_WORDS: Record<WordState, string> = {
   wrong: 'has errors',
 }
 
-/** Box colour by word state; the active slot always wins over its state. */
 function slotBoxTone(state: WordState, isActive: boolean): string {
-  if (isActive) return 'border-primary bg-primary-soft'
+  if (isActive) return 'border-2 border-primary bg-primary-soft/50 shadow-neu-primary ring-2 ring-primary/25 z-10'
   switch (state) {
     case 'ok':
-      return 'border-success/60 bg-success-soft'
+      return 'border-2 border-success/60 bg-success-soft shadow-neu-sm'
     case 'wrong':
-      return 'border-destructive/60 bg-destructive-soft'
+      return 'border-2 border-destructive/60 bg-destructive-soft shadow-neu-sm'
     case 'partial':
-      return 'border-primary-line/50 bg-primary-soft/30'
+      return 'border border-primary-line/60 bg-primary-soft/30 shadow-neu-sm'
     default:
-      return 'border-dashed border-border bg-card'
+      return 'border border-border/70 bg-card/70 shadow-neu-inset-sm hover:shadow-neu-sm'
   }
 }

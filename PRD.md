@@ -134,6 +134,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-701 | Session sounds (correct / wrong / level-up) and haptics; haptics opt-in (sound defaults on) | P2 |
 | F-702 | Service worker caches the app shell and read-only API responses so learning and reviewing work offline | P1 |
 | F-703 | Honest offline banner explaining exactly what still works (everything except AI generation) | P2 |
+| F-704 | Tactile Neumorphic (Soft UI) design language: extruded pill cards, dual-light shadows, debossed inset input wells, active spring-pressed tactile responses | P1 |
 
 ---
 
@@ -327,14 +328,17 @@ but these source files carry no such data, so the shipped seed leaves them empty
 7. **Progress** — stats overview + settings (theme, accent, TTS, reading scale, focus mode, daily goal, Feel toggles, typed-confirm reset)
 8. **Coach** — AI hub with two tabs: **Insights** (mastery map, weekly report, speech practice, naturalness) and the **Mentor** — a conversation-style adaptive tutor with memory and learning-map panels
 
-### 7.3 Design Tokens
+### 7.3 Design Tokens & Neumorphic Design System
 
-- Font: Geist Sans + Geist Mono
-- Theme: Light / Dark / System (via next-themes), plus 5 accent hues (`ACCENT_THEMES`)
-- Colors: Tailwind CSS v4 with OKLCH color space
-- Animations: Framer Motion (view transitions, card reveals), with a
-  `prefers-reduced-motion` kill-switch in both `src/lib/motion.ts` and `globals.css`
-- Reading scale: three study text sizes (Comfortable / Large / Largest) + focus mode
+- **Design Philosophy**: Tactile Neumorphism (Soft UI) built on physical lighting physics (135° top-left illumination, dual soft shadows + specular rim highlights).
+- **Physical Surfaces**: Extruded convex `.surface` containers (`shadow-neu-sm`, `shadow-neu-md`, `shadow-neu-lg`), debossed concave `.surface-inset` / `.input-neu` wells (`shadow-neu-inset-sm`, `shadow-neu-inset-md`), and glowing accented `.surface-primary` (`shadow-neu-primary`).
+- **Interactive Mechanics**: Active spring pressed displacement (`active:shadow-neu-pressed` / `active:translate-y-px`) for real tactile depression feedback.
+- **Font**: Geist Sans + Geist Mono.
+- **Theme**: Light / Dark / System (via next-themes), plus 5 accent hues (`ACCENT_THEMES`).
+- **Colors**: Tailwind CSS v4 with OKLCH color space with strict dark-mode contrast ratios.
+- **Animations**: Framer Motion (view transitions, tactile spring physics, card reveals), with a `prefers-reduced-motion` kill-switch in both `src/lib/motion.ts` and `globals.css`.
+- **Reading scale**: three study text sizes (Comfortable / Large / Largest) + focus mode.
+- **Hydration & Browser Extension Resilience**: Explicit `suppressHydrationWarning` and `data-darkreader-lock` shields on dynamic SVG icons and theme containers.
 
 ---
 
@@ -372,7 +376,7 @@ but these source files carry no such data, so the shipped seed leaves them empty
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 0.4.0 | 2026-10-03 | Words-only scope: Quiz feature removed end to end (UI, API, stats, docs) and Dictation reduced to single-word drills; keyboard-guard unification across every view; honest error/empty states instead of infinite skeletons; deck-scoped resume; reduced-motion honoured in grade exits; e2e deck selectors repaired |
+| 0.4.0 | 2026-10-03 | Comprehensive Tactile Neumorphism (Soft UI) overhaul across all views, controls, and dialogs; dual-lighting shadow engine (`.surface`, `.surface-inset`, `.input-neu`); SSR hydration mismatch resilience (Dark Reader attribute shielding & synchronized audio state); Words-only scope: Quiz feature removed end to end (UI, API, stats, docs) and Dictation reduced to single-word drills; keyboard-guard unification across every view; honest error/empty states instead of infinite skeletons; deck-scoped resume; reduced-motion honoured in grade exits; 76 unit tests green |
 | 0.3.0 | 2026-09-23 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration, review hardening pass (SRS/XP consistency, WCAG 2.2 AA fixes, local day keys, dep + CI cleanup) |
 | 0.2.1 | 2026-07-29 | CRUD for words, bulk add, UI/UX improvements |
 | 0.2.0 | 2026-07-28 | Core features: Learn, Review, Quiz, Decks, Stats, Settings |

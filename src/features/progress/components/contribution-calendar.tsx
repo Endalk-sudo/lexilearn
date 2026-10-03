@@ -24,11 +24,12 @@ const DayCell = memo(function DayCell({
   return (
     <div
       className={cn(
-        'h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px] transition-all',
-        isFuture && 'opacity-30',
-        !isFuture && day.count === 0 && 'bg-muted',
-        !isHovered && 'hover:ring-1 hover:ring-foreground/30',
-        isHovered && 'ring-2 ring-foreground/60 scale-125 z-10',
+        'h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[3px] transition-all cursor-pointer',
+        isFuture && 'opacity-25',
+        !isFuture && day.count === 0 && 'surface-inset shadow-neu-inset-sm opacity-60',
+        !isFuture && day.count > 0 && 'shadow-neu-sm hover:shadow-neu',
+        !isHovered && 'hover:scale-110',
+        isHovered && 'ring-2 ring-primary scale-125 z-10 shadow-neu',
       )}
       style={
         day.count > 0 && !isFuture
@@ -221,7 +222,7 @@ export function ContributionCalendar({ data, weeks = 53 }: Props) {
         {[0, 1, 2, 3, 4].map((lvl) => (
           <div
             key={lvl}
-            className="h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[2px]"
+            className="h-[11px] w-[11px] sm:h-[13px] sm:w-[13px] rounded-[3px] shadow-neu-sm"
             style={{
               background: lvl === 0 ? 'var(--muted)' : levelColor([4, 10, 18, 30][lvl - 1]),
             }}

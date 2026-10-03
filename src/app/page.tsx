@@ -10,7 +10,7 @@ import { LearnView } from '@/features/learn/components/learn'
 import { ReviewView } from '@/features/review/components/review'
 import { SessionSkeleton } from '@/components/feedback/session-skeleton'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { useAppStore, VIEW_TITLES } from '@/lib/store'
+import { useAppStore, VIEW_TITLES, syncAccentHue, syncStudyPrefs } from '@/lib/store'
 import { useRouteSync } from '@/lib/router'
 import { fadeUp, useMotionSafe } from '@/lib/motion'
 import { api } from '@/lib/api'
@@ -84,6 +84,8 @@ export default function Home() {
   }, [view])
 
   useEffect(() => {
+    syncAccentHue()
+    syncStudyPrefs()
     api.getSettings().then((s) => {
       if (!s) return
       const st = useAppStore.getState()

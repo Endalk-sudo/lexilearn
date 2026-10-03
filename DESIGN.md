@@ -1,8 +1,8 @@
 # LexiLearn — Product & Interface Design Specification (`DESIGN.md`)
 
-**Product Version:** 0.3.0  
-**Design Philosophy:** "Quiet Focus" · Tactile Feedback · Local-First Ergonomics  
-**Last Updated:** September 2026  
+**Product Version:** 0.4.0  
+**Design Philosophy:** "Quiet Focus" · Tactile Neumorphism (Soft UI) · Local-First Ergonomics  
+**Last Updated:** October 2026  
 
 ---
 
@@ -16,9 +16,10 @@ LexiLearn is a **local-first, distraction-free English vocabulary mastery applic
 2. **The Bilingual Learner (English / Amharic)**: Benefits from immediate Amharic translations alongside English definitions for instant cognitive bridging.
 3. **The Privacy-Conscious Practitioner**: Demands total data sovereignty — every word, review log, streak, and audio synthesis happens entirely within the user's browser and SQLite on device.
 
-### 1.3 Design Pillars ("Quiet Focus")
-- **Calm, High-Information Density**: Avoid screaming banners or cartoon mascots. The UI is clean and intentional, inspired by world-class productivity tools (Linear, Notion, Apple HIG).
-- **Tactile Multisensory Reinforcement**: Every correct recall or keystroke produces immediate visual, auditory, and haptic feedback.
+### 1.3 Design Pillars ("Quiet Focus" & Tactile Neumorphism)
+- **Calm, Soft-Embossed Surfaces (Neumorphism / Soft UI)**: The entire interface mimics real physical controls extruded from or debossed into a unified matte material. No harsh flat black borders or jarring neon fills.
+- **Directional Dual-Lighting Physics**: A single coherent light source from the top-left (135°) illuminates the entire UI, creating gentle diffuse top-left highlights and soft bottom-right drop shadows.
+- **Tactile Multisensory Reinforcement**: Every correct recall or keystroke produces immediate visual, auditory, and haptic feedback with physical spring-press physics (`active:shadow-neu-pressed`, `active:scale-[0.97]`).
 - **Zero-Friction Daily Loops**: Opening the app immediately presents the highest-value action (due cards, new words, or a focused drill) in one click without decision paralysis.
 - **Keyboard-First & Gesture-Friendly**: Full power on desktop keyboards (`Space`, `1-4`, `⌘K`) and fluid swipe-and-tap targets on mobile devices.
 
@@ -103,9 +104,34 @@ Vocabulary cards use standard CEFR classification with distinct visual semantics
 - **Tabular Figures (`.num`)**: All numbers, countdowns, streaks, and scores use `font-variant-numeric: tabular-nums` to eliminate layout jitter during counters.
 - **Micro-Labels (`.label`)**: `0.75rem (12px)`, `letter-spacing: 0.06em`, uppercase bold for category headers and eyebrows.
 
-### 3.4 Elevation & Surface Tactility
-- `.surface`: Card baseline with 1px border, subtle inset highlight, and 2-tier shadow.
-- `.lift`: Interactive card state featuring a gentle 2px vertical lift on hover and a tactile spring-press (`active:scale-[0.985]`).
+### 3.4 Tactile Neumorphism & Surface Elevation System
+
+LexiLearn implements a **dual-lighting, soft-embossed Neumorphic design architecture** defined in `src/app/globals.css`. Rather than relying on flat borders or heavy DropBox-style drop shadows, surfaces mimic physical materials sculpted under a consistent virtual light source positioned in the upper-left (135° diagonal).
+
+#### 3.4.1 Lighting Tokens & Shadow Engine
+
+| Elevation Class | CSS Shadow Token | Light Mode Physics | Dark Mode Physics | Typical Usage |
+|---|---|---|---|---|
+| **`.surface`** | `var(--shadow-neu)` | `-3px -3px 8px #fff, 3px 3px 10px rgba(0,0,0,0.06)` | `-2px -2px 6px rgba(255,255,255,0.06), 3px 3px 12px rgba(0,0,0,0.55)` | Main word cards, study cards, hero cards, bottom bars |
+| **`shadow-neu-sm`** | `var(--shadow-neu-sm)` | `-2px -2px 5px #fff, 2px 2px 6px rgba(0,0,0,0.05)` | `-1.5px -1.5px 4px rgba(255,255,255,0.05), 2px 2px 8px rgba(0,0,0,0.45)` | Buttons, badges, chips, tactile switches, kbd keys |
+| **`shadow-neu-lg`** | `var(--shadow-neu-lg)` | `-5px -5px 14px #fff, 6px 6px 18px rgba(0,0,0,0.08)` | `-3px -3px 8px rgba(255,255,255,0.07), 6px 6px 20px rgba(0,0,0,0.65)` | Dialogs, sheets, popovers, dropdown menus, toast alerts |
+| **`.surface-inset`** | `var(--shadow-neu-inset)` | `inset 3px 3px 7px rgba(0,0,0,0.07), inset -3px -3px 7px #fff` | `inset 3px 3px 8px rgba(0,0,0,0.6), inset -2px -2px 6px rgba(255,255,255,0.04)` | Writing canvas, textarea wells, spelling slots |
+| **`shadow-neu-inset-sm`** | `var(--shadow-neu-inset-sm)` | `inset 1.5px 1.5px 4px rgba(0,0,0,0.06), inset -1.5px -1.5px 4px #fff` | `inset 2px 2px 5px rgba(0,0,0,0.5), inset -1px -1px 4px rgba(255,255,255,0.03)` | Progress bar tracks, tabs track, input fields, toggle tracks |
+| **`shadow-neu-primary`** | `var(--shadow-neu-primary)` | `0 4px 14px color-mix(in oklch, var(--primary) 35%, transparent)` | `0 4px 16px color-mix(in oklch, var(--primary) 40%, transparent)` | Primary accent buttons, active indicator pills, level progress |
+
+#### 3.4.2 Physical Interaction Mechanics
+- **Convex vs. Concave Rules**:
+  - Elements that can be pressed or lifted (cards, buttons, chips, `kbd` shortcuts) use **extruded convex surfaces** (`.surface`, `shadow-neu-sm`).
+  - Elements that receive input or guide continuous movement (inputs, search bars, tabs track, progress tracks, switch wells) use **sunken concave debossed wells** (`.surface-inset`, `shadow-neu-inset-sm`).
+- **Tactile Pressed State (`active:shadow-neu-pressed`)**:
+  - Clicking any tactile control momentarily collapses its extrusion into an inset well (`box-shadow: inset 1.5px 1.5px 3px rgba(0,0,0,0.12), inset -1.5px -1.5px 3px rgba(255,255,255,0.7)`), paired with a slight spring scale (`active:scale-[0.97]`).
+- **Dual-Light Edge Highlights**:
+  - Extruded cards use `border border-white/60 dark:border-white/10` to simulate the micro-reflection of ambient light catching the upper bevel of the component.
+- **Curvature Hierarchy**:
+  - `rounded-xl` (12px): Interactive controls — buttons, form inputs, segmented pills, select items, and `kbd` keyboard shortcuts.
+  - `rounded-2xl` (16px): Content containers — cards, preview tables, feedback summaries, and sticky navigation HUDs.
+  - `rounded-3xl` (24px): Floating surfaces — modals, dialogs, onboarding panels, and sheets.
+  - `rounded-full`: Pill badges, slider/switch thumbs, and progress tracks.
 
 ---
 
@@ -315,8 +341,14 @@ LexiLearn treats the keyboard as a first-class citizen alongside mobile touch:
   that at `size="lg"` / `size="icon-lg"`; `default` (36px), `sm` (32px) and `icon` (36px)
   sizes and the shell's own `h-8`/`h-10` icon buttons sit below 44px and rely on spacing.
 
+### 6.1 Hydration Integrity & Extension Protection
+- **Dark Reader & Injected Attribute Immunity**: External browser dark-mode extensions (e.g. Dark Reader) modify inline SVG stroke and style attributes on initial page load, causing React hydration mismatches. The app implements a three-tier shield:
+  1. `<meta name="darkreader-lock" />` in `src/app/layout.tsx` to instruct Dark Reader not to tamper with the native dark-mode OKLCH engine.
+  2. `suppressHydrationWarning` on SVG elements and dynamic shell containers where client extensions inject attributes.
+  3. Strict client-only initialisation for audio and sound toggle states via `useSoundState()` with `useSyncExternalStore` so SSR rendered HTML perfectly matches initial client renders without flickering.
+
 ---
 
 ## 7. Summary
-LexiLearn balances **pedagogical rigor (SM-2, active recall, dictation)** with **delightful micro-interactions (sound, haptics, spring animations, celebratory feedback)**. The result is a calm, distraction-free environment engineered to turn fleeting vocabulary into lifelong memory.
+LexiLearn balances **pedagogical rigor (SM-2, active recall, dictation)** with **delightful micro-interactions (sound, haptics, spring animations, celebratory feedback)** and a tactile **Neumorphic Soft UI**. The result is a calm, distraction-free environment engineered to turn fleeting vocabulary into lifelong memory.
 

@@ -44,12 +44,17 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "LexiLearn",
   },
+  other: {
+    'darkreader-lock': '',
+    'color-scheme': 'light dark',
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  colorScheme: "light dark",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fbfcfe" },
     { media: "(prefers-color-scheme: dark)", color: "#16181d" },
@@ -63,7 +68,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="darkreader-lock" />
+        <meta name="color-scheme" content="light dark" />
+      </head>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} grain font-sans antialiased`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
