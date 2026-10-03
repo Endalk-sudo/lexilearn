@@ -193,7 +193,7 @@ with sync_playwright() as p:
     nav("#/library")
     t = pg.locator("main").inner_text()
     rec("F-library", "renders", "LIBRARY" in t.upper() or "deck" in t.lower(), t[:100])
-    deck = pg.locator("main").get_by_role("button").filter(has_text=re.compile("common|toefl|ielts|gre|academic", re.I)).first
+    deck = pg.locator("main").get_by_role("button").filter(has_text=re.compile("common|toefl|ielts|gre|academic|headwords|sixth|cefr", re.I)).first
     if deck.count() > 0:
         deck.click(); pg.wait_for_timeout(1400)
         td = pg.locator("main").inner_text()
@@ -215,7 +215,7 @@ with sync_playwright() as p:
     # CSV bulk import — the "Import" action only exists on a deck detail page,
     # so open the deck first, then import a pasted list.
     nav("#/library", 1400)
-    deck2 = pg.locator("main").get_by_role("button").filter(has_text=re.compile("common|toefl|ielts|gre|academic", re.I)).first
+    deck2 = pg.locator("main").get_by_role("button").filter(has_text=re.compile("common|toefl|ielts|gre|academic|headwords|sixth|cefr", re.I)).first
     if deck2.count() > 0:
         deck2.click(); pg.wait_for_timeout(1400)
     bulk = pg.get_by_role("button", name=re.compile("^import$", re.I))

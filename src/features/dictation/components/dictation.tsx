@@ -33,6 +33,7 @@ import { buzz, playSound } from '@/lib/feel'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { fadeUp, gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 export interface DictationSessionData {
   items: DictationItem[]
@@ -194,8 +195,7 @@ function DictationStart({
   useEffect(() => {
     if (!available) return
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (isTypingTarget(e.target)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === 'Enter' || e.key === ' ') {
@@ -419,8 +419,8 @@ function DictationSession({
     xp: number
   } | null>(null)
   const finishingRef = useRef(false)
-  const { pops } = useXpPops()
-  const { v, t } = useMotionSafe()
+  const { pops, pop } = useXpPops()
+  const { v, t, reduce } = useMotionSafe()
 
   const item = items[idx]
   const targetWords = tokenize(item.text).length
@@ -501,8 +501,7 @@ function DictationSession({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+      const isTyping = isTypingTarget(e.target)
 
       // In typing mode, DictationItemAnswer handles in-input combos
       if (isTyping) return
@@ -570,9 +569,9 @@ function DictationSession({
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={`dictation-item-${idx}-${item.wordId}-${item.kind}`}
-          initial={gradeEnter(4).initial}
-          animate={gradeEnter(4).animate}
-          exit={gradeExit(4).exit}
+          initial={gradeEnter(4, reduce).initial}
+          animate={gradeEnter(4, reduce).animate}
+          exit={gradeExit(4, reduce).exit}
           transition={t()}
           className="space-y-4"
         >
@@ -625,6 +624,7 @@ function DictationSession({
               speakNow={speakNow}
               onPerfect={recordPerfect}
               onWrongAttempt={() => setShakeKey((k) => k + 1)}
+              pop={pop}
             />
           ) : (
             <motion.div variants={v(stagger(0.04))} initial="hidden" animate="show" className="surface p-5 sm:p-6">
@@ -739,18 +739,19 @@ function DictationItemAnswer({
   speakNow,
   onPerfect,
   onWrongAttempt,
+  pop,
 }: {
   item: DictationItem
   shakeKey: number
   speakNow: (text: string, forceSlow?: boolean) => void
   onPerfect: (r: { tokens: ReturnType<typeof diffWords>; accuracy: number; grade: DictationGrade; xp: number }) => void
   onWrongAttempt: () => void
+  pop: (amount: number, x?: number, y?: number) => void
 }) {
   const [typed, setTyped] = useState('')
   const [attempts, setAttempts] = useState(0)
   const [hintStage, setHintStage] = useState(0)
   const targetWords = tokenize(item.text).length
-  const { pop } = useXpPops()
   const primaryRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 

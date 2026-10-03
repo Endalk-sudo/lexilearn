@@ -43,9 +43,26 @@ export function KeyboardShortcutsDialog({
         { keys: ['g', 'then', 'l'], description: 'Go to Learn' },
         { keys: ['g', 'then', 'q'], description: 'Go to Quiz' },
         { keys: ['g', 'then', 'd'], description: 'Go to Dictation' },
+        { keys: ['g', 'then', 'v'], description: 'Go to Study deck' },
         { keys: ['g', 'then', 'b'], description: 'Go to Library' },
         { keys: ['g', 'then', 'p'], description: 'Go to Progress' },
         { keys: ['g', 'then', 'c'], description: 'Go to AI Coach' },
+        { keys: ['f'], description: 'Toggle focus mode (Learn / Review / Quiz / Progress)' },
+      ],
+    },
+    {
+      category: 'Today Dashboard',
+      items: [
+        { keys: ['Space', 'or', 'Enter'], description: 'Start the daily mission' },
+        { keys: ['r'], description: 'Resume the last study session' },
+      ],
+    },
+    {
+      category: 'AI Coach & Mentor',
+      items: [
+        { keys: ['h'], description: 'Request a hint (while answering)' },
+        { keys: ['r'], description: 'Next challenge, after a question is answered' },
+        { keys: [modKey, 'Enter'], description: 'Submit your coach answer', note: 'in the AI Coach text box' },
       ],
     },
     {
@@ -75,10 +92,11 @@ export function KeyboardShortcutsDialog({
       category: 'Dictation Mode',
       items: [
         { keys: [altKey, 'R'], description: 'Replay audio while typing', note: `or Ctrl+Space` },
-        { keys: [altKey, 'S'], description: 'Replay slow audio while typing' },
+        { keys: [altKey, 'S'], description: 'Replay slow audio while typing', note: 'or Ctrl+Shift+Space' },
         { keys: [altKey, 'H'], description: 'Show hint / give up', note: `or Ctrl+H` },
         { keys: ['Enter'], description: 'Submit what you typed' },
         { keys: ['Space', 'or', 'Enter'], description: 'Advance to next dictation item' },
+        { keys: ['r', 'or', 's'], description: 'Replay / replay slow (between items, not typing)' },
         { keys: ['1', '–', '4'], description: 'Select dictation difficulty rung' },
       ],
     },
@@ -96,7 +114,7 @@ export function KeyboardShortcutsDialog({
         { keys: ['Enter', 'or', 'Space'], description: 'Continue to next step on completion screen' },
         { keys: ['r'], description: 'Study again from completion screen' },
         { keys: ['/'], description: 'Focus search input in Library / Dictionary' },
-        { keys: ['Esc'], description: 'Clear search / close modals / go back' },
+        { keys: ['Esc'], description: 'Clear search / close modals / exit focus mode or back out' },
       ],
     },
   ]

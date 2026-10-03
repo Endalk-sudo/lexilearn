@@ -62,7 +62,7 @@ with sync_playwright() as p:
     boxes_container = pg.locator("[aria-label='Spelling boxes']")
     rec("1-pointer", "spelling boxes visible", boxes_container.count() > 0, f"count={boxes_container.count()}")
     if boxes_container.count() > 0:
-        boxes = boxes_container.locator("> div")
+        boxes = boxes_container.locator(".spell-box")
         box_count = boxes.count()
         rec("1-pointer", "boxes rendered", box_count > 0, f"letter boxes={box_count}")
 

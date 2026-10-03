@@ -16,13 +16,14 @@ import { EmptyState } from '@/components/feedback/empty-state'
 export function DeckView() {
   const [selected, setSelected] = useState<{ id: string | null; name: string } | null>(null)
   const [decks, setDecks] = useState<DeckSummary[] | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
   const navigate = useAppStore((s) => s.navigate)
 
   useEffect(() => {
     let live = true
     api.getDecks()
-      .then((list) => live && setDecks(list))
-      .catch(() => live && setDecks([]))
+      .then((list) => { if (live) { setDecks(list); setLoadFailed(false) } })
+      .catch(() => { if (live) { setDecks([]); setLoadFailed(true) } })
     return () => { live = false }
   }, [])
 
@@ -54,7 +55,21 @@ export function DeckView() {
         title="Study a deck"
         description="Pick a deck and run it through the Learn flow — recall, study the meaning, then spell it. It grades like any other session."
       />
-      {decks === null ? null : decks.length === 0 ? (
+      {decks === null && !loadFailed ? (
+        <div className="space-y-3" aria-busy="true">
+          <div className="surface h-14 rounded-xl" />
+          <div className="surface h-14 rounded-xl" />
+          <div className="surface h-14 rounded-xl" />
+        </div>
+      ) : loadFailed ? (
+        <EmptyState
+          icon={Layers}
+          title="Couldn't load your decks"
+          hint="Check your connection, then try again."
+          actionLabel="Retry"
+          onAction={() => window.location.reload()}
+        />
+      ) : decks && decks.length === 0 ? (
         <EmptyState
           icon={Layers}
           title="No decks yet"
@@ -77,7 +92,7 @@ export function DeckView() {
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
-          {decks.map((d) => (
+          {(decks ?? []).map((d) => (
             <button
               key={d.id}
               type="button"

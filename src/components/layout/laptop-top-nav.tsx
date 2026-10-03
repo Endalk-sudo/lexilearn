@@ -10,6 +10,7 @@ import { useAppStore, VIEW_TITLES, type ViewName } from '@/lib/store'
 import { api, type DashboardStats } from '@/lib/api'
 import { isSoundEnabled, playSound, toggleSound } from '@/lib/feel'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 export function LaptopTopNav() {
   const view = useAppStore((s) => s.view)
@@ -47,8 +48,7 @@ export function LaptopTopNav() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
+        if (isTypingTarget(e.target)) return
         const s = useAppStore.getState()
         if (s.focusMode) {
           s.setFocusMode(false)

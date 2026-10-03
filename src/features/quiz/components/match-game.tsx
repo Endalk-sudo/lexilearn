@@ -14,6 +14,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Check, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { buzz, playSound } from '@/lib/feel'
 
 /**
@@ -99,8 +100,7 @@ export function MatchGame({
   // Keyboard navigation: 1-9 for words, A-Z for meanings, Esc to cancel
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (isTypingTarget(e.target)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === 'Escape') {

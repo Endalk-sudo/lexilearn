@@ -163,6 +163,10 @@ export const useAppStore = create<AppState>((set) => ({
       searchQuery: opts.query !== undefined ? opts.query : s.searchQuery,
       libraryTab: opts.libraryTab ?? s.libraryTab,
       progressTab: opts.progressTab ?? (view === 'progress' ? 'overview' : s.progressTab),
+      // Drill-in scopes are one-shot: entering the route never carries a stale
+      // deck scope from a different entry point, and leaving the route drops it.
+      dictationDeckId: view === 'dictation' ? s.dictationDeckId : null,
+      studyDeckId: view === 'library-deck' ? s.studyDeckId : null,
     })),
 
   applyRoute: (route) => set(route),

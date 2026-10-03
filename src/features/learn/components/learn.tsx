@@ -23,6 +23,7 @@ import { resumeIndexFor, saveResume } from '@/lib/resume'
 import { GRADE_XP } from '@/lib/srs'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
 
 type Stage = 'recall' | 'meaning' | 'spell' | 'result'
@@ -47,6 +48,7 @@ export function LearnView({
 } = {}) {
   const [cards, setCards] = useState<CardWithWord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [idx, setIdx] = useState(0)
   const [stage, setStage] = useState<Stage>('recall')
   const [spelling, setSpelling] = useState('')
@@ -71,7 +73,7 @@ export function LearnView({
   // `dismissHints` fires on the first primary action of each card flow.
   const [showHints, dismissHints] = useFirstCardHints()
   const { pops, pop } = useXpPops()
-  const { v, t } = useMotionSafe()
+  const { v, t, reduce } = useMotionSafe()
   const primaryRef = useRef<HTMLButtonElement>(null)
   const lastSpokenWordIdRef = useRef<string | null>(null)
 
@@ -102,8 +104,9 @@ export function LearnView({
       setTtsRate(settings.ttsRate)
       setLevelBefore(stats.level.name)
       setStreak(stats.streak)
-      const start = list.length ? resumeIndexFor(mode, list.length) : 0
+      const start = list.length ? resumeIndexFor(mode, list.length, deckId) : 0
       setIdx(start)
+      setLoadFailed(false)
       setStage('recall')
       setDone(false)
       setCorrectCount(0)
@@ -113,12 +116,14 @@ export function LearnView({
           view: mode,
           label: deckName ?? (mode === 'deck' ? 'Whole library' : 'New words'),
           detail: `${list.length - start} to go`,
+          deckId: mode === 'deck' ? deckId : null,
           index: start,
           total: list.length,
         })
       }
     } catch {
-      /* offline */
+      setLoadFailed(true)
+      setCards([])
     } finally {
       setLoading(false)
     }
@@ -128,6 +133,21 @@ export function LearnView({
     const id = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(id)
   }, [load])
+
+  // Category scope changes must refresh the *learn* queue. Deck mode ignores the
+  // category, so only the global learn queue reacts to a filter change.
+  const lastScopeRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (mode === 'deck') return
+    const key = studyCategory?.id ?? '__all__'
+    if (lastScopeRef.current === null) {
+      lastScopeRef.current = key
+      return
+    }
+    if (lastScopeRef.current === key) return
+    lastScopeRef.current = key
+    void load()
+  }, [studyCategory, mode, load])
 
   const current = cards[idx]
 
@@ -221,6 +241,16 @@ export function LearnView({
           setStreak(stats.streak)
           setDueAfter(stats.dueCount)
         } catch { /* offline */ }
+        // A fresh shuffle means the old position is meaningless — anchor the
+        // resume slot to the new pass so re-opening resumes at card 1 of it.
+        saveResume({
+          view: mode,
+          label: deckName ?? 'Whole library',
+          detail: `${cards.length} to go`,
+          deckId: mode === 'deck' ? deckId : null,
+          index: 0,
+          total: cards.length,
+        })
         return
       }
       try {
@@ -244,16 +274,16 @@ export function LearnView({
       view: mode,
       label: deckName ?? (mode === 'deck' ? 'Whole library' : 'New words'),
       detail: `${cards.length - nextIdx} to go`,
+      deckId: mode === 'deck' ? deckId : null,
       index: nextIdx,
       total: cards.length,
     })
-  }, [cards, idx, mode, deckName])
+  }, [cards, idx, mode, deckName, deckId])
 
   // Keyboard navigation & study shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+      const typing = isTypingTarget(e.target)
 
       // In typing mode (spelling step), support modifier shortcuts:
       if (typing && stage === 'spell') {
@@ -384,36 +414,48 @@ export function LearnView({
   }
 
   if (!cards.length) {
+    if (loadFailed) {
+      return (
+        <div className={studyColClassName("space-y-6")}>
+          <EmptyState
+            title="Couldn't load this session"
+            hint="Check your connection, then try again."
+            actionLabel="Retry"
+            onAction={() => void load()}
+          />
+        </div>
+      )
+    }
     return (
       <div className={studyColClassName("space-y-6")}>
-        <StudyScopeBanner />
+        {mode !== 'deck' ? <StudyScopeBanner /> : null}
         <PageHeader
           eyebrow={mode === 'deck' ? 'Deck' : 'Learn'}
           icon={Keyboard}
-          title={studyCategory ? `No new words in “${studyCategory.name}”` : mode === 'deck' ? `No cards due in ${deckName ?? 'this deck'}` : 'No new words right now'}
+          title={mode === 'deck' ? `No cards due in ${deckName ?? 'this deck'}` : studyCategory ? `No new words in “${studyCategory.name}”` : 'No new words right now'}
           description={
-            studyCategory
-              ? `All words in the "${studyCategory.name}" category have already been introduced, or none have been assigned to it yet.`
-              : mode === 'deck'
-                ? 'Nothing is due and there are no new words in this deck yet. Clear the category filter elsewhere, or add words to it.'
+            mode === 'deck'
+              ? 'Nothing is due and there are no new words in this deck yet. Add words to it, or come back once reviews come due.'
+              : studyCategory
+                ? `All words in the "${studyCategory.name}" category have already been introduced, or none have been assigned to it yet.`
                 : 'Every word in your library has already been introduced.'
           }
         />
         <EmptyState
           icon={Volume2}
-          title={studyCategory ? 'Try another category or all words' : 'Add words to keep going'}
+          title={studyCategory && mode !== 'deck' ? 'Try another category or all words' : 'Add words to keep going'}
           hint={
-            studyCategory
+            studyCategory && mode !== 'deck'
               ? 'You can clear the category filter to learn words across all decks, or pick another category.'
               : 'Import a list, create a deck, or review what you already have so it never fades.'
           }
-          actionLabel={studyCategory ? 'Learn all categories' : 'Open library'}
+          actionLabel={studyCategory && mode !== 'deck' ? 'Learn all categories' : 'Open library'}
           onAction={() => {
-            if (studyCategory) setStudyCategory(null)
+            if (studyCategory && mode !== 'deck') setStudyCategory(null)
             else navigate('library')
           }}
           secondary={
-            studyCategory ? (
+            studyCategory && mode !== 'deck' ? (
               <Button variant="ghost" size="sm" onClick={() => navigate('library', { libraryTab: 'decks' })}>
                 Manage categories
               </Button>
@@ -434,7 +476,7 @@ export function LearnView({
   return (
     <div className={studyColClassName()}>
       <XpPopLayer pops={pops} />
-      <StudyScopeBanner />
+      {mode !== 'deck' ? <StudyScopeBanner /> : null}
       {focusMode ? (
         <div className="mb-4 flex justify-center">
           <button
@@ -483,9 +525,9 @@ export function LearnView({
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={current.word.id}
-          initial={gradeEnter(4).initial}
-          animate={gradeEnter(4).animate}
-          exit={gradeExit(stage === 'result' ? (wasCorrect ? 5 : 0) : 4).exit}
+          initial={gradeEnter(4, reduce).initial}
+          animate={gradeEnter(4, reduce).animate}
+          exit={gradeExit(stage === 'result' ? (wasCorrect ? 5 : 0) : 4, reduce).exit}
           transition={t()}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}

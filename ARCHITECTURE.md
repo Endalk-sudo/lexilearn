@@ -15,7 +15,7 @@ src/
 │   ├── feedback/         #   session feedback (xp-pop, session-complete, confetti…)
 │   ├── layout/           #   page-header, next-step, segmented-control
 │   ├── app-shell.tsx     #   sidebar / mobile tabs / top bar
-│   └── word-card-v2.tsx  #   shared word card (learn, library, search palette)
+│   └── word-card.tsx     #   shared word card (learn, library, search palette)
 ├── features/             # ONE folder per vertical feature
 │   ├── today/            #   home dashboard (daily challenge, streaks)
 │   ├── learn/            #   new-word learning (word cards, spelling input)
@@ -47,7 +47,7 @@ Each feature folder may contain:
 1. Used by **one feature only** → belongs in that feature folder.
 2. Used by **two or more features** → belongs in `src/lib/` or `src/components/`.
 3. `src/app/` is transport only — no business logic. View routing happens through the zustand store (`lib/store.ts`) + hash router (`lib/router.ts`), so views are plain components under `features/*/components`.
-4. Client code never imports another feature's internals; if a component is needed cross-feature, promote it to `src/components/` or `src/lib/`.
+4. Client code never imports another feature's *internals* (its `lib/`, `server/`, or non-exported pieces). A self-contained view component such as `LearnView` and `SpellingInput` may be reused cross-feature only when it's exported and prop-driven (as `deck`/`library` embed `LearnView`); any other shared UI belongs in `src/components/` or `src/lib/`.
 
 ## Data flow
 

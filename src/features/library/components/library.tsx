@@ -42,6 +42,7 @@ import { playSound } from '@/lib/feel'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 export function LibraryView() {
   const libraryTab = useAppStore((s) => s.libraryTab)
@@ -728,9 +729,7 @@ function DictionaryPanel() {
   // '/' hotkey to focus search bar from anywhere in dictionary panel
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
-      if (isTyping) return
+      if (isTypingTarget(e.target)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === '/') {
@@ -1202,8 +1201,15 @@ export function DeckDetailView() {
   const setStudyDeckId = useAppStore((s) => s.setStudyDeckId)
 
   useEffect(() => {
-    if (useAppStore.getState().studyDeckId === deckId) {
+    // Always consume the one-shot flag: on a match we already seeded `studying`,
+    // on a mismatch the flag is stale and would auto-enter the wrong deck later.
+    if (useAppStore.getState().studyDeckId !== null) {
       setStudyDeckId(null)
+    }
+    return () => {
+      if (useAppStore.getState().studyDeckId !== null) {
+        setStudyDeckId(null)
+      }
     }
   }, [deckId, setStudyDeckId])
 

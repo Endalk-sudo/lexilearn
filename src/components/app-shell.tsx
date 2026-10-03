@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 import { isSoundEnabled, playSound, toggleSound } from '@/lib/feel'
 import { useMotionSafe } from '@/lib/motion'
 import { useCountUp } from '@/hooks/use-count-up'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 /** The five flat destinations. Nothing else is ever a tab. */
 export const PRIMARY_TABS: { view: ViewName; label: string; icon: React.ElementType }[] = [
@@ -105,8 +106,7 @@ export function AppSidebar() {
     let gTimer: number | null = null
 
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+      if (isTypingTarget(e.target)) {
         return
       }
 

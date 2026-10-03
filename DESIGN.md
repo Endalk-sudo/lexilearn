@@ -80,7 +80,7 @@ Vocabulary cards use standard CEFR classification with distinct visual semantics
 - **C1 / C2 (Advanced & Mastery)**: Royal Purple (`border-purple-500/30 bg-purple-500/10 text-purple-600`)
 
 ### 3.3 Typography Hierarchy
-- **Primary Sans**: Inter / Geist Sans (`--font-sans`) — crisp geometry with high x-height for readability.
+- **Primary Sans**: Geist Sans (`--font-sans`) — crisp geometry with high x-height for readability.
 - **Monospace**: Geist Mono / JetBrains Mono (`--font-mono`) — used for IPA phonetic transcription, keyboard shortcuts (`kbd`), and code tags.
 - **Tabular Figures (`.num`)**: All numbers, countdowns, streaks, and scores use `font-variant-numeric: tabular-nums` to eliminate layout jitter during counters.
 - **Micro-Labels (`.label`)**: `0.75rem (12px)`, `letter-spacing: 0.06em`, uppercase bold for category headers and eyebrows.
@@ -125,21 +125,21 @@ Learning is fortified when sensory feedback confirms action:
   - Progress bar tracking daily rotating challenges (10-Word Sprint, Recall Run, Show Up).
   - Amber badge highlighting bonus XP reward with instant claim feedback.
 - **Resume Strip**: One-click quick-return if a user left a session midway.
-- **Quick Links Grid**: Clean 4-card action dock for Quick Quiz, Dictation, Dictionary, and Progress.
+- **Quick Links Grid**: Action dock with Quick Quiz, Dictation, Study deck, Dictionary, Progress, and AI Coach.
 
 ### 5.2 Learn Mode (`New Words`)
-- **Purpose**: Systematic 3-stage onboarding of new vocabulary into the memory pipeline.
+- **Purpose**: Systematic 4-stage onboarding of new vocabulary into the memory pipeline.
 - **Interaction Workflow**:
   ```
-  [ Stage 1: Recall ]   ──(Space / Tap)──>   [ Stage 2: Spell ]   ──(Enter)──>   [ Stage 3: Result ]
-  Display word + IPA                         Listen to audio TTS                 Grade & Award XP
-  Prompt mental meaning                      Type into slot grid                 Schedule into SM-2
+  [ Stage 1: Recall ]   ──(Space / Tap)──>   [ Stage 2: Meaning ]  ──>  [ Stage 3: Spell ]   ──(Enter)──>   [ Stage 4: Result ]
+  Display word + IPA                         Reveal the meaning                  Listen to audio TTS               Grade & Award XP
+  Prompt mental meaning                      Tap to start spelling              Type into slot grid                Schedule into SM-2
   ```
 - **Spelling Input Grid**:
   - Distinct segmented character blocks for each letter of the target word.
   - Active character slot highlighted with scaling and border glow.
   - Green pop for correct letters; shake animation on mistake.
-- **Word Card Anatomy (`word-card-v2.tsx`)**:
+- **Word Card Anatomy (`word-card.tsx`)**:
   - Head: Large title, Part of Speech, IPA transcription, and speaker pronunciation button.
   - CEFR Level pill + expandable letter-count hint.
   - Progressive disclosure tabs: `Meaning`, `Example Sentence`, `Amharic (አማርኛ)`.
@@ -176,7 +176,7 @@ Learning is fortified when sensory feedback confirms action:
   - Rung 2: Complex, full sentences (6–12 words).
 - **Audio Control Bar**:
   - Primary Play / Repeat button (`Space`).
-  - Speed toggle: Normal `1.0x` vs. Turtle Slow `0.7x` (`Shift+Space`).
+  - Speed toggle: Normal `1.0x` vs. Turtle Slow `0.7x` (`Alt+S` while typing, or `Ctrl+Shift+Space`).
   - Replay counter ("Free replays").
 - **Visual Diff Inspection**:
   - Color-coded tokenized breakdown comparing user input against true transcript:
@@ -203,7 +203,7 @@ Learning is fortified when sensory feedback confirms action:
   - **Branch System**: Focused tracks for *Past Tense*, *Articles*, *Prepositions*, *Collocations*, and *Naturalness*.
   - **Native Version Comparison**: Side-by-side diff between learner's draft and idiomatic phrasing.
   - **Granular Explanations**: Grammatical rule summaries explaining the nuance of corrections.
-  - **100% On-Device**: All prompts run against local LLM models (e.g. `llama3` or `qwen2.5`) with zero cloud data transmission.
+  - **100% On-Device**: All prompts run against local LLM models (default `qwen3:8b`) with zero cloud data transmission.
 
 ### 5.8 Progress & Analytics
 - **Purpose**: Clear visualization of compounding memory growth.
@@ -229,11 +229,11 @@ LexiLearn treats the keyboard as a first-class citizen alongside mobile touch:
 | Context | Shortcut | Action |
 |---|---|---|
 | **Anywhere** | `⌘K` or `Ctrl+K` | Open Universal Search Palette |
-| **Anywhere** | `1` – `5` (outside input) | Direct navigation to primary tabs |
-| **Learn / Review** | `Space` or `Enter` | Reveal card answer / Play pronunciation |
+| **Anywhere** | `g` then `t`/`r`/`l`/`q`/`d`/`v`/`b`/`p`/`c` | Go to Today / Review / Learn / Quiz / Dictation / Deck / Library / Progress / Coach |
+| **Learn / Review** | `Space` or `Enter` | Reveal card / grade / advance; `r` / `s` replay (normal / slow) |
 | **Review** | `1`, `2`, `3`, `4` | Grade: Again, Hard, Good, Easy |
 | **Quiz (MC)** | `A`, `B`, `C`, `D` or `1`–`4` | Select multiple-choice option |
-| **Dictation** | `Space` / `Shift+Space` | Replay audio / Replay slow audio |
+| **Dictation** | `Alt+R`/`Ctrl+Space`, `Alt+S`/`Ctrl+Shift+Space` | Replay audio / Replay slow audio while typing |
 | **Mentor** | `⌘+Enter` or `Ctrl+Enter` | Submit response to AI Coach |
 | **Modal / Dialog** | `Escape` | Close dialog or drawer |
 

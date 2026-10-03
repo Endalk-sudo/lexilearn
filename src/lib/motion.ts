@@ -88,14 +88,19 @@ export const revealBlock: Variants = {
  * Cards leave with a weight that matches the grade, so the SRS choice
  * is physically communicated: a miss snaps away, an easy win flies out.
  */
-export function gradeExit(grade: number): { exit: { opacity: number; x?: number; y?: number; transition: Transition } } {
+export function gradeExit(
+  grade: number,
+  reduce = false,
+): { exit: { opacity: number; x?: number; y?: number; transition: Transition } } {
+  if (reduce) return { exit: { opacity: 0, transition: { duration: 0 } } }
   if (grade >= 5) return { exit: { opacity: 0, x: -64, transition: { duration: 0.24, ease: easeOut } } }
   if (grade >= 4) return { exit: { opacity: 0, x: -48, transition: { duration: 0.2, ease: easeOut } } }
   if (grade >= 3) return { exit: { opacity: 0, x: -32, transition: { duration: 0.22, ease: easeOut } } }
   return { exit: { opacity: 0, y: 14, transition: { duration: 0.16, ease: easeInOut } } }
 }
 
-export function gradeEnter(grade: number): { initial: { opacity: number; x?: number; y?: number }; animate: { opacity: number; x?: number; y?: number } } {
+export function gradeEnter(grade: number, reduce = false): { initial: { opacity: number; x?: number; y?: number }; animate: { opacity: number; x?: number; y?: number } } {
+  if (reduce) return { initial: { opacity: 0 }, animate: { opacity: 1 } }
   return {
     initial: { opacity: 0, x: 32, y: 6 },
     animate: { opacity: 1, x: 0, y: 0 },

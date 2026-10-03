@@ -46,7 +46,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-001 | Users can browse pre-built word decks (TOEFL, IELTS, Common 500) | P0 |
+| F-001 | Users can browse pre-built word decks (grouped CEFR B1–C2 headwords) | P0 |
 | F-002 | Users can create custom word decks with a name and description | P0 |
 | F-003 | Users can add individual words to any deck (word, POS, IPA, definition, example, CEFR level, synonyms, antonyms, Amharic translation) | P0 |
 | F-004 | Users can bulk-import words via CSV or tab-separated text | P0 |
@@ -88,7 +88,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 |----|-------------|----------|
 | F-250 | Dictation drills by progressive rungs: Word (Rung 0) → Phrase (Rung 1) → Sentence (Rung 2) | P1 |
 | F-251 | Browser speech synthesis with configurable playback speeds (Normal 1.0× vs. Slow 0.7×) | P1 |
-| F-252 | Free unlimited replays during drill with keyboard shortcut support (`Space` / `Shift+Space`) | P1 |
+| F-252 | Free unlimited replays during drill with keyboard shortcut support (`Alt+R` / `Ctrl+Space`, `Alt+S` / `Ctrl+Shift+Space`) | P1 |
 | F-253 | Real-time text comparison with color-coded token diffs (matched, missed, typo correction) | P1 |
 | F-254 | Accuracy calculation, adaptive rung progression, and XP / review log integration | P1 |
 
@@ -111,7 +111,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-401 | Weekly activity bar chart (correct vs. incorrect) | P1 |
 | F-402 | Card status pie chart (mastered / reviewing / learning / new) | P1 |
 | F-403 | Grade distribution bar chart | P1 |
-| F-404 | 52-week contribution calendar (GitHub-style heatmap) | P1 |
+| F-404 | 53-week contribution calendar (GitHub-style heatmap) | P1 |
 | F-405 | Recent review history (last 100 events) | P1 |
 | F-406 | 7-day review forecast | P1 |
 | F-407 | Quiz session history | P2 |
@@ -145,7 +145,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | F-700 | Synthesized typing sounds on every text input — pitch-randomized, debounced, gated by the existing sound toggle | P2 |
-| F-701 | Session sounds (correct / wrong / level-up) and haptics, opt-in | P2 |
+| F-701 | Session sounds (correct / wrong / level-up) and haptics; haptics opt-in (sound defaults on) | P2 |
 | F-702 | Service worker caches the app shell and read-only API responses so learning and reviewing work offline | P1 |
 | F-703 | Honest offline banner explaining exactly what still works (everything except AI generation) | P2 |
 
@@ -251,7 +251,7 @@ src/
 │   ├── globals.css / layout.tsx / error.tsx / not-found.tsx
 │   └── page.tsx                # Client-side SPA entry (view container)
 ├── db/
-│   ├── schema.ts               # Drizzle schema (22 tables)
+│   ├── schema.ts               # Drizzle schema (24 tables)
 │   ├── env.ts                  # DB path resolution
 │   └── id.ts                   # createId() id generator
 ├── server/
@@ -262,7 +262,7 @@ src/
 │   ├── feedback/               # session-complete-v2, xp-pop, empty-state…
 │   ├── app-shell.tsx           # nav shell (sidebar / mobile tabs / top bar)
 │   ├── search-palette.tsx      # ⌘K search + jump-to palette
-│   ├── word-card-v2.tsx        # shared word card
+│   ├── word-card.tsx           # shared word card
 │   └── pwa.tsx                 # SW registration + offline banner
 ├── features/                   # ONE folder per vertical feature
 │   ├── today/                  # home dashboard (+ lib/gamification)
@@ -297,10 +297,10 @@ The app ships with curated vocabulary decks:
 
 | Deck | Word Count | CEFR Range | Purpose |
 |------|-----------|------------|---------|
-| Common 500 | 78 | B1–C2 | High-frequency academic vocabulary |
-| IELTS Academic | 27 | B2–C1 | IELTS-specific terms |
-| TOEFL Academic | 29 | C2 | TOEFL-specific terms |
-| GRE Advanced | 31 | C2 | GRE-specific terms |
+| Headwords Sixth Thousand (B1) | — | B1 | Common everyday vocabulary |
+| Headwords Sixth Thousand (B2) | — | B2 | Common everyday vocabulary |
+| Headwords Sixth Thousand (C1) | — | C1 | Advanced vocabulary |
+| Headwords Sixth Thousand (C2) | — | C2 | Advanced vocabulary |
 
 Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, examples, synonyms, antonyms, etymology, and Amharic translation.
 

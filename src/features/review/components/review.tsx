@@ -17,6 +17,7 @@ import { speak } from '@/lib/tts'
 import { buzz, playSound } from '@/lib/feel'
 import { calculateSm2, GRADE_XP, type Grade, type SrsCard } from '@/lib/srs'
 import { resumeIndexFor, saveResume } from '@/lib/resume'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { gradeEnter, gradeExit, listItem, stagger, useMotionSafe } from '@/lib/motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -85,6 +86,7 @@ type ReviewHistoryItem = {
 export function ReviewView() {
   const [cards, setCards] = useState<CardWithWord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [idx, setIdx] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [lastGrade, setLastGrade] = useState<Grade>(4)
@@ -120,7 +122,7 @@ export function ReviewView() {
   const studyCategory = useAppStore((s) => s.studyCategory)
   const setStudyCategory = useAppStore((s) => s.setStudyCategory)
   const { pops, pop } = useXpPops()
-  const { v, t } = useMotionSafe()
+  const { v, t, reduce } = useMotionSafe()
   const gradeRefs = useRef<(HTMLButtonElement | null)[]>([])
   const lastSpokenWordIdRef = useRef<string | null>(null)
   // Pending review writes: grading a card queues its submit instead of
@@ -187,7 +189,7 @@ export function ReviewView() {
       setTtsRate(settings.ttsRate)
       setLevelBefore(stats.level.name)
       setStreak(stats.streak)
-      const start = list.length ? resumeIndexFor('review', list.length) : 0
+      const start = list.length ? resumeIndexFor('review', list.length, null) : 0
       setIdx(start)
       setRevealed(false)
       setDone(false)
@@ -204,8 +206,10 @@ export function ReviewView() {
           total: list.length,
         })
       }
+      setLoadFailed(false)
     } catch {
-      /* offline */
+      setLoadFailed(true)
+      setCards([])
     } finally {
       setLoading(false)
     }
@@ -277,9 +281,7 @@ export function ReviewView() {
   // mounted study page is fine: switching views unmounts the old listener.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return
+      if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key.toLowerCase() === 'f') {
         e.preventDefault()
         useAppStore.getState().setFocusMode(!useAppStore.getState().focusMode)
@@ -383,9 +385,8 @@ export function ReviewView() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
-      
+      if (isTypingTarget(e.target)) return
+
       // Undo: Cmd+Z or Ctrl+Z
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
@@ -393,15 +394,22 @@ export function ReviewView() {
         return
       }
 
-      // Audio replay: R for normal, S for slow
-      if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey) {
+      // Audio replay: R for normal, S for slow (ignore modifier-modified presses)
+      if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
         playAudio(false)
         return
       }
-      if (e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey) {
+      if (e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
         playAudio(true)
+        return
+      }
+
+      // Star: M toggles the bookmark on the current word
+      if (e.key.toLowerCase() === 'm' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        toggleBookmark()
         return
       }
 
@@ -428,7 +436,7 @@ export function ReviewView() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [grade, playAudio, reveal, revealed, undoGrade])
+  }, [grade, playAudio, reveal, revealed, toggleBookmark, undoGrade])
 
   const levelUp = useMemo(() => !!levelAfter && levelBefore !== levelAfter, [levelAfter, levelBefore])
 
@@ -481,6 +489,24 @@ export function ReviewView() {
   }
 
   if (!cards.length) {
+    if (loadFailed) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4">
+          <StudyScopeBanner />
+          <EmptyState
+            icon={BrainCircuit}
+            title="Couldn't load your review queue"
+            hint="Check your connection, then try again."
+            actionLabel="Retry"
+            onAction={() => {
+              setLoading(true)
+              setLoadFailed(false)
+              void load()
+            }}
+          />
+        </div>
+      )
+    }
     return (
       <div className="mx-auto max-w-2xl space-y-4">
         <StudyScopeBanner />
@@ -584,9 +610,9 @@ export function ReviewView() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={current.word.id}
-            initial={gradeEnter(lastGrade).initial}
-            animate={gradeEnter(lastGrade).animate}
-            exit={gradeExit(lastGrade).exit}
+            initial={gradeEnter(lastGrade, reduce).initial}
+            animate={gradeEnter(lastGrade, reduce).animate}
+            exit={gradeExit(lastGrade, reduce).exit}
             transition={t()}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}

@@ -23,6 +23,7 @@ import { GRADE_XP } from '@/lib/srs'
 import { speak } from '@/lib/tts'
 import { buzz, playSound, typeFeelFromKey } from '@/lib/feel'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { toast } from 'sonner'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
 
@@ -122,6 +123,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [idx, setIdx] = useState(0)
   const [answer, setAnswer] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
@@ -142,6 +144,8 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   const autoSpeak = useAppStore((s) => s.autoSpeak)
   const studyCategory = useAppStore((s) => s.studyCategory)
   const setStudyCategory = useAppStore((s) => s.setStudyCategory)
+  const focusMode = useAppStore((s) => s.focusMode)
+  const setFocusMode = useAppStore((s) => s.setFocusMode)
   const { pops, pop } = useXpPops()
   const { v, t } = useMotionSafe()
   const finishedRef = useRef(false)
@@ -167,9 +171,11 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
         ])
         if (!live) return
         setQuestions(list)
+        setLoadFailed(false)
         setTtsVoice(settings.ttsVoice)
         setTtsRate(settings.ttsRate)
       } catch {
+        if (live) setLoadFailed(true)
         toast.error('Could not build this quiz. Check that you have words in your library.')
       } finally {
         if (live) setLoading(false)
@@ -275,12 +281,11 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   useEffect(() => {
     if (finished || loading) return
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT') return
+      if (isTypingTarget(e.target)) return
       // F: focus mode — the shared study-page shortcut.
       if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
-        useAppStore.getState().setFocusMode(!useAppStore.getState().focusMode)
+        setFocusMode(!focusMode)
         return
       }
       if (graded !== null || !current) return
@@ -300,7 +305,7 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [current, finished, gradeAnswer, graded, loading])
+  }, [current, finished, gradeAnswer, graded, loading, focusMode, setFocusMode])
 
   const matchPairs = useMemo<MatchPair[]>(
     () =>
@@ -327,6 +332,21 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
   }
 
   if (!questions.length) {
+    if (loadFailed) {
+      return (
+        <EmptyState
+          icon={ListChecks}
+          title="Couldn't build this quiz"
+          hint="Check your connection, then try again."
+          actionLabel="Retry"
+          onAction={() => {
+            setLoading(true)
+            setLoadFailed(false)
+            window.location.reload()
+          }}
+        />
+      )
+    }
     return (
       <EmptyState
         icon={ListChecks}
@@ -416,6 +436,17 @@ function QuizRunner({ mode, onExit }: { mode: QuizMode; onExit: () => void }) {
     <div className="space-y-4">
       <XpPopLayer pops={pops} />
       <StudyScopeBanner />
+      {focusMode ? (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="rounded-full border border-border/70 bg-card/80 px-3.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground cursor-pointer"
+          >
+            Focus · Esc to exit
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={onExit}>

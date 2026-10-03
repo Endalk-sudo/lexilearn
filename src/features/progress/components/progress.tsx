@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/feedback/empty-state'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { StatTile } from '@/components/ui/stat-tile'
@@ -36,6 +37,7 @@ import {
 } from '@/lib/feel'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
 
 const GRADE_LABELS: Record<number, string> = { 0: 'Again', 3: 'Hard', 4: 'Good', 5: 'Easy' }
@@ -90,6 +92,7 @@ function OverviewPanel() {
   const [data, setData] = useState<Analytics | null>(null)
   const [dash, setDash] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [showAllLogs, setShowAllLogs] = useState(false)
   const [visibleLogCount, setVisibleLogCount] = useState(25)
   const navigate = useAppStore((s) => s.navigate)
@@ -105,7 +108,7 @@ function OverviewPanel() {
           setDash(stats)
         }
       } catch {
-        /* offline */
+        if (live) setLoadFailed(true)
       } finally {
         if (live) setLoading(false)
       }
@@ -140,7 +143,7 @@ function OverviewPanel() {
     [data]
   )
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="space-y-4" aria-busy="true">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -150,6 +153,22 @@ function OverviewPanel() {
         </div>
         <Skeleton className="h-72 rounded-lg" />
       </div>
+    )
+  }
+
+  if (!data || loadFailed) {
+    return (
+      <EmptyState
+        icon={TrendingUp}
+        title="Couldn't load your progress"
+        hint="Check your connection, then try again."
+        actionLabel="Retry"
+        onAction={() => {
+          setLoading(true)
+          setLoadFailed(false)
+          window.location.reload()
+        }}
+      />
     )
   }
 
@@ -386,11 +405,27 @@ function OverviewPanel() {
 
 function SettingsPanel() {
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false)
   const [saved, setSaved] = useState<Settings | null>(null)
   // Focus mode applies instantly (local chrome state); text scale saves with
   // the rest of the form so it stays in sync with the server.
   const focusMode = useAppStore((s) => s.focusMode)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+
+  // 'F' toggles focus mode from anywhere on the Progress/Settings view, same
+  // as the study pages (Learn/Review/Quiz). Don't toggle while typing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        useAppStore.getState().setFocusMode(!useAppStore.getState().focusMode)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [saving, setSaving] = useState(false)
   const [sound, setSound] = useState(() => isSoundEnabled())
   const [haptics, setHaptics] = useState(() => isHapticsEnabled())
@@ -407,9 +442,10 @@ function SettingsPanel() {
         if (live) {
           setSettings(s)
           setSaved(s)
+          setSettingsLoadFailed(false)
         }
       } catch {
-        /* offline */
+        if (live) setSettingsLoadFailed(true)
       }
     })()
     return () => {
@@ -453,6 +489,17 @@ function SettingsPanel() {
   }, [settings])
 
   if (!settings) {
+    if (settingsLoadFailed) {
+      return (
+        <EmptyState
+          icon={BellRing}
+          title="Couldn't load your settings"
+          hint="Check your connection, then try again."
+          actionLabel="Retry"
+          onAction={() => window.location.reload()}
+        />
+      )
+    }
     return (
       <div className="space-y-4" aria-busy="true">
         <Skeleton className="h-40 rounded-lg" />

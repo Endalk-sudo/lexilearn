@@ -25,6 +25,7 @@ import { buzz, playSend, playSound, typeFeelFromKey } from '@/lib/feel'
 import { isMac } from '@/features/coach/lib/keys'
 import { speak } from '@/lib/tts'
 import { api } from '@/lib/api'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 type Branch = { id:string; title:string; focusTag:string; mode:string; difficultyCeiling:number; locked:boolean; createdAt:string }
 type Node = { id:string; branchId:string; kind:string; prompt:string; expectedPatterns:string; hints:string; targetTags:string; difficulty:number }
@@ -186,8 +187,7 @@ export function MentorView() {
   useEffect(() => {
     const onKey = (e:KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      const el = e.target as HTMLElement | null
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.tagName === 'SELECT')) return
+      if (isTypingTarget(e.target)) return
       const s = keyStateRef.current
       if (e.key.toLowerCase()==='h' && s.node && !s.feedback && !s.selfCorrecting) { e.preventDefault(); s.requestHint() }
       if (e.key.toLowerCase()==='r' && s.feedback) { e.preventDefault(); s.nextQuestion() }

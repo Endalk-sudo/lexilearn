@@ -93,15 +93,15 @@ with sync_playwright() as p:
     pg.screenshot(path=f"{shots}/final-P5-quiz.png")
     # P6 library
     nav("#/library"); txt=pg.locator("main").inner_text()[:2000]
-    rec("P6-library","library renders", "Common 500" in txt or "Decks" in txt, txt[:140].replace(chr(10)," | "))
+    rec("P6-library","library renders", "Headwords" in txt or "Decks" in txt, txt[:140].replace(chr(10)," | "))
     # open first deck
     deck_opened=False
-    for sel in [pg.get_by_text("Common 500"), pg.locator("main").locator("a,button").first]:
+    for sel in [pg.get_by_role("button").filter(has_text=re.compile("Headwords|CEFR", re.I)), pg.locator("main").locator("a,button").first]:
         try:
             if sel.count()>0: sel.first.click(timeout=5000); pg.wait_for_timeout(1500); txtd=pg.locator("main").inner_text()[:2000]
             # Content-independent: the deck-detail filter box only exists there
             # (word rows vary with the study database; placeholders aren't in inner_text).
-            if "abundant" in txtd.lower() or "filter this deck" in txtd.lower() or pg.get_by_placeholder("Filter this deck").count() > 0: deck_opened=True; break
+            if "abundant" in txtd.lower() or "filter this deck" in txtd.lower() or "curated deck" in txtd.lower() or pg.get_by_placeholder("Filter this deck").count() > 0: deck_opened=True; break
         except Exception as e: pass
     rec("P6-library","deck detail opens", deck_opened, pg.locator("main").inner_text()[:120].replace(chr(10)," | "))
     pg.screenshot(path=f"{shots}/final-P6-deck.png")

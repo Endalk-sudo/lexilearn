@@ -9,6 +9,7 @@ import { buzz, playSound } from '@/lib/feel'
 import { cn } from '@/lib/utils'
 import { listItem, popIn, stagger, useMotionSafe } from '@/lib/motion'
 import { useCountUp } from '@/hooks/use-count-up'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 export function SessionComplete({
   title,
@@ -57,8 +58,7 @@ export function SessionComplete({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (isTypingTarget(e.target)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === 'Enter' || e.key === ' ') {

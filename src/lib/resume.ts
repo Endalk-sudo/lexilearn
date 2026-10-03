@@ -47,9 +47,16 @@ export function clearResume() {
 }
 
 /** Index to restore for a given session type, clamped to a sane range. */
-export function resumeIndexFor(view: ResumeState['view'], total: number): number {
+export function resumeIndexFor(
+  view: ResumeState['view'],
+  total: number,
+  deckId?: string | null,
+): number {
   const resume = getResume()
   if (!resume || resume.view !== view || typeof resume.index !== 'number') return 0
+  // Scope the restore to the same deck/scope the user is actually in: a saved
+  // index from a different deck (or a extra-category run) must not leak over.
+  if ((resume.deckId ?? null) !== (deckId ?? null)) return 0
   if (total <= 1) return 0
   return Math.max(0, Math.min(resume.index, total - 1))
 }

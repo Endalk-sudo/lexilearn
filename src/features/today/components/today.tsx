@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   BookOpen, BrainCircuit, ChevronRight, CircleCheck, Compass, Ear, Flame, Layers,
-  Play, ShieldCheck, Sparkles, Target, Trophy, Zap,
+  MessageCircle, Play, ShieldCheck, Sparkles, Target, Trophy, Zap,
 } from 'lucide-react'
 import { api, type DashboardStats } from '@/lib/api'
 import { dayKey } from '@/lib/date'
@@ -25,6 +25,7 @@ import { celebrate } from '@/components/feedback/confetti'
 import { toast } from 'sonner'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { isTypingTarget } from '@/hooks/use-shortcuts'
 
 function greeting() {
   const h = new Date().getHours()
@@ -37,6 +38,7 @@ function greeting() {
 export function TodayView() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [resume] = useState<ResumeState | null>(() => getResume())
   const navigate = useAppStore((s) => s.navigate)
   const setDictationDeckId = useAppStore((s) => s.setDictationDeckId)
@@ -45,8 +47,9 @@ export function TodayView() {
   const load = useCallback(async () => {
     try {
       setStats(await api.getDashboardStats())
+      setLoadFailed(false)
     } catch {
-      /* offline - keep the last known numbers */
+      setLoadFailed(true)
     }
   }, [])
 
@@ -57,7 +60,7 @@ export function TodayView() {
         const s = await api.getDashboardStats()
         if (live) setStats(s)
       } catch {
-        /* offline */
+        if (live) setLoadFailed(true)
       } finally {
         if (live) setLoading(false)
       }
@@ -142,8 +145,7 @@ export function TodayView() {
     if (loading || !stats) return
 
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (isTypingTarget(e.target)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === ' ' || e.key === 'Enter') {
@@ -162,7 +164,21 @@ export function TodayView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [goResume, loading, resume, startMission, stats])
 
-  if (loading || !stats || !challenge) return <TodaySkeleton />
+  if (loading) return <TodaySkeleton />
+  if (!stats || loadFailed)
+    return (
+      <EmptyState
+        icon={Sparkles}
+        title="Couldn't load your dashboard"
+        hint="Check your connection, then try again."
+        actionLabel="Retry"
+        onAction={() => {
+          setLoading(true)
+          void load().finally(() => setLoading(false))
+        }}
+      />
+    )
+  if (!challenge) return <TodaySkeleton />
 
   return (
     <motion.div
@@ -282,6 +298,7 @@ export function TodayView() {
               <QuietLink icon={Layers} label="Study deck" hint="Recall → listen → spell, by deck" onClick={() => navigate('deck')} />
               <QuietLink icon={BookOpen} label="Dictionary" hint="Search & explore words" onClick={() => navigate('library', { libraryTab: 'dictionary' })} />
               <QuietLink icon={Trophy} label="Progress" hint={`${stats.masteredCount} words mastered`} onClick={() => navigate('progress')} />
+              <QuietLink icon={MessageCircle} label="AI Coach" hint="Fix mistakes, speak" onClick={() => navigate('coach')} />
             </motion.section>
           )}
         </div>
