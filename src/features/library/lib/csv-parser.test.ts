@@ -50,4 +50,27 @@ describe('parseCsv', () => {
     const rows = parseCsv('word,definition,category\napple,a fruit,food | health')
     expect(rows[0]).toMatchObject({ word: 'apple', definition: 'a fruit', categories: 'food | health' })
   })
+
+  it('parses the docs/ CEFR deck format: underscored headers behind a Rank column', () => {
+    const rows = parseCsv(
+      'Rank,Word,Part_Of_Speech,CEFR_Level,Definition,Example_Sentence,Contextual_Meaning\n' +
+        '1,abstain from,verb,B2,"To restrain oneself from something.",Three members abstained from the vote.,refrain from | forgo',
+    )
+    expect(rows).toEqual([
+      {
+        word: 'abstain from',
+        pos: 'verb',
+        cefr: 'B2',
+        definition: 'To restrain oneself from something.',
+        example: 'Three members abstained from the vote.',
+        synonyms: 'refrain from | forgo',
+      },
+    ])
+  })
+
+  it('never lets a data row re-map the columns once a header is read', () => {
+    const rows = parseCsv('word,definition\napple,a fruit\nmeaning,synonym | gloss\npear,a fruit')
+    expect(rows.map((r) => r.word)).toEqual(['apple', 'meaning', 'pear'])
+    expect(rows[1].definition).toBe('synonym | gloss')
+  })
 })

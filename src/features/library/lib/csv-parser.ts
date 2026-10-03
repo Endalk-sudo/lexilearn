@@ -54,9 +54,12 @@ const COLUMN_ALIASES: Record<string, keyof ParsedWord> = {
   definition: 'definition',
   meaning: 'definition',
   example: 'example',
+  'example sentence': 'example',
   ipa: 'ipa',
   cefr: 'cefr',
+  'cefr level': 'cefr',
   synonyms: 'synonyms',
+  'contextual meaning': 'synonyms',
   antonyms: 'antonyms',
   amharic: 'amharic',
   category: 'categories',
@@ -64,25 +67,49 @@ const COLUMN_ALIASES: Record<string, keyof ParsedWord> = {
   tags: 'categories',
 }
 
-/** A row is the header when its first cell is "word" and at least two cells are known column names. */
-function isHeaderRow(parts: string[]): boolean {
-  if ((parts[0] ?? '').trim().toLowerCase() !== 'word') return false
-  const known = parts.filter((p) => p.trim().toLowerCase() in COLUMN_ALIASES).length
-  return known >= 2
+/**
+ * Fold a raw header cell to its alias lookup key so snake_case, kebab-case and
+ * spaced variants all resolve: `Part_Of_Speech` / `part-of-speech` /
+ * `Part of Speech` → `part of speech`. The curated CEFR decks in `docs/` ship
+ * `Rank,Word,Part_Of_Speech,CEFR_Level,Definition,Example_Sentence,
+ * Contextual_Meaning`, which underscored headers miss entirely.
+ */
+function normalizeHeader(cell: string): string {
+  return cell
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-/** Build a column-index → field-name map from a header row. Returns null if no recognised columns. */
-function mapHeader(parts: string[]): Record<number, keyof ParsedWord> | null {
+/**
+ * A row is the header when it names a `word` column and carries at least two
+ * recognised column names. The word column need not be first — a leading `Rank`
+ * or `No.` index column is common — but it must be present, otherwise a data row
+ * whose values happen to be aliases (`word,noun,a thing said`) would be eaten.
+ */
+function isHeaderRow(parts: string[]): boolean {
+  const known = parts.map(normalizeHeader).filter((p) => p in COLUMN_ALIASES)
+  if (known.length < 2) return false
+  return known.some((p) => COLUMN_ALIASES[p] === 'word')
+}
+
+/**
+ * Build a column-index → field-name map from a header row, plus the index of the
+ * `word` column. Returns null if no columns are recognised.
+ */
+function mapHeader(parts: string[]): { map: Record<number, keyof ParsedWord>; wordIndex: number } | null {
   const map: Record<number, keyof ParsedWord> = {}
-  let recognised = 0
+  let wordIndex = 0
   for (let i = 0; i < parts.length; i++) {
-    const key = parts[i].trim().toLowerCase()
+    const key = normalizeHeader(parts[i])
     if (key in COLUMN_ALIASES) {
       map[i] = COLUMN_ALIASES[key]
-      recognised++
+      if (COLUMN_ALIASES[key] === 'word') wordIndex = i
     }
   }
-  return recognised > 0 ? map : null
+  return Object.keys(map).length > 0 ? { map, wordIndex } : null
 }
 
 export function parseCsv(text: string): ParsedWord[] {
@@ -95,18 +122,25 @@ export function parseCsv(text: string): ParsedWord[] {
   const lines = rawLines.map((l) => l.trim()).filter((l) => l && l.replace(/[,\t;]+/g, ''))
   const out: ParsedWord[] = []
   let colMap: Record<number, keyof ParsedWord> | null = null
+  let wordCol = 0
 
   for (const line of lines) {
     const parts = splitRow(line, delim)
     if (parts.length === 0) continue
 
-    // Try to detect a header row — if found, use it for column mapping
-    if (isHeaderRow(parts)) {
-      colMap = mapHeader(parts)
+    // Try to detect a header row — if found, use it for column mapping. Only
+    // probed until one is found, so a later data row that happens to look like a
+    // header can't silently re-map the columns mid-file.
+    if (!colMap && isHeaderRow(parts)) {
+      const mapped = mapHeader(parts)
+      if (mapped) {
+        colMap = mapped.map
+        wordCol = mapped.wordIndex
+      }
       continue
     }
 
-    const word = parts[0]?.trim()
+    const word = (colMap ? parts[wordCol] : parts[0])?.trim()
     if (!word) continue
 
     if (colMap) {

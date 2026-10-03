@@ -1016,7 +1016,7 @@ export async function POST(req: NextRequest) {
         const parsed = DeckIdBody.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
         const id = parsed.data.deckId
-        // Bundled decks (Headwords Sixth Thousand + its CEFR sub-decks) ship
+        // Bundled decks (the CEFR A1–B2 hierarchy and its sub-decks) ship
         // with the offline seed and must not be deletable — only custom decks.
         const deckRow = await db.select().from(deck).where(eq(deck.id, id)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })

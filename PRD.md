@@ -46,7 +46,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-001 | Users can browse pre-built word decks (grouped CEFR B1–C2 headwords) | P0 |
+| F-001 | Users can browse pre-built word decks (grouped CEFR A1–B2 headwords) | P0 |
 | F-002 | Users can create custom word decks with a name and description | P0 |
 | F-003 | Users can add individual words to any deck (word, POS, IPA, definition, example, CEFR level, synonyms, antonyms, Amharic translation) | P0 |
 | F-004 | Users can bulk-import words via CSV or tab-separated text | P0 |
@@ -290,19 +290,21 @@ db/
 ## 6. Seed Data
 
 The app ships with one curated vocabulary hierarchy, seeded from
-`docs/headwords_sixth_thousand_{b1,b2,c1,c2}.csv`:
+`docs/{A1,A2,B1,B2}_Vocabulary.csv`:
 
 | Deck | Parent | Words | CEFR | Purpose |
 |------|--------|-------|------|---------|
-| Headwords Sixth Thousand | — (root) | 1,000 | B1–C2 | Umbrella deck, read-only, recursive count |
-| CEFR B1 (128 words) | Headwords Sixth Thousand | 128 | B1 | Common everyday vocabulary |
-| CEFR B2 (467 words) | Headwords Sixth Thousand | 467 | B2 | Common everyday vocabulary |
-| CEFR C1 (374 words) | Headwords Sixth Thousand | 374 | C1 | Advanced vocabulary |
-| CEFR C2 (31 words) | Headwords Sixth Thousand | 31 | C2 | Advanced vocabulary |
+| English Vocabulary (CEFR A1–B2) | — (root) | 3,000 | A1–B2 | Umbrella deck, read-only, recursive count |
+| CEFR A1 (594 words) | English Vocabulary (CEFR A1–B2) | 594 | A1 | Foundation: most frequent everyday words |
+| CEFR A2 (1,371 words) | English Vocabulary (CEFR A1–B2) | 1,371 | A2 | Elementary: everyday topics, routines, descriptions |
+| CEFR B1 (830 words) | English Vocabulary (CEFR A1–B2) | 830 | B1 | Intermediate: work, travel, study, everyday idiom |
+| CEFR B2 (205 words) | English Vocabulary (CEFR A1–B2) | 205 | B2 | Upper-intermediate: argument, academic register, exam prep |
 
-Each seed word includes: word, POS, IPA, CEFR level, definition, example, synonyms,
-antonyms and Amharic translation. (`syllables` and `etymology` exist as columns and
-render in the word card, but the shipped seed leaves both empty.)
+Each seed word includes: headword, part of speech, CEFR level, definition, example
+sentence and synonyms (the source's `Contextual_Meaning`). Rows are inserted in the
+CSVs' `Rank` order so each deck pages out easiest-to-hardest. (`ipa`, `antonyms`,
+`amharic`, `syllables` and `etymology` exist as columns and render in the word card,
+but these source files carry no such data, so the shipped seed leaves them empty.)
 
 ---
 
