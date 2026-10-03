@@ -107,7 +107,7 @@ export function DictationView({ deckId }: { deckId?: string | null }) {
           eyebrow="Dictation"
           icon={Ear}
           title="Hear it. Type it."
-          description="A word, then a phrase, then a full sentence — all played aloud. Slow and fair is the point."
+          description="A word at a time, played aloud and typed back. Slow and fair is the point."
         />
       </motion.div>
 
@@ -333,7 +333,7 @@ function DictationStart({
                     {isAuto ? 'Adaptive' : RUNG_LABELS[option as Rung]}
                   </span>
                   <span className="mt-1 block text-[11px] text-muted-foreground font-medium">
-                    {isAuto ? `Starts at ${RUNG_LABELS[rung]}` : ['Words first', 'Phrases', 'Full sentences'][option as Rung]}
+                    {isAuto ? `Starts at ${RUNG_LABELS[rung]}` : ['Shorter list', 'Balanced list', 'Longer list'][option as Rung]}
                   </span>
                 </button>
               )
@@ -369,7 +369,7 @@ function DictationStart({
           </>
         )}
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          8 items · words, then phrases, then sentences · grades your review queue
+          Single-word drills · grades your review queue
         </p>
       </motion.div>
 
@@ -991,6 +991,4 @@ function DictationComplete({
 
 const KIND_TITLES: Record<DictationItem['kind'], string> = {
   word: 'Word',
-  phrase: 'Phrase',
-  sentence: 'Sentence',
 }

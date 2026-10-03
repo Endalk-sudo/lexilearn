@@ -20,7 +20,6 @@ src/
 │   ├── today/            #   home dashboard (daily challenge, streaks)
 │   ├── learn/            #   new-word learning (word cards, spelling input)
 │   ├── review/           #   SM-2 spaced-repetition review sessions
-│   ├── quiz/             #   quiz modes (incl. match game)
 │   ├── dictation/        #   hear-it-type-it drills
 │   ├── library/          #   decks, dictionary, CSV import, word forms
 │   ├── progress/         #   stats, contribution calendar, settings
@@ -139,7 +138,7 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
 
 - **Database**: Composite indexes on `ReviewLog(deckId, reviewedAt)`,
   `MentorAttempt(branchId, createdAt)`, and `MentorSession(mode, createdAt)`
-  for common query patterns — plus `QuizSession(completedAt)`,
+  for common query patterns — plus
   `NaturalnessAttempt(createdAt)`, `MentorNode(branchId, createdAt)`,
   `MentorBranch(projectId, createdAt)`, `MentorAttempt(nodeId, createdAt)`,
   `MentorTurn(branchId, createdAt)`, and `ReviewLog(grade)`. Redundant
@@ -169,9 +168,6 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
   `SQLITE_BUSY`), `cache_size = -64000`, `temp_store = MEMORY` (GROUP
   BY/ORDER BY spill files are pure overhead locally), and a 64 MB
   `journal_size_limit` so long-lived servers never replay a giant WAL.
-- **Hot queries**: quiz generation samples in SQL (`ORDER BY RANDOM() LIMIT`,
-  capped at 20 questions, bounded 200/100 distractor pools) instead of
-  loading whole decks plus the dictionary and JSON-parsing every row.
   `claimChallenge` counts in SQL instead of shipping the day's full log rows.
   The 8 serial `AppStat` reads per dashboard call (6 per analytics, 5 per
   settings) are one `WHERE key IN (...)` now. Bulk/category writes resolve
@@ -180,13 +176,13 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
   parallel, review's fallback fetch joins the initial `Promise.all`, and deck
   deletes run in a single transaction.
 - **Caching, three layers**: per-action `Cache-Control` (`dashboard` 15s,
-  `analytics`/`categories`/`settings`/deck pages 15–60s; quiz/review/search
+  `analytics`/`categories`/`settings`/deck pages 15–60s; review/search
   never cached); a client request cache in `lib/api.ts` (in-flight dedupe
   for all GETs, 10s TTL for dashboard/decks/categories/settings, busted by
   every mutation so writes are never followed by stale reads); and the
-  service worker (allowlist + 5-minute TTL + 60-entry cap — quiz draws, due
+  service worker (allowlist + 5-minute TTL + 60-entry cap — due
   queues and search results must never be served stale offline).
-- **Bundle**: non-Today views (Quiz, Dictation, Library, Progress, Coach)
+- **Bundle**: non-Today views (Dictation, Library, Progress, Coach)
   and the recharts charts split off via `next/dynamic`, canvas-confetti
   loads on first celebration, and `optimizePackageImports` covers
   recharts/lucide-react/framer-motion. First-paint JS went 1715 KB → 1024 KB

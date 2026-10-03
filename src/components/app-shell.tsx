@@ -151,7 +151,6 @@ export function AppSidebar() {
           case 't': nav('today'); break
           case 'r': nav('review'); break
           case 'l': nav('learn'); break
-          case 'q': nav('quiz'); break
           case 'd': nav('dictation'); break
           case 'v': nav('deck'); break
           case 'b': nav('library'); break

@@ -94,10 +94,10 @@ export function TodayView() {
             hint: 'Short daily loops beat weekend cramming. This one takes about five minutes.',
           }
         : {
-            view: 'quiz' as const,
+            view: 'dictation' as const,
             label: 'Nothing is due',
-            cta: 'Play a quiz',
-            hint: 'Your queue is empty. A quick quiz keeps the streak and the memory warm.',
+            cta: 'Practice dictation',
+            hint: 'Your queue is empty. A quick dictation session keeps the streak and the memory warm.',
           }
 
   const claimChallenge = async () => {
@@ -293,7 +293,6 @@ export function TodayView() {
             </motion.div>
           ) : (
             <motion.section variants={v(listItem)} transition={t()} className="grid gap-2.5 sm:grid-cols-2">
-              <QuietLink icon={Sparkles} label="Quick quiz" hint="Six modes, 60s speed test" onClick={() => navigate('quiz')} />
               <QuietLink icon={Ear} label="Dictation" hint="Hear it, type it" onClick={() => { setDictationDeckId(null); navigate('dictation') }} />
               <QuietLink icon={Layers} label="Study deck" hint="Recall → listen → spell, by deck" onClick={() => navigate('deck')} />
               <QuietLink icon={BookOpen} label="Dictionary" hint="Search & explore words" onClick={() => navigate('library', { libraryTab: 'dictionary' })} />

@@ -74,23 +74,6 @@ with sync_playwright() as p:
         if g.count()>0: g.first.click(); pg.wait_for_timeout(1000)
         pg.screenshot(path=f"{shots}/final-P4-graded.png")
     else: rec("P4-review","reveal+grades", False, "no reveal btn")
-    # P5 quiz
-    nav("#/quiz"); txt=pg.locator("main").inner_text()[:2000]
-    rec("P5-quiz","setup renders", "QUIZ" in txt or "quiz" in txt.lower(), txt[:140].replace(chr(10)," | "))
-    modebtns=pg.get_by_role("button")
-    # click first mode card then start
-    started=False
-    for pat in ["Pick the meaning","Find the word","Type it","Spelling","Speed","Match"]:
-        mb=pg.get_by_role("button", name=re.compile(pat, re.I))
-        if mb.count()>0:
-            mb.first.click(); pg.wait_for_timeout(800); break
-    for pat in ["start","begin","practice", "10 questions", "start quiz"]:
-        sb=pg.get_by_role("button", name=re.compile(pat, re.I))
-        if sb.count()>0:
-            sb.first.click(); pg.wait_for_timeout(1500); started=True; break
-    txt2=pg.locator("main").inner_text()[:2000]
-    rec("P5-quiz","quiz starts", started or ("1 /" in txt2 or "correct" in txt2.lower()), txt2[:160].replace(chr(10)," | "))
-    pg.screenshot(path=f"{shots}/final-P5-quiz.png")
     # P6 library
     nav("#/library"); txt=pg.locator("main").inner_text()[:2000]
     rec("P6-library","library renders", "Headwords" in txt or "Decks" in txt, txt[:140].replace(chr(10)," | "))

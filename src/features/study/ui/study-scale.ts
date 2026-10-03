@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Shared study-page UI helpers for Learn / Review / Quiz / Dictation.
+ * Shared study-page UI helpers for Learn / Review / Dictation.
  *
  * - `useStudyPrefs()` reads the global text-scale + focus-mode preferences
  *   (synced to `document.documentElement.dataset` by the store, so plain CSS

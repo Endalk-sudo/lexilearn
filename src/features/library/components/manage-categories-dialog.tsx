@@ -114,7 +114,7 @@ export function ManageCategoriesDialog({
             Manage Categories
           </DialogTitle>
           <DialogDescription>
-            Group words by topic or theme (e.g. Science, Law, Academic). Study specific categories in Learn, Review, and Quiz.
+            Group words by topic or theme (e.g. Science, Law, Academic). Study specific categories in Learn and Review.
           </DialogDescription>
         </DialogHeader>
 

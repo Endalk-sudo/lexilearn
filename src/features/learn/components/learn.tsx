@@ -313,7 +313,7 @@ export function LearnView({
 
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
-      // F: focus mode. Learn, Review and Quiz each own this key via their
+      // F: focus mode. Learn and Review each own this key via their
       // shared keydown listeners; nothing else claims it.
       if (e.key.toLowerCase() === 'f') {
         e.preventDefault()
@@ -402,11 +402,6 @@ export function LearnView({
             hint="Dictation replays today’s words by ear — the fastest way to make them stick."
             actionLabel="Start dictation"
             onAction={() => navigate('dictation')}
-            secondary={
-              <Button variant="outline" size="sm" onClick={() => navigate('quiz')}>
-                Quiz instead
-              </Button>
-            }
           />
         )}
       </div>

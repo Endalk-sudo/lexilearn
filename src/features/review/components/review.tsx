@@ -277,7 +277,7 @@ export function ReviewView() {
     setRevealed(true)
   }, [current, dismissHints])
 
-  // F: focus mode — see the same handler on Learn/Quiz. One listener per
+  // F: focus mode — see the same handler on Learn. One listener per
   // mounted study page is fine: switching views unmounts the old listener.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

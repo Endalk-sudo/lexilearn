@@ -6,7 +6,7 @@
 // scans shipped to JS (W7).
 
 import { db } from '@/lib/db'
-import { deck, word, srsCard, reviewLog, quizSession, appStat } from '@/db/schema'
+import { deck, word, srsCard, reviewLog, appStat } from '@/db/schema'
 import { eq, gte, lt, lte, and, inArray, notExists, desc, sql } from 'drizzle-orm'
 import { dayKey, startOfDay, addDays } from '@/lib/date'
 import { GRADE_XP, getLevel } from '@/lib/srs'
@@ -109,9 +109,8 @@ export async function getDashboardStats() {
   const lastSessionDate = stats.get('lastSessionDate') ?? ''
   const streakShieldUsedDate = stats.get('streakShieldUsedDate') ?? ''
   const challengeClaimedDate = stats.get('challengeClaimedDate') ?? ''
-  // XP and correct-counts come from the review log alone: every quiz answer
-  // (and dictation/learn/review attempt) is logged per question, so adding the
-  // quizSession totals here would double-count them (W1).
+  // XP and correct-counts come from the review log alone: every attempt
+  // (dictation/learn/review) is logged per question, so never double-count.
   const todayCorrect = todayLogs.filter((l) => l.isCorrect).length
   const xpToday = todayLogs.reduce((sum, l) => sum + ((GRADE_XP as Record<number, number>)[l.grade] ?? 0), 0)
   const dailyGoal = num('dailyGoal', 20)
@@ -186,14 +185,13 @@ export async function getAnalytics() {
   const { startOfGrid } = heatmapWindow()
 
   const [
-    deckRows, recentLogs, quizSessions, statusRows, deckWordCounts,
+    deckRows, recentLogs, statusRows, deckWordCounts,
     deckStatusCounts, deckLogCounts, totalWords, newWords, gradeRows,
     heatmapLogs, weekLogs,
   ] = await Promise.all([
     db.select().from(deck),
     // Latest 100 only — the client renders the head of this feed (W4/W7).
     db.select().from(reviewLog).orderBy(desc(reviewLog.reviewedAt)).limit(100),
-    db.select().from(quizSession).orderBy(desc(quizSession.completedAt)).limit(20),
     // Aggregates computed in SQL instead of loading every row into JS (W7):
     db.select({ status: srsCard.status, total: sql<number>`count(*)` }).from(srsCard).groupBy(srsCard.status),
     db.select({ deckId: word.deckId, total: sql<number>`count(*)` }).from(word).groupBy(word.deckId),
@@ -275,9 +273,5 @@ export async function getAnalytics() {
       isCorrect: l.isCorrect, reviewedAt: l.reviewedAt,
     })),
     perDeck, weeklyActivity, gradeDistribution, heatmap,
-    quizSessions: quizSessions.map((q) => ({
-      id: q.id, mode: q.mode, total: q.total, correct: q.correct,
-      xpEarned: q.xpEarned, completedAt: q.completedAt,
-    })),
   }
 }

@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "LexiLearn — Local English Learning",
     description:
-      "Spaced repetition, pronunciation and quizzes. 100% local, no account, no telemetry.",
+      "Spaced repetition, pronunciation and dictation. 100% local, no account, no telemetry.",
     type: "website",
     siteName: "LexiLearn",
   },

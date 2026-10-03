@@ -19,10 +19,6 @@ import { api } from '@/lib/api'
 // hottest session paths. Everything else splits off — previously the first
 // paint downloaded and parsed recharts, dnd-kit, canvas-confetti, the whole
 // coach lab and the dictation engine even for a user who only opens Today.
-const QuizView = dynamic(
-  () => import('@/features/quiz/components/quiz').then((m) => m.QuizView),
-  { loading: () => <SessionSkeleton /> },
-)
 const DictationView = dynamic(
   () => import('@/features/dictation/components/dictation').then((m) => m.DictationView),
   // The component takes a deckId prop; dynamic() forwards props through.
@@ -55,8 +51,6 @@ function ViewContainer({ view }: { view: string }) {
       return <LearnView />
     case 'review':
       return <ReviewView />
-    case 'quiz':
-      return <QuizView />
     case 'dictation':
       return <DictationView deckId={dictationDeckId} />
     case 'library':

@@ -5,7 +5,7 @@
  * that a session exists, so coming back drops the learner on the exact card.
  */
 export type ResumeState = {
-  view: 'learn' | 'review' | 'quiz' | 'dictation' | 'deck'
+  view: 'learn' | 'review' | 'dictation' | 'deck'
   label: string
   detail: string
   deckId?: string | null

@@ -69,19 +69,6 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-106 | Keyboard shortcuts: Space to reveal, 1-2-3-4 to grade | P1 |
 | F-107 | Configurable speech rate (0.5× – 2.0×) | P1 |
 
-### 3.3 Quiz Modes
-
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| F-200 | Multiple Choice: see a word, pick its definition from 4 options | P0 |
-| F-201 | Reverse MC: see a definition, pick the matching word | P0 |
-| F-202 | Typing Test: see a definition, type the word | P0 |
-| F-203 | Spelling Bee: listen to TTS audio, type the word | P0 |
-| F-204 | Speed Round: 60-second timed quiz, answer as many as possible | P1 |
-| F-205 | Match Game: drag-and-drop / tap-to-pair words to definitions | P1 |
-| F-206 | Quiz sessions log mode, total, correct, and XP earned | P0 |
-| F-207 | Quiz generates random distractors from the word database | P0 |
-
 ### 3.4 Dictation Practice ("Hear it. Type it.")
 
 | ID | Requirement | Priority |
@@ -114,7 +101,6 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-404 | 53-week contribution calendar (GitHub-style heatmap) | P1 |
 | F-405 | Recent review history (last 100 events) | P1 |
 | F-406 | 7-day review forecast | P1 |
-| F-407 | Quiz session history | P2 |
 
 ### 3.7 Settings
 
@@ -193,7 +179,6 @@ DevOps:    pnpm, ESLint 9 (core-web-vitals + typescript)
 Deck ──1:N── Word ──1:1── SrsCard
                           │
 ReviewLog (per-review audit trail)
-QuizSession (quiz completion records)
 AppStat (key-value store: streak, XP, settings)
 
 AI Mentor:
@@ -210,13 +195,13 @@ flat as `{ "error": string }` with a 4xx/5xx status.
 
 ```
 GET  /api/lexilearn?action=new|reviewable|decks|deck|dashboard|analytics
-        |settings|quiz|search|ollamaStatus
+        |settings|search|ollamaStatus
         |mentorOverview|mentorBranch|mentorNodeNext
         |mentorDueErrors|mentorProfile|mentorWeeklyReport
         |mentorPronunciationHistory|mentorNaturalnessHistory
 
 POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord
-        |deleteWord|deleteDeck|quizSession|claimChallenge|repairStreak
+        |deleteWord|deleteDeck|claimChallenge|repairStreak
         |updateSettings|reset
         |mentor|mentorExplain|mentorProject|mentorBranch|mentorNext
         |mentorWeeklyReport|mentorPronunciation|mentorNaturalness
@@ -268,7 +253,6 @@ src/
 │   ├── today/                  # home dashboard (+ lib/gamification)
 │   ├── learn/                  # Recall → Listen → Spell
 │   ├── review/                 # SM-2 review sessions
-│   ├── quiz/                   # six modes + match-game
 │   ├── dictation/              # hear-it-type-it (+ lib ladder & audio)
 │   ├── library/                # decks, dictionary, CSV import, word forms
 │   ├── progress/               # overview, contribution calendar, settings
@@ -319,8 +303,7 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 1. **Today** — one primary action, three stat tiles, resume, momentum (level + daily challenge in one card)
 2. **Learn** — Recall → Listen → Spell per new word, with typing sounds
 3. **Review** — due cards with grade buttons that show the resulting interval
-4. **Quiz** — six modes (MC, reverse MC, typing, spelling bee, speed round, drag-to-match) → session summary
-5. **Dictation** — listen and type back, word → phrase → sentence ladder
+4. **Dictation** — listen and type back words only
 6. **Library** — decks + deck detail + dictionary behind one segmented control
 7. **Progress** — stats overview + settings (theme, TTS, daily goal, Feel toggles, typed-confirm reset)
 8. **Coach** — AI hub opening Coach Lab (mastery map, weekly report, speech practice, naturalness) and the **Mentor** — a conversation-style adaptive tutor with memory and learning-map panels
@@ -356,7 +339,7 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 | Multi-language UI (Amharic interface) | P3 | next-intl already a dependency |
 | Review scheduling notifications | P3 | Web Push API |
 | Statistics export (PDF/CSV) | P3 | |
-| Mentor as the adaptive engine behind Learn/Review/Quiz | P2 | Currently a separate surface |
+| Mentor as the adaptive engine behind Learn/Review | P2 | Currently a separate surface |
 | Offline job queue for slow local inference | P3 | Visible "thinking" state, resumable requests |
 | Pronunciation mode with Whisper/Piper | P2 | Same learner model scores spoken English |
 | Branch mastery gates | P3 | Unlock advanced scenarios at 75% prerequisite mastery |

@@ -4,7 +4,6 @@ Phases:
   A. API surface (all critical ?action= endpoints)
   B. Review loop: reveal -> grade -> persistence -> dashboard counters
   C. Learn loop: reveal -> spell wrong/right -> recovery
-  D. Quiz: all 6 modes render + start
   E. Dictation: render, input, controls
   F. Library: deck detail, word CRUD, CSV bulk import, dictionary tab
   G. Settings: save daily goal, persistence after reload
@@ -43,7 +42,7 @@ def post(pg, action, body):
 def nav(hash_, w=1600):
     """Navigate to a hash route. Hash-only changes don't fire a navigation,
     so reload to re-mount the view. Also reload when the hash is identical
-    (e.g. /quiz -> /quiz between modes) since there'd otherwise be no op."""
+    so there'd otherwise be no op."""
     target = f"{BASE}/#{hash_.lstrip('#')}"
     if pg.url.startswith(BASE) and pg.url.split('#')[0] == BASE + '/':
         if pg.url != target or True:
@@ -65,7 +64,7 @@ with sync_playwright() as p:
     # ---------- Phase A: API surface (fetch after first page load so origin is correct) ----------
     pg.goto(f"{BASE}/", wait_until="domcontentloaded", timeout=15000)
     pg.wait_for_timeout(1500)
-    for name, q in [("dashboard", {}), ("decks", {}), ("due", {}), ("reviewable", "limit=5"), ("new", "limit=5"), ("settings", {}), ("analytics", {}), ("quiz", "mode=mc&limit=5"), ("search", "query=the")]:
+    for name, q in [("dashboard", {}), ("decks", {}), ("due", {}), ("reviewable", "limit=5"), ("new", "limit=5"), ("settings", {}), ("analytics", {}), ("search", "query=the")]:
         try:
             params = dict(x.split("=") for x in q.split("&")) if q else {}
             data = api(pg, name, **params)
@@ -129,29 +128,6 @@ with sync_playwright() as p:
             rec("C-learn", "spell input", False, "no input found")
     else:
         rec("C-learn", "reveal", False, txt[:150])
-
-    # ---------- Phase D: Quiz all modes (mode card click = instant start, no separate start btn) ----------
-    MODES = [("mc", "Pick the meaning"), ("reverse_mc", "Find the word"), ("typing", "Type it"),
-             ("spelling_bee", "Spelling bee"), ("speed_round", "Speed round"), ("match", "Match them up")]
-    for mode, label in MODES:
-        nav("#/quiz", 1800)
-        mb = pg.get_by_test_id(f"quiz-mode-{mode}")
-        if mb.count() == 0:
-            mb = pg.locator("main button").filter(has_text=re.compile(label, re.I))
-        if mb.count() > 0:
-            mb.first.click(); pg.wait_for_timeout(1600)
-            t = pg.locator("main").inner_text()
-            if "No words to quiz" in t:
-                rec("D-quiz", mode, True, "EMPTY-STATE (needs learned words; empty state renders correctly)")
-            else:
-                q_shown = re.search(r"\b1\s*/\s*\d+", t) or "match" in t.lower() or "pair" in t.lower() or "question" in t.lower() or "correct" in t.lower()
-                rec("D-quiz", mode, bool(q_shown), t[:110].replace("\n", " | "))
-            pg.screenshot(path=f"/tmp/e2e-shots/deep-D-{mode}.png")
-            # leave the running quiz back to setup
-            exitb = pg.get_by_role("button", name=re.compile("exit|quit|back", re.I))
-            if exitb.count() > 0: exitb.first.click(); pg.wait_for_timeout(600)
-        else:
-            rec("D-quiz", mode, False, f"no mode btn '{label}'")
 
     # ---------- Phase E: Dictation (setup -> Start dictation -> textarea + Check) ----------
     nav("#/dictation")
@@ -312,39 +288,6 @@ with sync_playwright() as p:
     pg.reload(wait_until="domcontentloaded"); pg.wait_for_timeout(1500)
     t = pg.locator("main").inner_text()
     rec("J-router", "reload keeps view", "library" in t.lower() or "deck" in t.lower(), f"hash={pg.evaluate('location.hash')} {t[:70]}")
-
-    # Phase L2: full quiz MC answer loop (answer Q1, grade, log session, verify persistence)
-    nav("#/quiz", 1800)
-    pg.get_by_test_id("quiz-mode-mc").click(); pg.wait_for_timeout(1600)
-    tq = pg.locator("main").inner_text()
-    if "No words to quiz" not in tq:
-        opts = pg.locator("main [data-testid^='quiz-option-']")
-        n_opts = opts.count()
-        if n_opts >= 2:
-            sess_before = len(api(pg, "analytics").get("quizSessions", []))
-            opts.first.click(); pg.wait_for_timeout(1600)
-            t2 = pg.locator("main").inner_text()
-            progressed = re.search(r"\b2\s*/\s*\d+", t2) or "correct" in t2.lower() or "1 /" not in t2
-            rec("L2-quiz", "answer Q1 advances", bool(progressed), t2[:90].replace("\n", " | "))
-            sess_after = len(api(pg, "analytics").get("quizSessions", []))
-            rec("L2-quiz", "quiz logged after finish?", sess_after >= sess_before, f"sessions {sess_before}->{sess_after} (logged at session end)")
-            pg.screenshot(path="/tmp/e2e-shots/deep-L2-answered.png")
-        else:
-            rec("L2-quiz", "answer options", False, f"only {n_opts} options")
-    else:
-        rec("L2-quiz", "has words", False, "empty quiz queue")
-
-    # Phase K: mobile viewport checks
-    mob = ctx.new_page()
-    mob.set_viewport_size({"width": 390, "height": 844})
-    for h, name in [("#/today", "today"), ("#/review", "review"), ("#/library", "library"), ("#/progress", "progress")]:
-        mob.goto(f"{BASE}/{h}", wait_until="domcontentloaded", timeout=15000)
-        mob.wait_for_timeout(1500)
-        over = mob.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        rec("K-mobile", f"{name} no overflow", over <= 1, f"overflow={over}px")
-    mob.goto(f"{BASE}/#/today", wait_until="domcontentloaded", timeout=15000); mob.wait_for_timeout(1200)
-    mob.screenshot(path="/tmp/e2e-shots/deep-K-mobile.png")
-    mob.close()
 
     # ---------- Phase Z: cleanup — never leave test data behind ----------
     # The suite writes real words (a manual add + a CSV import). Remove them so

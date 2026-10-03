@@ -77,7 +77,7 @@ with sync_playwright() as p:
     print(f"reload          -> hash={pg.evaluate('location.hash')}")
 
     # 7) rapid tab switching (race the store subscription)
-    for label in ["Quiz", "Library", "Review", "Progress"]:
+    for label in ["Library", "Review", "Progress"]:
         click_tab(pg, label)
         pg.wait_for_timeout(80)
     pg.wait_for_timeout(600)

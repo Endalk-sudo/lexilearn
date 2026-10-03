@@ -14,7 +14,7 @@ const BASE = '/api/lexilearn'
  * - In-flight dedupe for every GET: concurrent identical requests share one
  *   fetch instead of stampeding the server.
  * - 10s TTL for slowly-changing reads (dashboard, decks, categories,
- *   settings). Quiz/review/search/deck pages are never TTL-cached — they must
+ *   settings). Review/search/deck pages are never TTL-cached — they must
  *   always be fresh. Mutations below call bustActions() so a write is never
  *   followed by a stale read.
  */
@@ -134,26 +134,6 @@ export type CardWithWord = {
   srs: SrsCardDTO | null
 }
 
-export type QuizMode =
-  | 'mc'
-  | 'reverse_mc'
-  | 'typing'
-  | 'spelling_bee'
-  | 'speed_round'
-  /** Client-side matching game; it requests mc questions underneath. */
-  | 'match'
-
-export type QuizQuestion = {
-  id: string
-  mode: QuizMode
-  prompt: string
-  promptWord?: WordDTO
-  audioWord?: string
-  definition?: string
-  options?: string[]
-  correctAnswer: string
-  wordDTO: WordDTO
-}
 
 export type DashboardStats = {
   dueCount: number
@@ -201,7 +181,6 @@ export type Analytics = {
   weeklyActivity: { date: string; count: number; correct: number }[]
   gradeDistribution: { grade: number; count: number }[]
   heatmap: { date: string; count: number; correct: number }[]
-  quizSessions: { id: string; mode: string; total: number; correct: number; xpEarned: number; completedAt: string | null }[]
 }
 
 export type StudyTextScale = 'comfortable' | 'large' | 'largest'
@@ -269,7 +248,7 @@ export type DeckPageQuery = {
 export const api = {
   getNewCards: (deckId: string | null, limit = 10, categoryId?: string | null) => getJSON<CardWithWord[]>('new', { deckId, limit, categoryId }),
   getReviewableCards: (deckId: string | null, limit = 50, categoryId?: string | null) => getJSON<CardWithWord[]>('reviewable', { deckId, limit, categoryId }),
-  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'quiz' | 'dictation' | 'match' | 'deck' = 'review') =>
+  submitReview: (wordId: string, grade: Grade, mode: 'review' | 'learn' | 'dictation' | 'deck' = 'review') =>
     withRetry(() => postJSON<{ ok: boolean }>('review', { wordId, grade, mode })).then((r) => {
       // Every answer moves XP, streaks and counts — drop cached aggregates.
       bustActions('dashboard', 'analytics')
@@ -304,7 +283,7 @@ export const api = {
     }),
   updateWord: (wordId: string, fields: { pos?: string; ipa?: string; definition?: string; example?: string; cefr?: string; synonyms?: string; antonyms?: string; amharic?: string; categoryIds?: string[] }) =>
     postJSON<{ ok: boolean; word?: WordDTO }>('updateWord', { wordId, ...fields }).then((r) => {
-      // Definitions feed quiz distractors and deck search; categories feed counts.
+      // Definitions feed deck search; categories feed counts.
       bustActions('categories')
       return r
     }),
@@ -345,12 +324,6 @@ export const api = {
     bustActions('dashboard', 'analytics', 'decks', 'categories', 'settings')
     return r
   }),
-  generateQuiz: (deckId: string | null, mode: QuizMode, count = 10, categoryId?: string | null) => getJSON<QuizQuestion[]>('quiz', { deckId, mode, count, categoryId }),
-  submitQuizSession: (mode: QuizMode, total: number, correct: number, xpEarned: number) =>
-    postJSON<{ ok: boolean }>('quizSession', { mode, total, correct, xpEarned }).then((r) => {
-      bustActions('analytics')
-      return r
-    }),
   searchWords: (query: string) => getJSON<WordDTO[]>('search', { query }),
   repairStreak: () => postJSON<{ ok: boolean; streak: number }>('repairStreak', {}).then((r) => {
     bustActions('dashboard', 'analytics')

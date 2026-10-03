@@ -41,13 +41,12 @@ export function KeyboardShortcutsDialog({
         { keys: ['g', 'then', 't'], description: 'Go to Today (Dashboard)' },
         { keys: ['g', 'then', 'r'], description: 'Go to Review (SRS)' },
         { keys: ['g', 'then', 'l'], description: 'Go to Learn' },
-        { keys: ['g', 'then', 'q'], description: 'Go to Quiz' },
         { keys: ['g', 'then', 'd'], description: 'Go to Dictation' },
         { keys: ['g', 'then', 'v'], description: 'Go to Study deck' },
         { keys: ['g', 'then', 'b'], description: 'Go to Library' },
         { keys: ['g', 'then', 'p'], description: 'Go to Progress' },
         { keys: ['g', 'then', 'c'], description: 'Go to AI Coach' },
-        { keys: ['f'], description: 'Toggle focus mode (Learn / Review / Quiz / Progress)' },
+        { keys: ['f'], description: 'Toggle focus mode (Learn / Review / Progress)' },
       ],
     },
     {
@@ -98,14 +97,6 @@ export function KeyboardShortcutsDialog({
         { keys: ['Space', 'or', 'Enter'], description: 'Advance to next dictation item' },
         { keys: ['r', 'or', 's'], description: 'Replay / replay slow (between items, not typing)' },
         { keys: ['1', '–', '4'], description: 'Select dictation difficulty rung' },
-      ],
-    },
-    {
-      category: 'Quiz & Match Game',
-      items: [
-        { keys: ['1', '–', '4'], description: 'Select multiple choice option', note: 'or A–D' },
-        { keys: ['Enter'], description: 'Submit typed or spelling bee answer' },
-        { keys: ['1', '–', '5', 'then', 'A', '–', 'E'], description: 'Match Game direct pairing', note: 'Pick number then letter' },
       ],
     },
     {

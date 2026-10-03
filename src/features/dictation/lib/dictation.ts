@@ -9,7 +9,7 @@
 import type { WordDTO } from '@/lib/api'
 import { GRADE_XP } from '@/lib/srs'
 
-export type DictationKind = 'word' | 'phrase' | 'sentence'
+export type DictationKind = 'word'
 export type DictationGrade = 0 | 3 | 4 | 5
 
 export interface DictationItem {
@@ -226,11 +226,11 @@ export type Rung = 0 | 1 | 2
 
 export const RUNG_LABELS = ['Foundation', 'Building', 'Fluent'] as const
 
-/** Every template is 8 items; higher rungs shift weight toward sentences. */
+/** All rungs now drill single words; the ladder only changes session size. */
 export const RUNG_TEMPLATES: Record<Rung, { words: number; phrases: number; sentences: number }> = {
-  0: { words: 5, phrases: 2, sentences: 1 },
-  1: { words: 3, phrases: 3, sentences: 2 },
-  2: { words: 2, phrases: 2, sentences: 4 },
+  0: { words: 8, phrases: 0, sentences: 0 },
+  1: { words: 12, phrases: 0, sentences: 0 },
+  2: { words: 16, phrases: 0, sentences: 0 },
 }
 
 const RUNG_KEY = 'lexilearn-dictation-rung'
@@ -293,7 +293,7 @@ export function buildItems(
   rung: Rung
 ): { items: DictationItem[]; requestedTotal: number } {
   const template = RUNG_TEMPLATES[rung]
-  const requestedTotal = template.words + template.phrases + template.sentences
+  const requestedTotal = template.words
   const remaining = [...words]
   const items: DictationItem[] = []
 
@@ -312,26 +312,8 @@ export function buildItems(
     exampleSentence: exampleFor(word),
   })
 
-  const pull = (count: number, textFor: (word: WordDTO) => string | null, kind: DictationKind): void => {
-    for (let k = 0; k < count; k++) {
-      const index = remaining.findIndex((word) => textFor(word) !== null)
-      if (index === -1) return
-      const [word] = remaining.splice(index, 1)
-      const text = textFor(word) as string
-      items.push(toItem(word, kind, text))
-    }
-  }
-
-  const wordText = (word: WordDTO) => (word.word?.trim() ? word.word.trim() : null)
-
-  pull(template.words, wordText, 'word')
-  pull(template.phrases, (word) => pickPhrase(word.definitions), 'phrase')
-  pull(template.sentences, (word) => pickSentence(word.examples), 'sentence')
-
-  // Top up shortfalls with plain words so the ladder never dead-ends on a
-  // thin deck — a word drill is always better than an empty session slot.
-  while (items.length < requestedTotal) {
-    const index = remaining.findIndex((word) => wordText(word) !== null)
+  for (let k = 0; k < template.words; k++) {
+    const index = remaining.findIndex((word) => word.word?.trim())
     if (index === -1) break
     const [word] = remaining.splice(index, 1)
     items.push(toItem(word, 'word', word.word.trim()))

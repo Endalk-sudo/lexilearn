@@ -476,7 +476,7 @@
     caret-color: var(--primary);
   }
 
-  /* ---------- Study type scale (Learn / Review / Quiz / Dictation) ----------
+  /* ---------- Study type scale (Learn / Review / Dictation) ----------
    * Desktop-first study pages read three custom properties. The default
    * (comfortable) is tuned for arm's-length laptop reading; `large` and
    * `largest` are a user preference (Settings → Reading). One switch scales

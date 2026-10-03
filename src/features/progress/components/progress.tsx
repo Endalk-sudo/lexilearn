@@ -373,32 +373,6 @@ function OverviewPanel() {
           </Button>
         ) : null}
       </div>
-
-      <div className="surface p-5">
-        <SectionHeader title="Quiz history" description="Your latest quiz sessions on this device." />
-        {data.quizSessions.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No quiz sessions yet — a quick quiz takes two minutes.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-1">
-            {data.quizSessions.slice(0, 10).map((q) => (
-              <li
-                key={q.id}
-                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent/60"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <Badge variant="outline" className="shrink-0 capitalize">{q.mode.replace(/_/g, ' ')}</Badge>
-                  <span className="truncate text-muted-foreground num">{q.correct} / {q.total} correct</span>
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground num">
-                  +{q.xpEarned} XP{q.completedAt ? ` · ${new Date(q.completedAt).toLocaleDateString()}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   )
 }
@@ -413,7 +387,7 @@ function SettingsPanel() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
   // 'F' toggles focus mode from anywhere on the Progress/Settings view, same
-  // as the study pages (Learn/Review/Quiz). Don't toggle while typing.
+  // as the study pages (Learn/Review). Don't toggle while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
@@ -626,7 +600,7 @@ function SettingsPanel() {
       </div>
 
       <div className="surface p-5">
-        <SectionHeader title="Reading" description="How big study text renders in Learn, Review, Quiz and Dictation." />
+        <SectionHeader title="Reading" description="How big study text renders in Learn, Review and Dictation." />
         <div className="mt-4 space-y-4">
           <div>
             <Label>Text size</Label>

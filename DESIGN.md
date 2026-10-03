@@ -19,7 +19,7 @@ LexiLearn is a **local-first, distraction-free English vocabulary mastery applic
 ### 1.3 Design Pillars ("Quiet Focus")
 - **Calm, High-Information Density**: Avoid screaming banners or cartoon mascots. The UI is clean and intentional, inspired by world-class productivity tools (Linear, Notion, Apple HIG).
 - **Tactile Multisensory Reinforcement**: Every correct recall or keystroke produces immediate visual, auditory, and haptic feedback.
-- **Zero-Friction Daily Loops**: Opening the app immediately presents the highest-value action (due cards, new words, or quick quiz) in one click without decision paralysis.
+- **Zero-Friction Daily Loops**: Opening the app immediately presents the highest-value action (due cards, new words, or a focused drill) in one click without decision paralysis.
 - **Keyboard-First & Gesture-Friendly**: Full power on desktop keyboards (`Space`, `1-4`, `⌘K`) and fluid swipe-and-tap targets on mobile devices.
 
 ---
@@ -42,8 +42,8 @@ The navigation model is intentionally flat: **5 primary destinations** with cont
          │                                       • Word Form   • Settings
          ├───────────────────────────────────────────┐
          ▼                                           ▼
-   [ Drill-ins: Quiz Hub ]                 [ Drill-in: Dictation ]
-   • 6 Test Modes (Speed, Match, MC)       • Audio Dictation by Rung
+   [ Drill-in: Dictation ]           [ Drill-in: Deck ]
+   • Word audio pairs + accuracy     • Endless deck drills
          │
          ▼
    [ AI Coach & Mentor ] (Sidebar dedicated entry)
@@ -119,13 +119,13 @@ Learning is fortified when sensory feedback confirms action:
   - Right: High-prominence CTA button dynamically computed based on queue priority:
     1. Due cards pending $\rightarrow$ **"Review [N]"**
     2. Fresh unseen cards available $\rightarrow$ **"Learn new words"**
-    3. Queue empty $\rightarrow$ **"Play a quiz"**
+    3. Queue empty $\rightarrow$ **"Practice dictation"**
   - Bottom strip: 3 interactive stat tiles (`Due`, `New`, `Streak`) acting as jump links.
 - **Daily Quest & Challenge**:
   - Progress bar tracking daily rotating challenges (10-Word Sprint, Recall Run, Show Up).
   - Amber badge highlighting bonus XP reward with instant claim feedback.
 - **Resume Strip**: One-click quick-return if a user left a session midway.
-- **Quick Links Grid**: Action dock with Quick Quiz, Dictation, Study deck, Dictionary, Progress, and AI Coach.
+- **Quick Links Grid**: Action dock with Dictation, Study deck, Dictionary, Progress, and AI Coach.
 
 ### 5.2 Learn Mode (`New Words`)
 - **Purpose**: Systematic 4-stage onboarding of new vocabulary into the memory pipeline.
@@ -158,18 +158,8 @@ Learning is fortified when sensory feedback confirms action:
   - `Easy (4)`: Violet tint · Accelerated interval boost · "Instant & clear".
   - Each button displays the exact calculated next review date (`1d`, `4d`, `12d`, `28d`) so learners make informed evaluations.
 
-### 5.4 Quiz Hub & Game Modes
-- **Purpose**: Low-stakes active retrieval testing and gamified retention reinforcement.
-- **6 Supported Modes**:
-  1. **Pick the Meaning (MC)**: Word $\rightarrow$ 4 definition options with keycap shortcuts `A`, `B`, `C`, `D`.
-  2. **Find the Word (Reverse MC)**: Definition $\rightarrow$ 4 word candidates.
-  3. **Match Them Up (Drag/Pair)**: 6 words matched to 6 definitions with connector lines and pair collapse animations.
-  4. **Type It Out**: Active recall from definition alone.
-  5. **Spelling Bee**: Audio-only prompt with keyboard entry.
-  6. **Speed Round**: 60-second arcade countdown with combo multipliers (`2x`, `3x`, `5x`) and visual timer warnings.
-
-### 5.5 Dictation ("Hear it. Type it.")
-- **Purpose**: Auditory processing and accurate sentence transcription drills.
+### 5.4 Dictation ("Hear it. Type it.")
+- **Purpose**: Auditory processing and accurate word-level transcription drills.
 - **Rungs Progression**:
   - Rung 0: Single isolated vocabulary words.
   - Rung 1: Short conversational phrases (3–5 words).
@@ -185,7 +175,7 @@ Learning is fortified when sensory feedback confirms action:
     - Amber pill = Skipped word.
 
 
-### 5.6 Library & Deck Management
+### 5.5 Library & Deck Management
 - **Purpose**: Vocabulary cataloging, custom deck creation, and dictionary search.
 - **Decks View**:
   - Deck cards with Curated vs. Custom badges.
@@ -197,7 +187,7 @@ Learning is fortified when sensory feedback confirms action:
 - **Local Dictionary Search**:
   - Instant live filter as the user types with keyboard shortcut navigation.
 
-### 5.7 AI Coach & Mentor
+### 5.6 AI Coach & Mentor
 - **Purpose**: Local, private conversational English practice and naturalness correction via Ollama.
 - **Features**:
   - **Branch System**: Focused tracks for *Past Tense*, *Articles*, *Prepositions*, *Collocations*, and *Naturalness*.
@@ -205,7 +195,7 @@ Learning is fortified when sensory feedback confirms action:
   - **Granular Explanations**: Grammatical rule summaries explaining the nuance of corrections.
   - **100% On-Device**: All prompts run against local LLM models (default `qwen3:8b`) with zero cloud data transmission.
 
-### 5.8 Progress & Analytics
+### 5.7 Progress & Analytics
 - **Purpose**: Clear visualization of compounding memory growth.
 - **Metrics Dashboard**:
   - 4 Key Stat Tiles: Current Streak, Accuracy %, Mastered Word Count, Total XP.
@@ -229,10 +219,9 @@ LexiLearn treats the keyboard as a first-class citizen alongside mobile touch:
 | Context | Shortcut | Action |
 |---|---|---|
 | **Anywhere** | `⌘K` or `Ctrl+K` | Open Universal Search Palette |
-| **Anywhere** | `g` then `t`/`r`/`l`/`q`/`d`/`v`/`b`/`p`/`c` | Go to Today / Review / Learn / Quiz / Dictation / Deck / Library / Progress / Coach |
+| **Anywhere** | `g` then `t`/`r`/`l`/`d`/`v`/`b`/`p`/`c` | Go to Today / Review / Learn / Dictation / Deck / Library / Progress / Coach |
 | **Learn / Review** | `Space` or `Enter` | Reveal card / grade / advance; `r` / `s` replay (normal / slow) |
 | **Review** | `1`, `2`, `3`, `4` | Grade: Again, Hard, Good, Easy |
-| **Quiz (MC)** | `A`, `B`, `C`, `D` or `1`–`4` | Select multiple-choice option |
 | **Dictation** | `Alt+R`/`Ctrl+Space`, `Alt+S`/`Ctrl+Shift+Space` | Replay audio / Replay slow audio while typing |
 | **Mentor** | `⌘+Enter` or `Ctrl+Enter` | Submit response to AI Coach |
 | **Modal / Dialog** | `Escape` | Close dialog or drawer |

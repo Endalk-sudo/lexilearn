@@ -13,7 +13,6 @@ const HASH_FOR_VIEW: Record<ViewName, string> = {
   today: 'today',
   learn: 'learn',
   review: 'review',
-  quiz: 'quiz',
   dictation: 'dictation',
   deck: 'deck',
   library: 'library',
@@ -38,7 +37,6 @@ export function parseHash(hash: string): RouteState {
   switch (head) {
     case 'learn':
     case 'review':
-    case 'quiz':
     case 'dictation':
     case 'deck':
     case 'coach':

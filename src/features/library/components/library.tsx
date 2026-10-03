@@ -1689,7 +1689,7 @@ export function DeckDetailView() {
             />
             <NextStep
               title="Hear this deck"
-              hint="Every word and sentence, dictated aloud."
+              hint="Hear it, say it, type every word."
               actionLabel="Start dictation"
               onAction={() => {
                 setDictationDeckId(deck.id)

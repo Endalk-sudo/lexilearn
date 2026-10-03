@@ -32,7 +32,7 @@ const STEPS = [
     icon: Gamepad2,
     tone: 'bg-streak-soft text-streak',
     title: 'Play to lock it in',
-    desc: 'Quizzes, streaks and XP keep the habit alive without the guilt.',
+    desc: 'Dictation, streaks and XP keep the habit alive without the guilt.',
   },
 ]
 

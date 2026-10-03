@@ -3,14 +3,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { deck, category, wordCategory, word, srsCard, reviewLog, quizSession, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
+import { deck, category, wordCategory, word, srsCard, reviewLog, appStat, errorLog, practiceMaterial, mentorProject, mentorBranch, mentorNode, mentorAttempt, mentorErrorCard, mentorProfile, mentorSkillMastery, mentorKnowledge, mentorWeeklyReport, mentorTurn, pronunciationAttempt, naturalnessAttempt, mentorSession } from '@/db/schema'
 import { eq, gte, lte, and, isNull, asc, desc, sql, inArray, exists, type SQL } from 'drizzle-orm'
 import { calculateSm2, GRADE_XP, type Grade } from '@/lib/srs'
 import { clampLimit, decodeCursor, encodeCursor } from '@/lib/paging'
 import { dayKey } from '@/lib/date'
 import { createId } from '@/db/id'
 import { z } from 'zod'
-import type { WordDTO, SrsCardDTO, QuizMode, QuizQuestion, CategoryDTO } from '@/lib/api'
+import type { WordDTO, SrsCardDTO, CategoryDTO } from '@/lib/api'
 import { getStats, setStat, wordHasNoSrsCard, getDashboardStats, getAnalytics } from '@/server/stats'
 import { assertSameOrigin } from '@/server/csrf'
 import { isRateLimited } from '@/server/rate-limit'
@@ -147,7 +147,7 @@ function updateStreakAndXp(grade: Grade) {
 }
 
 async function submitReview(wordId: string, grade: Grade, mode: string = 'review') {
-  // The two reads are independent — a 20-question quiz used to pay them as 40
+  // The two reads are independent — the old quiz path used to pay both per question.
   // serial round trips.
   const [existing, wordRow] = await Promise.all([
     db.select().from(srsCard).where(eq(srsCard.wordId, wordId)).get(),
@@ -332,183 +332,6 @@ async function createCustomDeck(name: string, description: string, words: BulkWo
   return { id: deckId, count: rows.length, skipped: validWords.length - uniqueWords.length }
 }
 
-function pickRandom<T>(arr: T[], n: number): T[] {
-  // Fisher-Yates rather than repeated splice (which is O(n^2)). Pools are
-  // bounded samples (≤300) since the quiz rewrite, so this is cheap.
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy.slice(0, Math.max(0, Math.min(n, copy.length)))
-}
-
-/** A client must never be able to ask for an unbounded question set. */
-const QUIZ_COUNT_MAX = 20
-/** Distractor candidates drawn from the scoped deck — bounded, not the deck. */
-const QUIZ_POOL_MAX = 200
-/** Dictionary-wide fallback candidates for tiny decks — bounded, not the table. */
-const QUIZ_GLOBAL_POOL_MAX = 100
-
-/** One text column sampled in SQL: the DB picks random rows, JS only parses them. */
-async function sampleColumn(
-  column: typeof word.word | typeof word.definitions,
-  scope: SQL | undefined,
-  n: number,
-): Promise<string[]> {
-  const rows = await db.select({ v: column }).from(word)
-    .where(scope)
-    .orderBy(sql`RANDOM()`)
-    .limit(n)
-  return rows.map((r) => r.v).filter((v): v is string => typeof v === 'string' && v.length > 0)
-}
-
-/**
- * First definition text from a stored definitions blob. A word added via CSV
- * import with no definition used to become a question whose correct answer was
- * the empty string, with `''` sitting in the option list (F-200/F-207) —
- * callers filter empty results out.
- */
-function firstDefOf(definitionsJson: string): string {
-  try {
-    const arr = JSON.parse(definitionsJson) as { text?: string }[]
-    return arr[0]?.text?.trim() ?? ''
-  } catch {
-    return ''
-  }
-}
-
-/**
- * Pick `n` distinct options that all differ from the correct answer.
- * Deduplication is essential: two words can legitimately share a definition,
- * and offering it twice makes the question unanswerable in a different way —
- * the learner can pick the "wrong" option that is in fact also correct.
- */
-function pickOptions(correct: string, pool: string[], n: number): string[] | null {
-  const seen = new Set([correct])
-  const distractors: string[] = []
-  for (const candidate of pickRandom(pool, pool.length)) {
-    if (seen.has(candidate)) continue
-    seen.add(candidate)
-    distractors.push(candidate)
-    if (distractors.length === n - 1) break
-  }
-  return distractors.length === n - 1 ? [correct, ...distractors] : null
-}
-
-async function generateQuiz(deckId: string | null, mode: QuizMode, count: number, categoryId?: string | null) {
-  const categoryCondition = categoryId
-    ? exists(
-        db.select({ d: sql`1` })
-          .from(wordCategory)
-          .where(and(eq(wordCategory.wordId, word.id), eq(wordCategory.categoryId, categoryId)))
-      )
-    : undefined
-
-  const deckIds = deckId ? await getDeckAndDescendantIds(deckId) : null
-  const deckCondition = deckIds ? inArray(word.deckId, deckIds) : undefined
-
-  // `?count=` is client-controlled; cap it so one request cannot ask for the
-  // whole dictionary as questions.
-  const want = Math.max(1, Math.min(Math.floor(count) || 10, QUIZ_COUNT_MAX))
-
-  // `typing` and `spelling_bee` are graded on the word itself, so they can use
-  // every word. The three multiple-choice modes need a definition on both sides.
-  const definitionBased = mode === 'mc' || mode === 'reverse_mc' || mode === 'speed_round'
-  const scope = and(
-    deckCondition,
-    categoryCondition,
-    definitionBased ? sql`${word.definitions} IS NOT NULL AND trim(${word.definitions}) != ''` : undefined,
-  )
-
-  // The question words are sampled in SQL. The old code loaded EVERY word in
-  // the deck (plus the whole dictionary for distractors) and JSON-parsed each
-  // one — a 5k-word deck parsed ~25k JSON blobs per 20-question quiz while
-  // blocking the synchronous driver's event loop.
-  const sampleRows = await db.select().from(word)
-    .where(scope)
-    .orderBy(sql`RANDOM()`)
-    .limit(want)
-  if (sampleRows.length === 0) return []
-
-  // Full DTOs (and their categories) only for the sampled question words.
-  const catMap = await fetchCategoriesForWords(sampleRows.map((w) => w.id))
-  const sample = sampleRows
-    .map((r) => {
-      const dto = parseWord(r, catMap.get(r.id) ?? [])
-      return { dto, firstDef: dto.definitions[0]?.text?.trim() ?? '' }
-    })
-    // The SQL pre-filter is on the raw column; keep only rows whose parsed
-    // first definition is actually usable.
-    .filter((x) => !definitionBased || x.firstDef.length > 0)
-  if (sample.length === 0) return []
-
-  // A deck can be too small to yield 4 unique options on its own. Widen the
-  // distractor pool to the whole dictionary before giving up on a question,
-  // so a 5-word custom deck still produces a real multiple-choice question.
-  // A deck can be too small to yield 4 unique options on its own — widen to
-  // the whole dictionary before giving up, but as bounded random samples, not
-  // the full tables. Deck-local candidates come first (same-deck distractors
-  // are harder and more relevant), dictionary-wide fallback after.
-  let ownDefs: string[] = []
-  let ownWords: string[] = []
-  let globalDefPool: string[] = []
-  let globalWordPool: string[] = []
-  if (definitionBased) {
-    const deckScope = and(deckCondition, categoryCondition)
-    const [deckDefs, deckWords, globalDefs, globalWordRows] = await Promise.all([
-      sampleColumn(word.definitions, deckScope, QUIZ_POOL_MAX),
-      sampleColumn(word.word, deckScope, QUIZ_POOL_MAX),
-      (deckId || categoryId)
-        ? sampleColumn(word.definitions, undefined, QUIZ_GLOBAL_POOL_MAX)
-        : Promise.resolve([] as string[]),
-      (deckId || categoryId)
-        ? sampleColumn(word.word, undefined, QUIZ_GLOBAL_POOL_MAX)
-        : Promise.resolve([] as string[]),
-    ])
-    const sampleDefs = new Set(sample.map((x) => x.firstDef))
-    const sampleWordStrings = new Set(sample.map((x) => x.dto.word))
-    ownDefs = [...new Set(deckDefs.map(firstDefOf).filter((d) => d.length > 0))]
-    ownWords = [...new Set(deckWords)]
-    globalDefPool = [...new Set(globalDefs.map(firstDefOf).filter((d) => d.length > 0 && !sampleDefs.has(d)))]
-    globalWordPool = [...new Set(globalWordRows.filter((w) => !sampleWordStrings.has(w)))]
-  }
-
-  const questions: QuizQuestion[] = []
-
-  for (const { dto: wordDto, firstDef } of sample) {
-    if (mode === 'mc' || mode === 'speed_round') {
-      const own = ownDefs.filter((d) => d !== firstDef)
-      const options = pickOptions(firstDef, [...own, ...globalDefPool], 4)
-      if (!options) continue
-      questions.push({
-        id: createId(), mode, prompt: `What does "${wordDto.word}" mean?`,
-        promptWord: wordDto, options, correctAnswer: firstDef, wordDTO: wordDto,
-      })
-    } else if (mode === 'reverse_mc') {
-      const own = ownWords.filter((w) => w !== wordDto.word)
-      const options = pickOptions(wordDto.word, [...own, ...globalWordPool], 4)
-      if (!options) continue
-      questions.push({
-        id: createId(), mode, prompt: `Which word means: "${firstDef}"?`,
-        definition: firstDef, options, correctAnswer: wordDto.word, wordDTO: wordDto,
-      })
-    } else if (mode === 'typing') {
-      questions.push({
-        id: createId(), mode, prompt: `Type the word that means: "${firstDef}"`,
-        definition: firstDef, correctAnswer: wordDto.word.toLowerCase(), wordDTO: wordDto,
-      })
-    } else if (mode === 'spelling_bee') {
-      questions.push({
-        id: createId(), mode, prompt: 'Listen and type the word you hear.',
-        audioWord: wordDto.word, promptWord: wordDto, correctAnswer: wordDto.word.toLowerCase(), wordDTO: wordDto,
-      })
-    }
-  }
-
-  return questions
-}
-
 // ============================================================
 //  GET /api/lexilearn?action=...
 // ============================================================
@@ -518,8 +341,6 @@ export async function GET(req: NextRequest) {
   const deckId = url.searchParams.get('deckId')
   const categoryId = url.searchParams.get('categoryId')
   const limit = parseInt(url.searchParams.get('limit') || '20', 10)
-  const mode = (url.searchParams.get('mode') as QuizMode | null) || 'mc'
-  const count = parseInt(url.searchParams.get('count') || '10', 10)
   const query = url.searchParams.get('query') || ''
 
   try {
@@ -808,11 +629,6 @@ export async function GET(req: NextRequest) {
         }, { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
-      case 'quiz': {
-        const questions = await generateQuiz(deckId, mode, count, categoryId)
-        return NextResponse.json(questions)
-      }
-
       case 'mentorOverview': {
         const overview = await getMentorOverview()
         return NextResponse.json(overview)
@@ -905,12 +721,6 @@ const ReviewBody = z.object({
   mode: z.string().max(32).optional(),
 })
 
-const QuizSessionBody = z.object({
-  mode: z.enum(['mc', 'reverse_mc', 'typing', 'spelling_bee', 'speed_round', 'match']),
-  total: z.number().int().min(0).max(1000),
-  correct: z.number().int().min(0).max(1000),
-  xpEarned: z.number().int().min(0).max(100_000),
-})
 
 const SettingsPatch = z.object({
   ttsVoice: z.string().max(300).optional(),
@@ -1223,16 +1033,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
-      case 'quizSession': {
-        const parsed = QuizSessionBody.safeParse(body)
-        if (!parsed.success) return NextResponse.json({ error: 'invalid quiz session payload' }, { status: 400 })
-        // Log only: XP, review counts, streak and per-word SRS cards are all
-        // written per answer by `review`. The old session-level totals were
-        // double-counting every quiz answer in xpToday/todayCorrect/totalXp (W1).
-        const { mode: qMode, total, correct, xpEarned } = parsed.data
-        await db.insert(quizSession).values({ mode: qMode, total, correct, xpEarned, completedAt: new Date() })
-        return NextResponse.json({ ok: true })
-      }
 
       case 'claimChallenge': {
         const parsed = ClaimChallengeBody.safeParse(body)
@@ -1261,8 +1061,6 @@ export async function POST(req: NextRequest) {
 
           if (get('challengeClaimedDate', '') === today) return { alreadyClaimed: true as const, reward: 0 }
 
-          // Review log only — every quiz answer is logged per question, so the
-          // quizSession totals would double-count them (W1).
           const streak = parseInt(get('streak', '0'), 10) || 0
           const targets: Record<string, { progress: number; target: number; reward: number }> = {
             sprint: { progress: dayTotal, target: 10, reward: 35 },
@@ -1474,7 +1272,6 @@ export async function POST(req: NextRequest) {
         ]
         db.transaction((tx) => {
           tx.delete(reviewLog).run()
-          tx.delete(quizSession).run()
           tx.delete(srsCard).run()
           tx.delete(appStat).run()
           for (const t of mentorTables) tx.delete(t).run()

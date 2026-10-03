@@ -231,7 +231,7 @@ export function WordFormDialog({ open, onOpenChange, onSaved, deckId, initialVal
             <Label htmlFor="wf-def">Definition</Label>
             <Input id="wf-def" value={definition} onChange={(e) => setDefinition(e.target.value)} placeholder="a happy accident" />
             {!isEdit && !definition.trim() ? (
-              <p className="mt-1 text-xs text-muted-foreground">Tip: words without a definition are hidden from quizzes.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Tip: words without a definition have no definition to study.</p>
             ) : null}
           </div>
           <div>

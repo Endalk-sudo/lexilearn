@@ -4,14 +4,13 @@ import { create } from 'zustand'
 
 /**
  * Canonical views. One flat level - no more alias views, no nested tab strips.
- * Five of these are bottom tabs; 'quiz', 'dictation' and 'library-deck' are drill-ins
+ * Five of these are bottom tabs; 'dictation' and 'library-deck' are drill-ins
  * reached from an action, never a tab of their own.
  */
 export type ViewName =
   | 'today'
   | 'learn'
   | 'review'
-  | 'quiz'
   | 'library'
   | 'library-deck'
   | 'dictation'
@@ -22,14 +21,6 @@ export type ViewName =
 export type LibraryTab = 'decks' | 'dictionary'
 export type ProgressTab = 'overview' | 'settings'
 export type CoachTab = 'coach' | 'lab'
-export type QuizMode =
-  | 'mc'
-  | 'reverse_mc'
-  | 'typing'
-  | 'spelling_bee'
-  | 'speed_round'
-  | 'match'
-
 export type AccentTheme = {
   name: string
   hue: number
@@ -82,7 +73,6 @@ export function syncStudyPrefs() {
 
 export type NavigateOptions = {
   deckId?: string | null
-  quizMode?: QuizMode | null
   query?: string
   libraryTab?: LibraryTab
   progressTab?: ProgressTab
@@ -100,18 +90,17 @@ export type StudyCategory = { id: string; name: string } | null
 
 type AppState = RouteState & {
   coachTab: CoachTab
-  quizMode: QuizMode | null
   dictationDeckId: string | null
   /** One-shot: the deck the user tapped "Study" on — DeckDetailView enters study mode from it. */
   studyDeckId: string | null
-  /** Category-scoped studying: Learn/Review/Quiz filter to these words. */
+  /** Category-scoped studying: Learn/Review filter to these words. */
   studyCategory: StudyCategory
   searchQuery: string
   paletteOpen: boolean
   shortcutsOpen: boolean
   accentHue: number
   autoSpeak: boolean
-  /** Study text scale — global preference applied to Learn/Review/Quiz/Dictation. */
+  /** Study text scale — global preference applied to Learn/Review/Dictation. */
   studyText: 'comfortable' | 'large' | 'largest'
   /** Focus mode: dims surrounding chrome and widens the study column. */
   focusMode: boolean
@@ -121,7 +110,6 @@ type AppState = RouteState & {
   setLibraryTab: (tab: LibraryTab) => void
   setProgressTab: (tab: ProgressTab) => void
   setCoachTab: (tab: CoachTab) => void
-  setQuizMode: (mode: QuizMode | null) => void
   setDictationDeckId: (dictationDeckId: string | null) => void
   setStudyDeckId: (studyDeckId: string | null) => void
   setStudyCategory: (studyCategory: StudyCategory) => void
@@ -142,7 +130,6 @@ export const useAppStore = create<AppState>((set) => ({
   libraryTab: 'decks',
   progressTab: 'overview',
   coachTab: 'coach',
-  quizMode: null,
   dictationDeckId: null,
   studyDeckId: null,
   studyCategory: null,
@@ -159,7 +146,6 @@ export const useAppStore = create<AppState>((set) => ({
     set((s) => ({
       view,
       deckId: opts.deckId !== undefined ? opts.deckId : null,
-      quizMode: opts.quizMode !== undefined ? opts.quizMode : view === 'quiz' ? s.quizMode : null,
       searchQuery: opts.query !== undefined ? opts.query : s.searchQuery,
       libraryTab: opts.libraryTab ?? s.libraryTab,
       progressTab: opts.progressTab ?? (view === 'progress' ? 'overview' : s.progressTab),
@@ -173,7 +159,6 @@ export const useAppStore = create<AppState>((set) => ({
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setProgressTab: (progressTab) => set({ progressTab }),
   setCoachTab: (coachTab) => set({ coachTab }),
-  setQuizMode: (quizMode) => set({ quizMode }),
   setDictationDeckId: (dictationDeckId) => set({ dictationDeckId }),
   setStudyDeckId: (studyDeckId) => set({ studyDeckId }),
   setStudyCategory: (studyCategory) => set({ studyCategory }),
@@ -232,7 +217,6 @@ export const VIEW_TITLES: Record<ViewName, string> = {
   today: 'Today',
   learn: 'Learn',
   review: 'Review',
-  quiz: 'Quiz',
   dictation: 'Dictation',
   deck: 'Deck',
   library: 'Library',
