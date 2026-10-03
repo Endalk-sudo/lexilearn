@@ -1016,8 +1016,8 @@ export async function POST(req: NextRequest) {
         const parsed = DeckIdBody.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: 'deckId required' }, { status: 400 })
         const id = parsed.data.deckId
-        // Bundled decks (Common 500 / IELTS / TOEFL / GRE) ship with the
-        // offline seed and must not be deletable — only custom decks (W5).
+        // Bundled decks (Headwords Sixth Thousand + its CEFR sub-decks) ship
+        // with the offline seed and must not be deletable — only custom decks.
         const deckRow = await db.select().from(deck).where(eq(deck.id, id)).get()
         if (!deckRow) return NextResponse.json({ error: 'deck not found' }, { status: 404 })
         if (!deckRow.isCustom) return NextResponse.json({ error: 'This deck ships with the app and cannot be deleted.' }, { status: 403 })

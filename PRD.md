@@ -1,8 +1,8 @@
 # LexiLearn — Product Requirements Document
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** In Development
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-10-03
 
 ---
 
@@ -54,26 +54,26 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 | F-006 | Users can delete individual words from a deck | P0 |
 | F-007 | Users can delete entire custom decks (pre-built decks are read-only) | P1 |
 | F-008 | Users can search the local dictionary by word | P0 |
-| F-009 | Word entries display: word, POS, IPA transcription, syllables, CEFR level, definitions, examples, synonyms, antonyms, etymology, Amharic translation | P0 |
+| F-009 | Word entries display: word, POS, IPA transcription, syllables, CEFR level, definitions, examples, synonyms, antonyms, etymology, Amharic translation (syllables/etymology render when present; the shipped seed decks leave both empty) | P0 |
 
 ### 3.2 Learning & Review
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-100 | Learn mode presents new (unseen) words in a recall → reveal → spell flow | P0 |
+| F-100 | Learn mode presents new (unseen) words in a recall → meaning → spell flow (four stages including the result screen); pronunciation auto-plays on recall | P0 |
 | F-101 | Review mode presents due SRS cards with self-grading (Again / Hard / Good / Easy) | P0 |
 | F-102 | SM-2 algorithm calculates next review interval and ease factor | P0 |
 | F-103 | Cards progress through statuses: New → Learning → Reviewing → Mastered | P0 |
 | F-104 | Browser TTS plays word pronunciation on reveal and on-demand | P0 |
 | F-105 | Spelling practice: visual character grid with real-time correct/wrong feedback | P1 |
-| F-106 | Keyboard shortcuts: Space to reveal, 1-2-3-4 to grade | P1 |
+| F-106 | Keyboard shortcuts: Space/Enter to reveal (and, once revealed, to grade "Good"), 1-2-3-4 to grade, R/S to replay audio, ⌘Z to undo | P1 |
 | F-107 | Configurable speech rate (0.5× – 2.0×) | P1 |
 
 ### 3.4 Dictation Practice ("Hear it. Type it.")
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-250 | Dictation drills by progressive rungs: Word (Rung 0) → Phrase (Rung 1) → Sentence (Rung 2) | P1 |
+| F-250 | Dictation drills a 3-rung ladder (Foundation → Building → Fluent) that scales single-word session size 8 → 12 → 16; every rung is word-level | P1 |
 | F-251 | Browser speech synthesis with configurable playback speeds (Normal 1.0× vs. Slow 0.7×) | P1 |
 | F-252 | Free unlimited replays during drill with keyboard shortcut support (`Alt+R` / `Ctrl+Space`, `Alt+S` / `Ctrl+Shift+Space`) | P1 |
 | F-253 | Real-time text comparison with color-coded token diffs (matched, missed, typo correction) | P1 |
@@ -94,7 +94,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-400 | Per-deck progress: mastered / reviewing / learning / new counts | P0 |
+| F-400 | Per-deck progress: total, mastered, active (learning + reviewing), new count, plus per-deck accuracy | P0 |
 | F-401 | Weekly activity bar chart (correct vs. incorrect) | P1 |
 | F-402 | Card status pie chart (mastered / reviewing / learning / new) | P1 |
 | F-403 | Grade distribution bar chart | P1 |
@@ -106,7 +106,7 @@ LexiLearn is a **local-first, offline-capable English vocabulary learning web ap
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F-500 | TTS voice selection (from available OS voices) | P0 |
+| F-500 | TTS voice selection (from the browser/OS English voices; warns when none are installed) | P0 |
 | F-501 | TTS rate adjustment (0.5× – 2.0×) | P0 |
 | F-502 | Daily goal adjustment | P0 |
 | F-503 | Theme selection (Light / Dark / System) | P0 |
@@ -176,15 +176,18 @@ DevOps:    pnpm, ESLint 9 (core-web-vitals + typescript)
 ### 5.2 Database Schema
 
 ```
-Deck ──1:N── Word ──1:1── SrsCard
-                          │
+Deck ──1:N── Word ──N:M── Category (via WordCategory)   Deck ──1:N── Deck (parentId)
+Word ──1:1── SrsCard
 ReviewLog (per-review audit trail)
-AppStat (key-value store: streak, XP, settings)
+AppStat (key-value: streak, XP, daily goal, TTS, theme, study text, auto-speak)
+QuizSession — legacy table, no feature behind it since the quiz surface was removed
 
 AI Mentor:
-MentorProject ──1:N── Branch ──1:N── Node ──1:N── Attempt
-SkillMastery (per focus tag)   ErrorCard (scheduled repairs)
-Turn / Memory / Knowledge (conversation + local RAG seed)
+MentorProject ──1:N── Branch ──1:N── Node ──1:N── Attempt ──1:1── Feedback
+MentorSkillMastery (per focus tag) · MentorErrorCard (scheduled repairs)
+MentorProfile (singleton) · MentorTurn / MentorKnowledge (conversation + local RAG seed)
+MentorSession · MentorWeeklyReport · PronunciationAttempt · NaturalnessAttempt
+PracticeMaterial · ErrorLog (auxiliary logs)
 ```
 
 ### 5.3 API Design
@@ -194,14 +197,16 @@ bodies are validated with zod before touching the database; failures come back
 flat as `{ "error": string }` with a 4xx/5xx status.
 
 ```
-GET  /api/lexilearn?action=new|reviewable|decks|deck|dashboard|analytics
-        |settings|search|ollamaStatus
+GET  /api/lexilearn?action=new|reviewable|due|decks|deck|dashboard|analytics
+        |categories|settings|search|ollamaStatus
         |mentorOverview|mentorBranch|mentorNodeNext
         |mentorDueErrors|mentorProfile|mentorWeeklyReport
         |mentorPronunciationHistory|mentorNaturalnessHistory
 
-POST /api/lexilearn?action=review|createDeck|addWords|addWord|updateWord
-        |deleteWord|deleteDeck|claimChallenge|repairStreak
+POST /api/lexilearn?action=review|createDeck|setDeckParent|addWords|addWord
+        |updateWord|deleteWord|deleteDeck
+        |createCategory|renameCategory|deleteCategory|setWordCategories
+        |claimChallenge|repairStreak
         |updateSettings|reset
         |mentor|mentorExplain|mentorProject|mentorBranch|mentorNext
         |mentorWeeklyReport|mentorPronunciation|mentorNaturalness
@@ -239,30 +244,37 @@ src/
 │   ├── schema.ts               # Drizzle schema (24 tables)
 │   ├── env.ts                  # DB path resolution
 │   └── id.ts                   # createId() id generator
-├── server/
-│   └── stats.ts                # Dashboard/analytics aggregation (server-only)
+├── server/                     # server-only helpers
+│   ├── stats.ts                #   Dashboard/analytics aggregation
+│   ├── csrf.ts                 #   assertSameOrigin() for every POST
+│   └── rate-limit.ts           #   in-memory 100 req/min per-IP limiter (POST)
 ├── components/                 # SHARED components (used by 2+ features)
 │   ├── ui/                     # shadcn/ui primitives
-│   ├── layout/                 # page-header, segmented-control, next-step
-│   ├── feedback/               # session-complete-v2, xp-pop, empty-state…
-│   ├── app-shell.tsx           # nav shell (sidebar / mobile tabs / top bar)
+│   ├── layout/                 # page-header, segmented-control, next-step, laptop-top-nav
+│   ├── feedback/               # session-complete, xp-pop, empty-state, skeletons, pressable…
+│   ├── app-shell.tsx           # nav shell (sidebar / mobile tabs / mobile top bar)
 │   ├── search-palette.tsx      # ⌘K search + jump-to palette
+│   ├── keyboard-shortcuts-dialog.tsx  # the `?` cheat sheet
 │   ├── word-card.tsx           # shared word card
+│   ├── study-scope-banner.tsx  # category-scope banner for Learn/Review
+│   ├── error-boundary.tsx · theme-provider.tsx
 │   └── pwa.tsx                 # SW registration + offline banner
 ├── features/                   # ONE folder per vertical feature
 │   ├── today/                  # home dashboard (+ lib/gamification)
-│   ├── learn/                  # Recall → Listen → Spell
+│   ├── learn/                  # recall → meaning → spell
 │   ├── review/                 # SM-2 review sessions
-│   ├── dictation/              # hear-it-type-it (+ lib ladder & audio)
-│   ├── library/                # decks, dictionary, CSV import, word forms
-│   ├── progress/               # overview, contribution calendar, settings
-│   ├── coach/                  # AI hub, Coach Lab, Mentor
+│   ├── dictation/              # hear-it-type-it, word-only (+ lib ladder & audio)
+│   ├── deck/                   # deck-scoped study (reuses Learn in `deck` mode)
+│   ├── library/                # decks, dictionary, categories, CSV import, word forms
+│   ├── progress/               # overview, charts, contribution calendar, settings
+│   ├── coach/                  # AI hub (Mentor + Insights)
 │   │   ├── components/ · lib/  #   client UI + helpers (keys)
 │   │   └── server/             #   mentor-agent.ts, ollama.ts (server-only)
+│   ├── study/ui/               # shared study text-scale / focus-mode helpers
 │   └── onboarding/             # first-run onboarding
-├── hooks/                      # shared React hooks (use-count-up, use-toast)
-└── lib/                        # api, store, router, srs, date, tts, feel,
-                                # motion, resume, db, utils
+├── hooks/                      # use-count-up, use-toast, use-shortcuts
+└── lib/                        # api, store, router, srs, date, paging, tts,
+                                # feel, motion, resume, db, utils
 scripts/
 ├── seed.ts · reset-db.ts · verify-db.ts · backfill-activity.ts
 └── e2e-isolated.sh             # throwaway-db e2e runner
@@ -277,16 +289,20 @@ db/
 
 ## 6. Seed Data
 
-The app ships with curated vocabulary decks:
+The app ships with one curated vocabulary hierarchy, seeded from
+`docs/headwords_sixth_thousand_{b1,b2,c1,c2}.csv`:
 
-| Deck | Word Count | CEFR Range | Purpose |
-|------|-----------|------------|---------|
-| Headwords Sixth Thousand (B1) | — | B1 | Common everyday vocabulary |
-| Headwords Sixth Thousand (B2) | — | B2 | Common everyday vocabulary |
-| Headwords Sixth Thousand (C1) | — | C1 | Advanced vocabulary |
-| Headwords Sixth Thousand (C2) | — | C2 | Advanced vocabulary |
+| Deck | Parent | Words | CEFR | Purpose |
+|------|--------|-------|------|---------|
+| Headwords Sixth Thousand | — (root) | 1,000 | B1–C2 | Umbrella deck, read-only, recursive count |
+| CEFR B1 (128 words) | Headwords Sixth Thousand | 128 | B1 | Common everyday vocabulary |
+| CEFR B2 (467 words) | Headwords Sixth Thousand | 467 | B2 | Common everyday vocabulary |
+| CEFR C1 (374 words) | Headwords Sixth Thousand | 374 | C1 | Advanced vocabulary |
+| CEFR C2 (31 words) | Headwords Sixth Thousand | 31 | C2 | Advanced vocabulary |
 
-Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, examples, synonyms, antonyms, etymology, and Amharic translation.
+Each seed word includes: word, POS, IPA, CEFR level, definition, example, synonyms,
+antonyms and Amharic translation. (`syllables` and `etymology` exist as columns and
+render in the word card, but the shipped seed leaves both empty.)
 
 ---
 
@@ -294,26 +310,29 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 ### 7.1 Navigation
 
-- **Desktop:** Left sidebar with 5 flat destinations (Today, Learn, Review, Library, Progress) + a floating AI Coach button + search palette
-- **Mobile:** Fixed bottom navigation bar with the same five tabs + safe-area insets; AI Coach opens from Today, Review and Settings
-- **Views:** Client-side routing via Zustand store, synced to the URL hash (`#/today`, `#/review`, `#/library/<deckId>`, `#/progress/settings`) so back/forward and deep links work
+- **Desktop:** Left sidebar with 5 flat destinations (Today, Learn, Review, Library, Progress) + a dedicated AI Coach card, a search-palette trigger and a `⌘K` palette; a sticky top nav adds 6 quick-modes (Review, Learn, Dictate, Deck, Library, Coach) plus breadcrumb, streak and sound
+- **Mobile:** Fixed bottom navigation bar with the same five tabs + safe-area insets; Dictation and AI Coach are reached from Today's quick links and the search palette
+- **Views:** Client-side routing via Zustand store, synced to the URL hash (`#/today`, `#/learn`, `#/review`, `#/dictation`, `#/deck`, `#/library/<deckId>`, `#/progress/settings`, `#/coach`) so back/forward and deep links work
 
 ### 7.2 Key Screens
 
 1. **Today** — one primary action, three stat tiles, resume, momentum (level + daily challenge in one card)
-2. **Learn** — Recall → Listen → Spell per new word, with typing sounds
+2. **Learn** — Recall → Meaning → Spell per new word, with typing sounds
 3. **Review** — due cards with grade buttons that show the resulting interval
-4. **Dictation** — listen and type back words only
+4. **Dictation** — listen and type back words only, with a 3-rung session-size ladder
+5. **Deck** — endless study of one picked deck through the Learn flow
 6. **Library** — decks + deck detail + dictionary behind one segmented control
-7. **Progress** — stats overview + settings (theme, TTS, daily goal, Feel toggles, typed-confirm reset)
-8. **Coach** — AI hub opening Coach Lab (mastery map, weekly report, speech practice, naturalness) and the **Mentor** — a conversation-style adaptive tutor with memory and learning-map panels
+7. **Progress** — stats overview + settings (theme, accent, TTS, reading scale, focus mode, daily goal, Feel toggles, typed-confirm reset)
+8. **Coach** — AI hub with two tabs: **Insights** (mastery map, weekly report, speech practice, naturalness) and the **Mentor** — a conversation-style adaptive tutor with memory and learning-map panels
 
 ### 7.3 Design Tokens
 
 - Font: Geist Sans + Geist Mono
-- Theme: Light / Dark / System (via next-themes)
+- Theme: Light / Dark / System (via next-themes), plus 5 accent hues (`ACCENT_THEMES`)
 - Colors: Tailwind CSS v4 with OKLCH color space
-- Animations: Framer Motion (view transitions, card reveals)
+- Animations: Framer Motion (view transitions, card reveals), with a
+  `prefers-reduced-motion` kill-switch in both `src/lib/motion.ts` and `globals.css`
+- Reading scale: three study text sizes (Comfortable / Large / Largest) + focus mode
 
 ---
 
@@ -322,10 +341,11 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 | Limitation | Impact | Mitigation |
 |------------|--------|------------|
 | Single-user only | No multi-user or family sharing | By design — local-first privacy |
-| No cloud sync | Data stays on one device | Export/import via CSV |
+| No cloud sync | Data stays on one device | Export/import via CSV; the SQLite file itself is the backup |
 | Browser TTS quality varies | Linux may have no English voices | TTS diagnostics panel, Firefox recommendation |
-| No mobile app | Web only | Responsive PWA-ready design |
-| No API rate limiting | Not applicable (local-only) | N/A |
+| No mobile app | Web only | Responsive PWA-ready design (service worker + manifest) |
+| `syllables` / `etymology` are never populated | The word card's syllable and origin rows stay empty | Columns and UI exist; the seed CSVs carry neither field |
+| POST rate limiting (100 req/min per IP) | A stuck client loop can starve the local server | In-memory sliding window (`src/server/rate-limit.ts`); a Redis backend is unnecessary for a local-only app |
 
 ---
 
@@ -350,7 +370,8 @@ Each seed word includes: word, POS, IPA, syllables, CEFR level, definitions, exa
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 0.3.0 | 2026-09-23 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, drag-to-match quiz, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration, review hardening pass (SRS/XP consistency, WCAG 2.2 AA fixes, local day keys, dep + CI cleanup) |
+| 0.4.0 | 2026-10-03 | Words-only scope: Quiz feature removed end to end (UI, API, stats, docs) and Dictation reduced to single-word drills; keyboard-guard unification across every view; honest error/empty states instead of infinite skeletons; deck-scoped resume; reduced-motion honoured in grade exits; e2e deck selectors repaired |
+| 0.3.0 | 2026-09-23 | UI redesign ("Quiet focus" system), conversation-style Mentor with memory/map panels, Coach Lab, dictation, typing sounds, offline service worker + honest offline banner, Prisma → Drizzle migration, review hardening pass (SRS/XP consistency, WCAG 2.2 AA fixes, local day keys, dep + CI cleanup) |
 | 0.2.1 | 2026-07-29 | CRUD for words, bulk add, UI/UX improvements |
 | 0.2.0 | 2026-07-28 | Core features: Learn, Review, Quiz, Decks, Stats, Settings |
 | 0.1.0 | 2026-07-28 | Initial commit, project scaffold |

@@ -26,45 +26,58 @@ LexiLearn is a **local-first, distraction-free English vocabulary mastery applic
 
 ## 2. Information Architecture & Navigation
 
-The navigation model is intentionally flat: **5 primary destinations** with context-driven drill-ins, never nested tab mazes.
+The navigation model is flat at the top level: **5 primary destinations**
+(`PRIMARY_TABS`, `src/components/app-shell.tsx`), each optionally split by a single
+in-page `SegmentedControl` — Library → Decks · Dictionary, Progress → Overview ·
+Settings, Coach → Mentor · Insights. No nested tab mazes.
 
 ```
-                  ┌────────────────────────────────────────┐
-                  │          LexiLearn App Shell           │
-                  │  (Desktop Sidebar / Mobile Bottom Tab) │
-                  └───────────────────┬────────────────────┘
-                                      │
-         ┌──────────────┬─────────────┼──────────────┬──────────────┐
-         ▼              ▼             ▼              ▼              ▼
-     [ Today ]      [ Learn ]    [ Review ]    [ Library ]    [ Progress ]
-    Daily Quest   New Words Loop   SM-2 Spaced   • Decks       • Analytics
-    & Streaks     (Recall→Spell)   Repetition    • Dictionary  • Heatmap
-         │                                       • Word Form   • Settings
-         ├───────────────────────────────────────────┐
-         ▼                                           ▼
-   [ Drill-in: Dictation ]           [ Drill-in: Deck ]
-   • Word audio pairs + accuracy     • Endless deck drills
-         │
-         ▼
-   [ AI Coach & Mentor ] (Sidebar dedicated entry)
-   • Grammar drills, scenarios, native rewrite comparisons
+                ┌──────────────────────────────────────────────────────┐
+                │      LexiLearn App Shell (src/app/page.tsx)          │
+                │  Desktop ≥md:  AppSidebar (5 tabs + AI Coach)        │
+                │                 + LaptopTopNav (6 quick-modes,      │
+                │                   search, `?` shortcuts, streak)     │
+                │  Mobile <md:   MobileTopBar (logo + search)          │
+                │                 + MobileTabs (5 tabs, bottom)         │
+                └────────────────────────┬─────────────────────────────┘
+                                         │
+      ┌────────────┬─────────────┬───────┴────────┬─────────────┐
+      ▼            ▼             ▼                ▼             ▼
+  [ Today ]    [ Learn ]     [ Review ]       [ Library ]   [ Progress ]
+ Daily Quest  4-stage new   SM-2 spaced       • Decks       • Overview
+ & Streaks    word loop      repetition       • Dictionary   • Settings
+      │            │             │                │             │
+      │            │             │                ▼             │
+      │            │             │         [ Deck detail ]         │
+      │            │             │         • endless study         │
+      ▼            ▼             ▼                ▼             ▼
+[ Dictation ]  (same flow)  4-pill dock   [ Deck ]  (top-level view;
+ • word-only rungs                              `g v`, Today dock)
+      │
+      ▼
+[ AI Coach & Mentor ] — sidebar dedicated entry, plus Insights
+ • 10 focus tracks, native-rewrite comparisons, speech + naturalness lab
 ```
 
+Top-level views that are **not** primary tabs: Dictation, Deck, Coach, and Deck
+detail (`library-deck`). Desktop reaches them from `LaptopTopNav`, the `g`-then-key
+chords, or the search palette; mobile reaches Dictation and Coach only from Today's
+quick links.
 
 ---
 
 ## 3. Design Tokens & Color Architecture
 
-LexiLearn utilizes an **OKLCH hue-parameterized design system**. Changing a single CSS token (`--accent-hue`) seamlessly restyles the entire application while maintaining perceptual contrast.
+LexiLearn utilizes an **OKLCH hue-parameterized design system**. Changing a single CSS token (`--accent-hue`) — or picking one of the five shipped accent presets in `ACCENT_THEMES` (`src/lib/store.ts:30-36`) — restyles the entire application while maintaining perceptual contrast.
 
 ### 3.1 Color Palette Tokens
 
 | Token | Light Theme | Dark Theme | Purpose |
 |---|---|---|---|
-| `--accent-hue` | `259` | `259` | Iris / Violet master hue |
+| `--accent-hue` | `259` Iris (alt: `220` Sapphire · `155` Emerald · `50` Amber · `345` Rose) | same 5 presets | Master hue; user-selectable in the sidebar and Settings → Appearance |
 | `--background` | `oklch(0.991 0.002 259)` | `oklch(0.168 0.008 259)` | App background canvas |
 | `--foreground` | `oklch(0.22 0.02 259)` | `oklch(0.955 0.005 259)` | High-contrast readable typography |
-| `--card` / `--surface` | `oklch(1 0 0)` | `oklch(0.21 0.01 259)` | Primary content cards |
+| `--card` | `oklch(1 0 0)` | `oklch(0.21 0.01 259)` | Primary content cards (the `.surface` class composes it) |
 | `--border` | `oklch(0.915 0.006 259)` | `oklch(0.3 0.012 259)` | Structural lines & card borders |
 | `--primary` | `oklch(0.47 0.13 259)` | `oklch(0.72 0.125 259)` | Accent CTAs, active states, rings |
 | `--primary-soft` | `color-mix(9% primary, card)` | `color-mix(16% primary, card)` | Badges, highlighted selections |
@@ -72,16 +85,21 @@ LexiLearn utilizes an **OKLCH hue-parameterized design system**. Changing a sing
 | `--warning` | `oklch(0.5 0.12 70)` | `oklch(0.78 0.13 75)` | Hard review grade, offline indicator |
 | `--destructive` | `oklch(0.52 0.19 25)` | `oklch(0.68 0.17 25)` | Again / Missed reviews, delete actions |
 | `--streak` | `oklch(0.57 0.155 45)` | `oklch(0.74 0.15 50)` | Streak flames, XP milestones |
+| `--popover` | `oklch(1 0 0)` | `oklch(0.23 0.01 259)` | Dialogs, popovers, sheets |
+| `--primary-line` | 26% primary mix | 34% primary mix | Hover borders, active rails |
+| `--sidebar` | `oklch(0.985 0.003 h)` | `oklch(0.19 0.009 h)` | Desktop sidebar canvas |
+| `--success-soft` / `--warning-soft` / `--destructive-soft` / `--streak-soft` | 9–13% mix into card | 16–18% mix into card | Tinted fills for pills, grade buttons, banners |
+| `--chart-1` … `--chart-5` | hue-parametric | hue-parametric | Analytics series (recharts) |
 
 ### 3.2 Vocabulary Level (CEFR) Indicators
 Vocabulary cards use standard CEFR classification with distinct visual semantics:
-- **A1 / A2 (Elementary)**: Emerald Green (`border-emerald-500/30 bg-emerald-500/10 text-emerald-600`)
-- **B1 / B2 (Intermediate)**: Cobalt Blue (`border-blue-500/30 bg-blue-500/10 text-blue-600`)
-- **C1 / C2 (Advanced & Mastery)**: Royal Purple (`border-purple-500/30 bg-purple-500/10 text-purple-600`)
+- **A1 / A2 (Elementary)**: Emerald (`text-emerald-700 dark:text-emerald-400` on `WordCard`; `text-emerald-600` on the Review header badge)
+- **B1 / B2 (Intermediate)**: Cobalt (`text-blue-700 dark:text-blue-400`; Review uses `text-blue-600`)
+- **C1 / C2 (Advanced & Mastery)**: Violet (`text-purple-700 dark:text-purple-400`; Review uses `text-purple-600`)
 
 ### 3.3 Typography Hierarchy
 - **Primary Sans**: Geist Sans (`--font-sans`) — crisp geometry with high x-height for readability.
-- **Monospace**: Geist Mono / JetBrains Mono (`--font-mono`) — used for IPA phonetic transcription, keyboard shortcuts (`kbd`), and code tags.
+- **Monospace**: Geist Mono (`--font-mono`, aliased to `--font-geist-mono` with a `ui-monospace` fallback in `src/app/globals.css:61`) — used for IPA phonetic transcription, keyboard shortcuts (`kbd`), grade labels, and code tags.
 - **Tabular Figures (`.num`)**: All numbers, countdowns, streaks, and scores use `font-variant-numeric: tabular-nums` to eliminate layout jitter during counters.
 - **Micro-Labels (`.label`)**: `0.75rem (12px)`, `letter-spacing: 0.06em`, uppercase bold for category headers and eyebrows.
 
@@ -95,16 +113,26 @@ Vocabulary cards use standard CEFR classification with distinct visual semantics
 
 Learning is fortified when sensory feedback confirms action:
 1. **Audio Feedback (`src/lib/feel.ts`)**:
-   - Web Audio API synthesizer tones (sine/triangle waves):
+   - Web Audio API synthesizer tones (one shared `AudioContext`, sine/triangle/sawtooth):
      - `tap`: 520Hz soft click (50ms).
-     - `correct`: 660Hz $\rightarrow$ 880Hz ascending chime (170ms).
+     - `correct`: 660Hz $\rightarrow$ 880Hz ascending chime (90ms + 120ms at +80ms, $\approx$200ms total).
      - `wrong`: 220Hz low sawtooth blip (140ms).
      - `levelup`: 523Hz $\rightarrow$ 659Hz $\rightarrow$ 784Hz major triad flourish.
      - `xp`: 980Hz spark chime.
+     - `flip`: 440Hz $\rightarrow$ 587Hz card-flip tick.
+     - `combo`: 587Hz $\rightarrow$ 740Hz $\rightarrow$ 880Hz streak flourish.
+   - Keystroke layer (`playType` / `playSpace` / `playDelete` / `playSend`, dispatched via
+     `typeFeelFromKey`): pitch-randomised $\pm$60-cent ticks, debounced to 30ms apart.
+   - **Sound is on by default** (`lexilearn-sound-enabled`), toggled globally with `m`.
 2. **Haptic Vibration**:
-   - Dual-mode browser vibration (`navigator.vibrate`): subtle tap for key inputs, crisp pattern for completions.
+   - Single-mode browser vibration (`navigator.vibrate`): `light` 10ms, `medium` 18ms,
+     `success` `[12,40,18]`, `error` `[30,40,30]`. **Off by default** — enabled from
+     Settings $\rightarrow$ Feel $\rightarrow$ Haptics, unlike sound.
 3. **Floating XP Particles (`xp-pop.tsx`)**:
-   - Real-time `+15 XP` particle floats upward from the exact click coordinate or button upon grading.
+   - A `+N XP` particle floats upward from the exact click coordinate (`popXpAt`) or the
+     centre of the tapped element (`popXpFromElement`), clamped inside the viewport.
+     `N` comes from `GRADE_XP` (`src/lib/srs.ts:24-29`): Again 1 · Hard 3 · Good 5 · Easy 8;
+     at most 4 pops are on screen at once.
 4. **Celebration Confetti (`canvas-confetti`)**:
    - Multi-stage confetti burst for streak milestones, daily challenge claims, and level-ups.
 
@@ -122,7 +150,7 @@ Learning is fortified when sensory feedback confirms action:
     3. Queue empty $\rightarrow$ **"Practice dictation"**
   - Bottom strip: 3 interactive stat tiles (`Due`, `New`, `Streak`) acting as jump links.
 - **Daily Quest & Challenge**:
-  - Progress bar tracking daily rotating challenges (10-Word Sprint, Recall Run, Show Up).
+  - Progress bar tracking the daily rotating challenge — **10-word Sprint** (target 10, +35 XP), **Recall Run** (target 8, +40 XP) or **Show Up** (target 1, +25 XP), selected by `Date.now()` day index modulo 3.
   - Amber badge highlighting bonus XP reward with instant claim feedback.
 - **Resume Strip**: One-click quick-return if a user left a session midway.
 - **Quick Links Grid**: Action dock with Dictation, Study deck, Dictionary, Progress, and AI Coach.
@@ -131,10 +159,15 @@ Learning is fortified when sensory feedback confirms action:
 - **Purpose**: Systematic 4-stage onboarding of new vocabulary into the memory pipeline.
 - **Interaction Workflow**:
   ```
-  [ Stage 1: Recall ]   ──(Space / Tap)──>   [ Stage 2: Meaning ]  ──>  [ Stage 3: Spell ]   ──(Enter)──>   [ Stage 4: Result ]
-  Display word + IPA                         Reveal the meaning                  Listen to audio TTS               Grade & Award XP
-  Prompt mental meaning                      Tap to start spelling              Type into slot grid                Schedule into SM-2
+  [ Stage 1: Recall ] ──Space/Enter──▶ [ Stage 2: Meaning ] ──Space/Enter──▶ [ Stage 3: Spell ] ──Enter──▶ [ Stage 4: Result ]
+  Word + IPA + POS,               Definition, example,          Word is HIDDEN; the card is        Checkmark + XP
+  auto-spoken if enabled          አማርኛ and syllables shown;     an audio prompt — no definition    (Good +5 / Again +1),
+  "Say the meaning first"         `r` replays, then Start       or example. Type into the          then Schedule into SM-2
+                                  spelling                       letter grid.
   ```
+
+  `Alt+H` / `Ctrl+H` = hint, then reveal-and-skip · `f` toggles focus mode ·
+  swipe-left advances any stage.
 - **Spelling Input Grid**:
   - Distinct segmented character blocks for each letter of the target word.
   - Active character slot highlighted with scaling and border glow.
@@ -142,8 +175,11 @@ Learning is fortified when sensory feedback confirms action:
 - **Word Card Anatomy (`word-card.tsx`)**:
   - Head: Large title, Part of Speech, IPA transcription, and speaker pronunciation button.
   - CEFR Level pill + expandable letter-count hint.
-  - Progressive disclosure tabs: `Meaning`, `Example Sentence`, `Amharic (አማርኛ)`.
-  - Collapsible details drawer: Syllable breakdown, Synonyms, Antonyms, and Etymology.
+  - Revealed content is **stacked, not tabbed** (see `word-card.tsx:270-274`): numbered
+    definition list → `In context` (up to 3 examples) → `አማርኛ` → word relations.
+  - Collapsible **structural-hint drawer** (`HelpCircle`): "Starts with ⟨letter⟩" plus a
+    letter count — never the answer. Syllables render inline in the meta line; Synonyms,
+    Antonyms and Origin render as always-visible inline rows below the Amharic block.
 
 
 ### 5.3 Review Mode (`SM-2 Spaced Repetition`)
@@ -155,24 +191,33 @@ Learning is fortified when sensory feedback confirms action:
   - `Again (1)`: Red tint · Interval reset (e.g. `1 day`) · "Forgot completely".
   - `Hard (2)`: Amber tint · Shorter interval extension · "Tough recall".
   - `Good (3)`: Emerald tint · Standard SM-2 interval expansion · "Clean recall".
-  - `Easy (4)`: Violet tint · Accelerated interval boost · "Instant & clear".
-  - Each button displays the exact calculated next review date (`1d`, `4d`, `12d`, `28d`) so learners make informed evaluations.
+  - `Easy (4)`: Accent tint (`text-primary` on `bg-primary-soft/50`) — violet under the default Iris accent · Accelerated interval boost · "Instant & clear".
+  - Each button shows its computed SM-2 outcome in plain words — `1 day` or `N days` (`previewInterval`, `review.tsx:66-74`) — beside the `+N XP` figure, so the choice is informed before it is made.
 
 ### 5.4 Dictation ("Hear it. Type it.")
 - **Purpose**: Auditory processing and accurate word-level transcription drills.
-- **Rungs Progression**:
-  - Rung 0: Single isolated vocabulary words.
-  - Rung 1: Short conversational phrases (3–5 words).
-  - Rung 2: Complex, full sentences (6–12 words).
+- **Rungs Progression** — every rung drills **single words only**; the ladder changes
+  session *length*, not item type:
+  - Foundation — 8 words · Building — 12 words · Fluent — 16 words.
+  - `RUNG_LABELS = ['Foundation','Building','Fluent']`, persisted in `localStorage`
+    (`lexilearn-dictation-rung`); keys `1`–`4` pick a rung or return to Adaptive.
+    `nextRung` climbs at ≥80% average accuracy, holds at ≥55%, drops below that.
+  - Below `MIN_SESSION_ITEMS` (5) the start screen asks for more words instead of
+    drilling thin air.
 - **Audio Control Bar**:
   - Primary Play / Repeat button (`Space`).
-  - Speed toggle: Normal `1.0x` vs. Turtle Slow `0.7x` (`Alt+S` while typing, or `Ctrl+Shift+Space`).
-  - Replay counter ("Free replays").
+  - Speed toggle: `Normal (1.0×)` vs `Slow (0.7×)` (`PRESET_RATES`). Between items
+    `Space`/`r` replays and `s` replays slow; while typing `Alt+R`/`Ctrl+Space` replays,
+    `Alt+S`/`Ctrl+Shift+Space` replays slow and `Alt+H`/`Ctrl+H` reveals a hint.
+  - Replay counter ("Played N times · Space replays") plus an explicit
+    "Replays are always free" promise.
 - **Visual Diff Inspection**:
-  - Color-coded tokenized breakdown comparing user input against true transcript:
-    - Green = Correct word match.
-    - Strikethrough Red = Misheard or misspelled word.
-    - Amber pill = Skipped word.
+  - Tokenized breakdown comparing typed input against the target (`groupDiff`):
+    - Plain foreground = correct word match (correctness does not shout).
+    - Red, struck through = what you typed instead; the expected word is shown beside
+      it in a green (`success/15`) pill.
+    - Amber (`warning/20`) pill = skipped word. Skipped words cost a full accuracy mark,
+      stray words cost half (`accuracyOf`).
 
 
 ### 5.5 Library & Deck Management
@@ -182,33 +227,50 @@ Learning is fortified when sensory feedback confirms action:
   - Word count indicators and direct "Open deck" CTAs.
   - Deletion safety dialog for custom decks.
 - **Bulk Word Import**:
-  - CSV parser supporting Word, POS, IPA, Definition, Example, CEFR, Synonyms, and Amharic fields.
+  - CSV (or tab-separated) parser with header auto-detection and alias mapping. Canonical
+    columns: `word, pos, definition, example, ipa, cefr, synonyms, antonyms, amharic,
+    categories`, plus aliases (`part of speech`→pos, `meaning`→definition, `tags`→categories).
   - Real-time format validation and error warnings before ingestion.
 - **Local Dictionary Search**:
   - Instant live filter as the user types with keyboard shortcut navigation.
 
 ### 5.6 AI Coach & Mentor
 - **Purpose**: Local, private conversational English practice and naturalness correction via Ollama.
-- **Features**:
-  - **Branch System**: Focused tracks for *Past Tense*, *Articles*, *Prepositions*, *Collocations*, and *Naturalness*.
-  - **Native Version Comparison**: Side-by-side diff between learner's draft and idiomatic phrasing.
-  - **Granular Explanations**: Grammatical rule summaries explaining the nuance of corrections.
-  - **100% On-Device**: All prompts run against local LLM models (default `qwen3:8b`) with zero cloud data transmission.
+- **Two depths, one destination** (`SegmentedControl`, `coach.tsx:29-38`):
+  - **Mentor** — the daily drill. A branch is one `focusTag` track at a chosen difficulty
+    ceiling (Lv 1–5). Each answer is self-corrected, then scored on grammar, spelling,
+    naturalness, register, pragmatics and task completion; feedback carries a granular
+    wrong→right correction diff, a one-lesson explanation, a **Native Polish** block,
+    a follow-up retrieval question and a root-cause note.
+  - **Insights** (`coach-lab.tsx`) — skill map by grammar group, Learning paths, weekly
+    coach report (strengths / weaknesses / next focus / action plan), Pronunciation Gym
+    and the Naturalness Engine (score, verdict, native version, 2 alternatives).
+- **10 focus tracks**: Past tense · Articles · Prepositions · Collocations · Word choice · Naturalness · Spelling · Pronunciation · Conditionals · Modals.
+- **100% On-Device**: all prompts hit a local LLM (`OLLAMA_MODEL`, default `qwen3:8b`) with zero cloud data transmission.
 
 ### 5.7 Progress & Analytics
 - **Purpose**: Clear visualization of compounding memory growth.
-- **Metrics Dashboard**:
-  - 4 Key Stat Tiles: Current Streak, Accuracy %, Mastered Word Count, Total XP.
-  - **This Week Bar Chart**: Stacked bar comparison of correct answers vs. misses per weekday.
-  - **Next 7 Days Forecast**: Forward-looking bar graph showing upcoming cards due for review.
-  - **Word Status Pie Chart**: Vocabulary breakdown (`Mastered`, `Reviewing`, `Learning`, `New`).
-  - **GitHub-style Contribution Calendar**: 53-week heatmap recording daily consistency and longest streak records.
-- **Settings Panel**:
-  - TTS voice selector with instant voice sample audition.
-  - Speech rate slider (`0.5x` to `2.0x`).
-  - Daily review goal slider (5 to 50 words).
-  - Sound effects and tactile haptics toggles.
-  - SQLite database backup export and local state reset tools.
+- **Metrics Dashboard** (Overview tab, one `analytics` + `dashboard` fetch):
+  - 4 Key Stat Tiles: Current Streak (with best-ever), Accuracy %, Mastered Word Count
+    (with % of total), Total XP (with reviews logged).
+  - **This Week Bar Chart**: correct answers vs. misses per weekday over a rolling 7 days.
+  - **Next 7 Days Forecast**: per-day buckets of cards coming due; overdue count toward today.
+  - **Word Status Pie Chart**: Mastered / Reviewing / Learning / New with a text legend.
+  - **How You Grade**: Again → Easy distribution across all reviews.
+  - **Consistency**: 53-week, Sunday-aligned contribution calendar built from the sparse
+    server payload.
+  - **Per deck** table: total / mastered / active / accuracy.
+  - **Recent activity** feed: last 8 reviews, expandable in 25-row steps up to 100.
+- **Settings Panel** (second tab):
+  - **Voice**: English-voice selector with a "Test this voice" audition, speech rate
+    `0.5×`–`2.0×`, an auto-pronounce toggle and a TTS diagnostics panel.
+  - **Reading**: study text size (Comfortable / Large / Largest) and a focus-mode toggle.
+  - **Daily rhythm**: daily goal slider, 5 to 50 in steps of 5.
+  - **Feel**: sound-effects and haptic toggles (haptics off by default).
+  - **Appearance**: Light / Dark / System plus the 5-swatch accent palette.
+  - **Danger zone**: typed-`RESET` reset of review history, XP, streaks and statistics
+    — decks and words are kept. There is no database backup/export UI; copy
+    `db/custom.db` on disk.
 
 ---
 
@@ -219,16 +281,39 @@ LexiLearn treats the keyboard as a first-class citizen alongside mobile touch:
 | Context | Shortcut | Action |
 |---|---|---|
 | **Anywhere** | `⌘K` or `Ctrl+K` | Open Universal Search Palette |
+| **Anywhere** | `?` or `Shift+/` | Open the keyboard-shortcuts cheat sheet |
+| **Anywhere** | `[` or `⌘\` / `Ctrl+\` | Collapse / expand the sidebar |
+| **Anywhere** | `m` | Mute / unmute sound effects |
 | **Anywhere** | `g` then `t`/`r`/`l`/`d`/`v`/`b`/`p`/`c` | Go to Today / Review / Learn / Dictation / Deck / Library / Progress / Coach |
-| **Learn / Review** | `Space` or `Enter` | Reveal card / grade / advance; `r` / `s` replay (normal / slow) |
+| **Study** | `f` | Toggle focus mode (Learn · Review · Progress) |
+| **Today** | `Space` or `Enter`, `r` | Start the daily mission · resume the last session |
+| **Learn** | `Space` or `Enter` | Advance Recall → Meaning → Spell → Result; `r` (or `p`) replays audio |
+| **Learn (typing)** | `Alt+R` / `Ctrl+Space`, `Alt+H` / `Ctrl+H` | Replay audio · hint, then reveal-and-skip |
+| **Review** | `Space` or `Enter` | Reveal the card; once revealed, a quick **Good** grade |
 | **Review** | `1`, `2`, `3`, `4` | Grade: Again, Hard, Good, Easy |
-| **Dictation** | `Alt+R`/`Ctrl+Space`, `Alt+S`/`Ctrl+Shift+Space` | Replay audio / Replay slow audio while typing |
-| **Mentor** | `⌘+Enter` or `Ctrl+Enter` | Submit response to AI Coach |
+| **Review** | `r`, `s`, `m`, `⌘Z` / `Ctrl+Z` | Replay audio · replay slow · star word · undo last grade |
+| **Dictation** | `Alt+R`/`Ctrl+Space`, `Alt+S`/`Ctrl+Shift+Space`, `Alt+H`/`Ctrl+H` | Replay · replay slow · hint, while typing |
+| **Dictation (between items)** | `Space`/`r`, `s`, `Enter` | Replay · replay slow · submit / next item |
+| **Dictation (start)** | `1`–`4` | Adaptive · Foundation · Building · Fluent |
+| **Mentor** | `h`, `r` | Hint for the current question · next challenge after feedback |
+| **Mentor** | `⌘+Enter` or `Ctrl+Enter` | Submit your answer from the coach text box |
+| **Library** | `/`, `↑`/`↓`, `Enter`, `Esc` | Focus search · move selection · open word · clear search |
+| **Drill-in** | `Escape` | Leave focus mode → Deck detail → Dictation (focus mode wins) |
 | **Modal / Dialog** | `Escape` | Close dialog or drawer |
 
-- **Reduced Motion**: Full support for `prefers-reduced-motion` via `src/lib/motion.ts`, converting spring physics into gentle zero-offset opacities.
-- **Contrast Ratios**: All text tokens in both Light and Dark themes strictly maintain WCAG AA/AAA compliance against their surrounding surfaces.
-- **Touch Ergonomics**: All interactive elements maintain a minimum hit box of **44×44px** to ensure effortless mobile thumb operation.
+- **Reduced Motion**: honoured in two places — `src/lib/motion.ts` (`useMotionSafe()` returns
+  `t()` → `{ duration: 0 }` and `v()` → static opacity-only variants; `gradeEnter`/`gradeExit`
+  take an explicit `reduce` flag and drop their directional exit) and a
+  `@media (prefers-reduced-motion: reduce)` block in `src/app/globals.css` that zeroes
+  animation/transition durations and disables smooth scrolling. Reduced motion *removes*
+  movement rather than softening it.
+- **Contrast Ratios**: the palette is built in OKLCH with hue-parameterised foreground /
+  background pairs so relative luminance holds when the accent hue changes, and the focus
+  ring is never removed. Contrast has **not** been machine-verified against WCAG AA/AAA — that is a known gap, not a guarantee.
+- **Touch Ergonomics**: mobile bottom tabs are `min-h-14` (56px) and Today's quick links are
+  full-width, so the primary touch targets clear 44px. The shared `Button` only guarantees
+  that at `size="lg"` / `size="icon-lg"`; `default` (36px), `sm` (32px) and `icon` (36px)
+  sizes and the shell's own `h-8`/`h-10` icon buttons sit below 44px and rely on spacing.
 
 ---
 

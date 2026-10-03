@@ -9,25 +9,30 @@ src/
 ├── app/                  # Next.js App Router — thin entry layer only
 │   ├── layout.tsx        #   root layout (theme, toaster, onboarding, PWA)
 │   ├── page.tsx          #   SPA shell; swaps feature views via the store
-│   └── api/lexilearn/    #   single catch-all API route (?action=...)
+│   ├── error.tsx · not-found.tsx · globals.css
+│   └── api/lexilearn/    #   the catch-all API route (?action=...)
+│       └── route.ts      #   (api/route.ts is a dead "Hello, world!" stub)
 ├── components/           # SHARED components only (used by 2+ features)
 │   ├── ui/               #   shadcn/ui design-system primitives
 │   ├── feedback/         #   session feedback (xp-pop, session-complete, confetti…)
-│   ├── layout/           #   page-header, next-step, segmented-control
-│   ├── app-shell.tsx     #   sidebar / mobile tabs / top bar
+│   ├── layout/           #   page-header, next-step, segmented-control, laptop-top-nav
+│   ├── app-shell.tsx     #   sidebar / mobile tabs / mobile top bar
+│   ├── search-palette.tsx · keyboard-shortcuts-dialog.tsx   # ⌘K palette, `?` cheat sheet
+│   ├── study-scope-banner.tsx · error-boundary.tsx · theme-provider.tsx
 │   └── word-card.tsx     #   shared word card (learn, library, search palette)
 ├── features/             # ONE folder per vertical feature
 │   ├── today/            #   home dashboard (daily challenge, streaks)
 │   ├── learn/            #   new-word learning (word cards, spelling input)
 │   ├── review/           #   SM-2 spaced-repetition review sessions
-│   ├── dictation/        #   hear-it-type-it drills
-│   ├── library/          #   decks, dictionary, CSV import, word forms
-│   ├── progress/         #   stats, contribution calendar, settings
-│   ├── coach/            #   AI mentor (also owns server-side agent code)
+│   ├── dictation/        #   hear-it-type-it drills (word-only)
+│   ├── deck/             #   endless per-deck study mode (wraps LearnView)
+│   ├── library/          #   decks, dictionary, categories, CSV import, word forms
+│   ├── progress/         #   stats, recharts charts, contribution calendar, settings
+│   ├── coach/            #   AI mentor + insights lab (owns server-side agent code)
 │   ├── onboarding/       #   first-run onboarding flow
 │   └── study/            #   cross-page study UI (text scale, focus mode, fit tiers)
 ├── db/                   # drizzle schema, env, id helpers
-├── server/               # server-only helpers (stats aggregation for the API)
+├── server/               # server-only helpers (stats aggregation, rate limit, CSRF)
 ├── hooks/                # shared React hooks
 └── lib/                  # SHARED logic (store, router, api client, srs,
                           #   tts, feel, motion, utils, resume, db)
@@ -38,23 +43,33 @@ src/
 Each feature folder may contain:
 
 - `components/` — UI used only by this feature
+- `ui/` — shared study-page *helpers* that are not components (e.g. `study/ui/study-scale.ts`: text scale, focus-mode prefs, first-card hints, spelling fit tiers)
 - `lib/` — client-side logic used only by this feature (e.g. `dictation/lib/dictation.ts`)
 - `server/` — server-only code imported by the API route (e.g. `coach/server/mentor-agent.ts`, `coach/server/ollama.ts`)
+- `__tests__/` or colocated `*.test.ts` — vitest suites for the folder's pure functions
 
 ## Placement rules
 
 1. Used by **one feature only** → belongs in that feature folder.
-2. Used by **two or more features** → belongs in `src/lib/` or `src/components/`.
+2. Used by **two or more features** (or by `src/components/` / `src/hooks/`) → belongs in `src/lib/` or `src/components/`. *Known exception:* `isMac()` still lives at `features/coach/lib/keys.ts` but is imported by `components/keyboard-shortcuts-dialog.tsx`, `hooks/use-shortcuts.ts` and `features/coach/components/mentor.tsx` — it should move to `src/lib/`.
 3. `src/app/` is transport only — no business logic. View routing happens through the zustand store (`lib/store.ts`) + hash router (`lib/router.ts`), so views are plain components under `features/*/components`.
-4. Client code never imports another feature's *internals* (its `lib/`, `server/`, or non-exported pieces). A self-contained view component such as `LearnView` and `SpellingInput` may be reused cross-feature only when it's exported and prop-driven (as `deck`/`library` embed `LearnView`); any other shared UI belongs in `src/components/` or `src/lib/`.
+4. Client code never imports another feature's *internals* (its `lib/`, `server/`, or non-exported pieces). The sanctioned cross-feature imports are all **exported, prop-driven components**, and there are three of them today:
+   - `LearnView` (`features/learn/components/learn`) → embedded by `deck/components/deck.tsx` and `library/components/library.tsx`
+   - `SpellingInput` (`features/learn/components/spelling-input`) → embedded by `dictation/components/dictation.tsx`
+   - `CategoryBadgeList` (`features/library/components/category-badge`) → embedded by the shared `components/word-card.tsx`
+
+   Any other shared UI belongs in `src/components/` or `src/lib/`.
 
 ## Data flow
 
 ```
-feature component → lib/api.ts → /api/lexilearn?action=… → route.ts
-                                                            ├─ db (drizzle)
-                                                            ├─ server/stats.ts (dashboard / analytics)
-                                                            └─ features/coach/server/* (AI mentor, ollama)
+feature component ──► lib/api.ts ──► /api/lexilearn?action=… ──► route.ts
+ (Today, Learn, Review, Dictation, Deck,                       │
+  Library, Progress)                                             ├─ db (drizzle)
+        │                                                        ├─ server/stats.ts (dashboard / analytics)
+        └──► fetch('/api/lexilearn?action=…')  ⚠ Coach only      └─ features/coach/server/* (AI mentor, ollama)
+             mentor.tsx and coach-lab.tsx call the route directly, so they skip the
+             client request cache, in-flight dedupe and mutation busting
 ```
 
 ## Dates and day keys
@@ -102,17 +117,24 @@ secrets out of `.env` and pass those through the environment instead.
 ## Testing
 
 ```bash
-pnpm test              # unit tests (vitest)
+pnpm test              # unit tests (vitest run)
 pnpm test:watch        # unit tests in watch mode
 pnpm test:coverage     # unit tests with coverage report
-pnpm e2e:isolated     # all e2e suites, against a throwaway copy of the db
-pnpm e2e              # phased suite against a server you started yourself
-pnpm e2e:deep         # deep integration suite (A–Z phases)
-pnpm e2e:router       # hash-router regression (E668)
+pnpm e2e:isolated      # ALL four e2e suites against a throwaway db clone
+pnpm e2e               # phased suite only, against a server you started yourself
+pnpm e2e:deep          # deep integration suite (A–Z phases)
+pnpm e2e:router        # hash-router regression (E668)
+pnpm e2e:interactions  # UI/UX interaction suite (also part of e2e:isolated)
+pnpm e2e:shots         # list the latest screenshots in /tmp/e2e-shots
 ```
 
-Unit tests cover pure functions: SM-2 algorithm (`srs.ts`), date helpers
-(`date.ts`), and the rate limiter (`server/rate-limit.ts`).
+Unit tests cover pure functions only: the SM-2 algorithm (`lib/srs.ts`), local
+day keys (`lib/date.ts`), the keyset cursor (`lib/paging.ts`), the hash router
+(`lib/router.ts`), the shared shortcut classifier (`hooks/use-shortcuts.ts`),
+the per-IP rate limiter (`server/rate-limit.ts`), the dictation diff/grade
+ladder (`features/dictation/lib/dictation.ts`), the CSV parser and POS key
+(`features/library/lib/`), and the spelling fit tiers
+(`features/study/ui/study-scale.ts`).
 
 `scripts/e2e-isolated.sh` clones `db/custom.db` to a temp file and boots the
 standalone server with `LEXILEARN_DB_URL` pointed at the clone, so grading real
@@ -120,7 +142,11 @@ cards and adding real words during a run can never touch your study database.
 The deep suite also deletes the words it creates (phase Z). Suites accept
 `LEXILEARN_E2E_BASE` to target another host/port.
 
-CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
+CI: `.github/workflows/ci.yml` runs `pnpm lint`, `npx tsc --noEmit` and
+`pnpm e2e:isolated` on every push/PR to `main`. A second workflow,
+`.github/workflows/e2e.yml`, also runs on pushes to `main`/`dev`: it pushes the
+schema, seeds, builds, runs `scripts/e2e-isolated.sh` on port 3100, and
+uploads `/tmp/e2e-shots` as the `e2e-screenshots` artifact.
 
 ## Security
 
@@ -136,15 +162,31 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
 
 ## Performance
 
-- **Database**: Composite indexes on `ReviewLog(deckId, reviewedAt)`,
-  `MentorAttempt(branchId, createdAt)`, and `MentorSession(mode, createdAt)`
-  for common query patterns — plus
-  `NaturalnessAttempt(createdAt)`, `MentorNode(branchId, createdAt)`,
-  `MentorBranch(projectId, createdAt)`, `MentorAttempt(nodeId, createdAt)`,
-  `MentorTurn(branchId, createdAt)`, and `ReviewLog(grade)`. Redundant
-  prefix/duplicate indexes were dropped (`Word(deckId)`, `Word(word)`,
-  `Word(category)`, `MentorAttempt(branchId)`, `MentorSession(mode)`, the two
-  `MentorTurn` singles) — every index taxes every write. Note:
+- **Database**: 24 tables in `src/db/schema.ts` (`Deck`, `Category`, `Word`,
+  `WordCategory`, `SrsCard`, `ReviewLog`, `QuizSession`, `AppStat`,
+  `MentorSession`, `ErrorLog`, `PracticeMaterial`, `MentorAttempt`,
+  `MentorProject`, `MentorBranch`, `MentorNode`, `MentorFeedback`,
+  `MentorErrorCard`, `MentorSkillMastery`, `MentorProfile`, `MentorTurn`,
+  `MentorKnowledge`, `MentorWeeklyReport`, `PronunciationAttempt`,
+  `NaturalnessAttempt`). `QuizSession` is the one leftover table with no
+  feature behind it — the quiz surface is gone and the table is kept only so
+  old rows stay readable.
+  Query indexes: the composite `Word(deckId, createdAt, id)` for keyset paging
+  and the unique `Word(word, deckId)` matter most. The rest are
+  `SrsCard(nextReview)`, `SrsCard(status)`, `WordCategory(categoryId)`,
+  `Deck(parentId)`, `Category(name)`, `ReviewLog(reviewedAt)`,
+  `ReviewLog(wordId)`, `ReviewLog(deckId, reviewedAt)`, `ReviewLog(grade)`,
+  `ErrorLog(type|resolved|createdAt)`, `PracticeMaterial(type|createdAt)`,
+  `MentorAttempt(createdAt|nodeId|nodeId+createdAt|branchId+createdAt)`,
+  `MentorBranch(projectId|parentBranchId|projectId+createdAt)`,
+  `MentorNode(parentNodeId|branchId|branchId+createdAt)`,
+  `MentorSession(createdAt)`, `MentorSession(mode+createdAt)`,
+  `MentorTurn(branchId+createdAt)`, `MentorErrorCard(dueAt|tag)`,
+  `MentorKnowledge(tag)`, `PronunciationAttempt(createdAt)`,
+  `NaturalnessAttempt(createdAt)`. Redundant prefix/duplicate indexes were
+  dropped (`Word(deckId)`, `Word(word)`, `MentorAttempt(branchId)`,
+  `MentorSession(mode)`, the two `MentorTurn` singles) — every index taxes
+  every write. Note:
   `drizzle-kit push` is currently broken (fails with "index already exists"
   even on an untouched tree), so schema index changes must also be applied
   to `db/custom.db` by hand (`CREATE/DROP INDEX IF EXISTS`) until that is
@@ -169,8 +211,8 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
   BY/ORDER BY spill files are pure overhead locally), and a 64 MB
   `journal_size_limit` so long-lived servers never replay a giant WAL.
   `claimChallenge` counts in SQL instead of shipping the day's full log rows.
-  The 8 serial `AppStat` reads per dashboard call (6 per analytics, 5 per
-  settings) are one `WHERE key IN (...)` now. Bulk/category writes resolve
+  The serial `AppStat` reads are one `WHERE key IN (...)` per call — 9 keys
+  for dashboard, 5 for analytics, 6 for settings. Bulk/category writes resolve
   all categories once per import instead of a `lower()` SELECT per category
   per word inside the write lock, `submitReview` fires its two reads in
   parallel, review's fallback fetch joins the initial `Promise.all`, and deck
@@ -182,11 +224,15 @@ CI runs lint, typecheck, and the e2e script (`.github/workflows/ci.yml`).
   every mutation so writes are never followed by stale reads); and the
   service worker (allowlist + 5-minute TTL + 60-entry cap — due
   queues and search results must never be served stale offline).
-- **Bundle**: non-Today views (Dictation, Library, Progress, Coach)
-  and the recharts charts split off via `next/dynamic`, canvas-confetti
-  loads on first celebration, and `optimizePackageImports` covers
-  recharts/lucide-react/framer-motion. First-paint JS went 1715 KB → 1024 KB
-  raw (491 KB → 308 KB gzip). `AnimatePresence mode="wait"` on the view
+- **Bundle**: Today / Learn / Review stay eager (first paint and the hottest
+  session paths); every other view splits off via `next/dynamic` — Dictation,
+  Library (incl. deck detail), Deck, Progress, Coach — and recharts is split
+  again behind its own chunk in `progress.tsx` so chart areas show skeletons.
+  canvas-confetti loads on the first celebration, and
+  `optimizePackageImports` covers recharts/lucide-react/framer-motion. The
+  recorded first-paint numbers (1715 KB → 1024 KB raw, 491 KB → 308 KB gzip)
+  predate the Deck and charts splits — re-measure before quoting them.
+  `AnimatePresence mode="wait"` on the view
   switch became `mode="sync"` so the old view's exit no longer holds the
   new one hostage.
 - **Render**: deck grid and appended deck pages are plain rows (only the
