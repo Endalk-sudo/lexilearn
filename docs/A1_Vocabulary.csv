@@ -1,0 +1,595 @@
+Rank,Word,Part_Of_Speech,CEFR_Level,Definition,Example_Sentence,Contextual_Meaning
+1,add,verb,A1,"To join something to something else so as to increase the size, number, or amount.",Add two spoonfuls of sugar to the hot black coffee and stir thoroughly.,append | combine | attach | insert
+2,ask,verb,A1,To say something in order to obtain information or an answer; request.,Feel free to ask the instructor if you need clarification on the lesson.,inquire | question | query | request
+3,be,verb,A1,"To exist; to have a specified state, quality, or identity.",They strive to be honest and compassionate in all their daily relationships.,exist | live | remain
+4,become,verb,A1,To begin to be; grow to be; develop into.,"With hard work and dedication, she hopes to become a physician.",turn into | develop into | evolve into
+5,bring,verb,A1,To take or go with someone or something to a place.,Remember to bring your textbook and notebook to class tomorrow.,fetch | carry | transport | deliver
+6,build,verb,A1,To construct something by putting parts or materials together.,"Engineers collaborate to build modern roads, bridges, and schools.",construct | erect | fabricate | assemble
+7,buy,verb,A1,To obtain in exchange for payment of money; purchase.,"We need to buy fresh bread, milk, and fruit at the neighborhood grocery.",purchase | acquire | obtain
+8,call,verb,A1,To give a specified name to someone; contact by telephone.,I will call you on your cell phone as soon as my train arrives at the station.,phone | ring | contact | name
+9,choose,verb,A1,To pick out or select someone or something as being the best or most appropriate.,You can choose between a hot cup of tea or fresh orange juice.,select | pick | opt for | decide on
+10,close,verb,A1,To move a door or window so that it covers or fills an opening.,Please close the front door gently so you do not wake the baby.,shut | seal | fasten | latch
+11,come,verb,A1,To move or travel toward or into a place thought of as near or familiar to the speaker.,Please come into the living room and sit beside the warm fire.,arrive | approach | advance | reach
+12,cook,verb,A1,"To prepare food, a dish, or a meal by combining and heating ingredients in various ways.",He learned how to cook delicious traditional lentil stew from his grandmother.,prepare | bake | simmer | roast
+13,create,verb,A1,To bring something into existence; cause to happen as a result of one's actions.,Talented software engineers create innovative programs to assist learners.,produce | generate | invent | design
+14,cut,verb,A1,"To make an opening, incision, or wound in something with a sharp-edged tool or object.",Use a sharp knife to cut the ripe watermelon into clean slices.,slice | chop | carve | sever
+15,dislike,verb,A1,To feel distaste for or hostility toward someone or something.,"He dislikes loud, crowded environments and prefers quiet library corners.",detest | hate | disapprove of
+16,do,verb,A1,"To perform an action, task, or duty.",Always do your homework carefully before watching television.,perform | execute | carry out | accomplish
+17,drink,verb,A1,To take a liquid into the mouth and swallow it.,Health experts advise people to drink plenty of clean water every day.,sip | swallow | consume | imbibe
+18,drive,verb,A1,To operate and control the direction and speed of a motor vehicle.,She learned how to drive safely in all challenging weather conditions.,steer | pilot | navigate
+19,eat,verb,A1,To put food into the mouth and chew and swallow it.,The family gathers together to eat dinner every evening around seven.,consume | dine | partake | feast
+20,explain,verb,A1,"To make an idea, situation, or problem clear to someone by describing it in more detail.",The teacher took time to explain the difficult grammar concept patiently.,clarify | describe | elucidate | expound
+21,feel,verb,A1,To experience an emotion or physical sensation; perceive by touch.,I feel energetic and optimistic about the upcoming semester.,sense | experience | perceive
+22,fill,verb,A1,To cause a space or container to become full or almost full.,Fill the glass pitcher with cold water and ice cubes for the guests.,replenish | pack | load | saturate
+23,find,verb,A1,"To discover someone or something by chance or unexpectedly, or after searching.",Did you find your missing house keys beneath the living room table?,discover | locate | encounter | detect
+24,finish,verb,A1,To bring a task or activity to an end; complete.,I hope to finish reading this entire chapter before bedtime.,complete | conclude | finalize | end
+25,fly,verb,A1,To move through the air using wings or aboard an aircraft.,Migrating birds fly thousands of miles to warmer southern regions in winter.,soar | glide | aviate | hover
+26,get,verb,A1,To come to have or hold something; receive or obtain.,She hopes to get good grades on her final chemistry examinations.,obtain | receive | acquire | gain
+27,give,verb,A1,To freely transfer the possession of something to someone.,They give donations of warm clothing and books to local shelters.,present | bestow | grant | donate
+28,go,verb,A1,To move from one place to another; travel.,We go to the public library together on Saturday afternoons.,travel | proceed | move | journey
+29,hate,verb,A1,To feel intense dislike or animosity toward.,He hates walking outdoors in freezing winter slush and mud.,detest | loathe | despise | abhor
+30,have,verb,A1,"To possess, own, or hold; experience or undergo.",We have a comprehensive dictionary library in our study room.,possess | own | hold | maintain
+31,hear,verb,A1,To perceive with the ear the sound made by someone or something.,Did you hear the distant roar of thunder over the mountain valley?,listen to | catch | perceive
+32,help,verb,A1,To make it easier for someone to do something by offering services or resources.,Older siblings often help younger children learn how to read.,assist | aid | support | succor
+33,introduce,verb,A1,To make someone known by name to another in person.,"Allow me to introduce my colleague Mary, who is an economist.",present | acquaint | announce
+34,jump,verb,A1,To push oneself off a surface and into the air by using the muscles in one's legs and feet.,The playful dog will jump excitedly whenever its owner grabs the leash.,leap | hop | bounce | bound
+35,know,verb,A1,"To be aware of through observation, inquiry, or information; have familiarity with.",Do you know the correct pronunciation of this English headword?,understand | comprehend | recognize | perceive
+36,learn,verb,A1,"To gain or acquire knowledge of or skill in something through study, experience, or being taught.",Dedicated students learn new vocabulary words through spaced repetition every day.,acquire | master | grasp | study
+37,let,verb,A1,To allow or permit someone or something to do something.,Please let the cat come indoors when the temperature drops.,allow | permit | authorize
+38,like,verb,A1,"To find agreeable, enjoyable, or satisfactory.",Children universally like reading illustrated animal adventure stories.,enjoy | appreciate | favor | relish
+39,listen,verb,A1,To give one's attention to a sound or speech; take notice of advice.,Students must listen attentively when the instructor delivers lessons.,attend | heed | pay attention | hear
+40,look,verb,A1,To direct one's gaze toward someone or something in a specified direction.,Look at the colorful rainbow spanning across the mountain horizon.,gaze | stare | watch | glance
+41,love,verb,A1,"To feel deep affection, fondness, or passionate attachment for.",Parents love their children and dedicate their lives to supporting them.,adore | cherish | treasure | worship
+42,make,verb,A1,To form something by putting parts together or combining substances; construct or create.,She plans to make a delicious blueberry pie for the festive banquet.,create | build | construct | produce
+43,need,verb,A1,To require something because it is essential or very important.,"Human beings need clean water, nutritious food, and shelter to survive.",require | demand | crave
+44,pay,verb,A1,"To give someone money that is owed for work done, goods received, or services rendered.","You can pay for your purchases using cash, credit card, or mobile transfer.",settle | remunerate | disburse | compensate
+45,plan,verb,A1,To decide on and arrange in advance an activity or project.,They plan to travel to the mountain sanctuary during summer break.,organize | design | schedule | scheme
+46,play,verb,A1,To engage in activity for enjoyment and recreation rather than serious purpose; perform music.,The children gathered in the green park to play soccer together.,participate | compete | perform
+47,prepare,verb,A1,To make something ready for use or consideration; get ready.,The chef began to prepare the ingredients for the evening banquet.,ready | arrange | assemble | organize
+48,put,verb,A1,To move someone or something into a particular place or position.,Please put the dictionary back on the wooden bookshelf after reading.,place | set | deposit | position
+49,read,verb,A1,To look at and comprehend the meaning of written or printed words.,She loves to read historical fiction before going to sleep at night.,peruse | scan | study | review
+50,rest,verb,A1,"To cease work or movement in order to relax, refresh oneself, or recover strength.","After a lengthy mountain hike, we stopped beside the stream to rest.",relax | unwind | pause | recuperate
+51,run,verb,A1,"To move at a speed faster than a walk, never having both or all the feet on the ground at.",Athletes run around the track every morning to build cardiovascular speed.,sprint | dash | jog | race
+52,see,verb,A1,To perceive with the eyes; discern visually.,"From the summit, you can see the entire panorama of the city below.",view | behold | observe | glimpse
+53,sell,verb,A1,To give or hand over something in exchange for money.,Local farmers gather on Saturday morning to sell organic produce.,vend | trade | retail | market
+54,share,verb,A1,To have a portion of something with another or others; distribute.,The kind boy offered to share his lunch sandwich with his classmate.,divide | distribute | split | partake
+55,sit,verb,A1,To adopt or be in a position in which one's weight is supported by one's buttocks rather than one's feet.,Please sit down on the comfortable sofa while I pour your tea.,take a seat | settle | rest
+56,sleep,verb,A1,To rest in a natural periodic state of suspension of voluntary consciousness.,It is essential for growing children to sleep eight hours every night.,slumber | snooze | rest | doze
+57,speak,verb,A1,"To say something in order to convey information, an opinion, or a feeling.","She can speak English, Amharic, and French fluently and articulately.",talk | converse | utter | communicate
+58,spell,verb,A1,To write or name the letters that form a word in correct sequence.,Could you please spell your last name so I can record it accurately?,write out | alphabetize
+59,stand,verb,A1,To have or maintain an upright position on one's feet.,Please stand up when the school principal enters the classroom.,rise | remain erect
+60,start,verb,A1,To begin doing something; come into being.,We start our daily vocabulary review promptly at nine o'clock.,begin | commence | initiate | launch
+61,stop,verb,A1,To come to an end; cease to happen or operate.,The vehicle had to stop immediately at the red traffic light.,halt | cease | pause | terminate
+62,study,verb,A1,To devote time and attention to acquiring knowledge on an academic subject.,They study in the quiet university library every weekday afternoon.,learn | review | revise | examine
+63,swim,verb,A1,To propel the body through water by using the limbs.,Children learn to swim safely in the shallow end of the pool.,bathe | dive | float
+64,take,verb,A1,To lay hold of something with one's hands; reach for and grasp.,Take an umbrella with you in case it begins to rain this afternoon.,grab | grasp | seize | obtain
+65,talk,verb,A1,To speak in order to give information or express ideas; engage in speech.,They sat on the park bench to talk about their plans for the holiday.,speak | converse | chat | discuss
+66,teach,verb,A1,To impart knowledge to or instruct someone as to how to do something.,Experienced professors teach complex scientific principles using clear examples.,instruct | educate | train | tutor
+67,think,verb,A1,"To have a particular opinion, belief, or idea in mind; reflect rationally.",I think that learning foreign languages opens exciting career opportunities.,believe | consider | reflect | reason
+68,touch,verb,A1,To come into or be in contact with someone or something with one's hand.,Please do not touch the delicate museum artifacts displayed on the pedestal.,feel | finger | contact | stroke
+69,travel,verb,A1,"To make a journey, typically of some length or abroad.",Many people travel overseas to experience new cultures and landscapes.,journey | voyage | tour | roam
+70,turn,verb,A1,To move in a circular direction wholly or partly around an axis or point; change direction.,Turn right at the next intersection to reach the supermarket.,rotate | pivot | veer | wheel
+71,wake up,verb,A1,To emerge or cause to emerge from sleep.,I usually wake up at six o'clock every morning to exercise.,awaken | arise | rouse
+72,walk,verb,A1,To move at a regular pace by lifting and setting down each foot in turn.,They walk through the park every evening to get fresh air and exercise.,stroll | saunter | step | pace
+73,want,verb,A1,To have a desire to possess or do something; wish for.,I want to visit the national museum to examine historical manuscripts.,desire | wish for | crave | aspire to
+74,wash,verb,A1,To clean with water and typically soap or detergent.,Always wash your hands thoroughly before eating fresh food.,cleanse | scrub | bathe | rinse
+75,watch,verb,A1,To look at or observe attentively over a period of time.,We sat on the balcony to watch the sunset over the shimmering sea.,observe | view | follow | monitor
+76,wear,verb,A1,"To have on one's body as clothing, decoration, or protection.",Be sure to wear a heavy woolen jacket when walking outdoors in the snow.,don | put on | sport | dress in
+77,write,verb,A1,"To mark letters, words, or symbols on a surface with a pen, pencil, or keyboard.",Please write your full name and residential address on the line provided.,compose | pen | draft | record
+78,a,noun,A1,Used when referring to someone or something for the first time in a text or conversation.,She adopted a friendly retriever puppy from the animal shelter.,an | one | any single
+79,actor,noun,A1,"A person whose profession is acting on the stage, in movies, or on television.",The talented actor delivered an unforgettable dramatic monologue.,performer | player | thespian
+80,actress,noun,A1,"A female actor in theater, film, or television productions.",She was awarded an international trophy for her role as leading actress.,female performer | thespian
+81,address,noun,A1,The particulars of the place where someone lives or an organization is situated.,Please provide your residential address for our postal delivery records.,location | residence | domicile
+82,adult,noun,A1,A fully grown or mature person.,Tickets cost ten dollars for an adult and five for a child.,grown-up | mature person
+83,africa,noun,A1,"The world's second largest and second most populous continent, rich in biodiversity and human heritage.",Ancient human history and diverse wildlife ecosystems thrive across Africa.,African continent
+84,afternoon,noun,A1,The time from noon or lunchtime until evening.,We attended an educational workshop at the city gallery yesterday afternoon.,post-midday
+85,age,noun,A1,The length of time that a person has lived or a thing has existed.,Children can start kindergarten at the age of five.,years of life | longevity
+86,airplane,noun,A1,A powered flying vehicle with fixed wings and a weight greater than that of the air it displaces.,The transatlantic airplane climbed gracefully above the fluffy clouds.,plane | aircraft | airliner | jet
+87,airport,noun,A1,"A complex of runways and buildings for the takeoff, landing, and maintenance of civil aircraft.",We arrived at the international airport two hours before departure.,airfield | aerodrome | terminal
+88,animal,noun,A1,"A living organism that feeds on organic matter, typically having specialized sense organs and nervous system.",The national wildlife park protects rare species of animals and birds.,creature | beast | fauna
+89,another,noun,A1,Used to refer to an additional person or thing of the same type as one already mentioned.,Could I please have another cup of hot chamomile tea?,one more | additional | alternate
+90,answer,noun,A1,"A thing said, written, or done to deal with or respond to a question.",She gave a clear and accurate answer during the oral exam.,reply | response | solution
+91,apartment,noun,A1,A suite of rooms forming one individual residence within a larger building.,She rented a bright one-bedroom apartment near the college campus.,flat | suite | condo
+92,apple,noun,A1,"The round fruit of a tree of the rose family, which typically has thin red or green skin and crisp.",She sliced a crisp red apple for a healthy afternoon snack.,pome | orchard fruit
+93,april,noun,A1,"The fourth month of the year, containing thirty days.",Gentle April rain showers help green crops sprout in the fields.,fourth month
+94,arm,noun,A1,Each of the two upper limbs of the human body from the shoulder to the hand.,He carried a stack of reference books under his left arm.,upper limb | bicep
+95,asia,noun,A1,"The largest and most populous continent on Earth, located primarily in the Eastern and Northern Hemispheres.",The Himalayas and the Caspian Sea are situated on the continent of Asia.,Asian continent
+96,august,noun,A1,"The eighth month of the year, containing thirty-one days.",August is typically the warmest vacation period of the summer season.,eighth month
+97,aunt,noun,A1,"The sister of one's father or mother, or the wife of one's uncle.",Aunt Helen sent me a handwritten birthday card and gift.,paternal aunt | maternal aunt
+98,baby,noun,A1,"A very young child, especially one newly born.",The sleeping baby looked peaceful in the cradle.,infant | newborn | toddler
+99,back,noun,A1,The rear surface of the human body from the shoulders to the hips.,He carried a lightweight backpack across his back during the hike.,spine | rear | backbone
+100,bag,noun,A1,"A container made of flexible material with an opening at the top, used for carrying things.",He packed his textbooks and pencil case securely inside his school bag.,pack | sack | satchel | backpack
+101,ball,noun,A1,A solid or hollow spherical or ovoid object used in games.,The children kicked the soccer ball across the green field.,sphere | orb | globe
+102,banana,noun,A1,A long curved fruit which grows in clusters and has soft pulpy flesh and yellow skin when ripe.,He peeled a ripe yellow banana to eat right after his athletic workout.,plantain | tropical fruit
+103,bank,noun,A1,"A financial establishment that uses deposits, makes loans, and offers financial services.",She stopped by the bank to deposit her monthly paycheck safely.,financial institution | treasury
+104,bathroom,noun,A1,A room containing a toilet and a sink and typically also a bathtub or shower.,Please wash your hands in the bathroom before sitting down to eat.,washroom | restroom | lavatory
+105,beach,noun,A1,"A pebbly or sandy shore, especially by the ocean between high- and low-water marks.",We walked barefoot along the sandy beach collecting colorful seashells.,shore | coastline | strand | seaside
+106,bed,noun,A1,"A piece of furniture for sleep or rest, typically a framework with a mattress.",He crawled into bed and fell asleep within five minutes.,cot | berth | mattress
+107,bedroom,noun,A1,A room furnished with a bed and used for sleeping.,She closed the curtains in her bedroom to enjoy a restful afternoon nap.,bedchamber | sleeping quarters
+108,bench,noun,A1,"A long seat for several people, typically made of wood or stone.",An elderly couple sat enjoying the afternoon sunshine on a wooden park bench.,seat | park bench | pew
+109,bicycle,noun,A1,"A vehicle composed of two wheels held in a frame one behind the other, propelled by pedals.",She commutes to school by bicycle along designated suburban bike paths.,bike | cycle | two-wheeler
+110,bird,noun,A1,"A warm-blooded egg-laying vertebrate distinguished by the possession of feathers, wings, and a beak.",A cheerful songbird chirped melodiously from the tall oak tree branch.,avian | fowl | songbird
+111,birthdate,noun,A1,"The specific day, month, and year on which someone was born.",Your birthdate is required to verify your passport application.,date of birth
+112,birthday,noun,A1,The anniversary of the day on which a person was born.,She received a lovely chocolate cake on her twenty-first birthday.,natal day | anniversary
+113,boat,noun,A1,"A small vessel for traveling on water, typically propelled by oars, sails, or an engine.",They rented a wooden row boat to fish on the quiet mountain lake.,watercraft | vessel | dinghy | skiff
+114,body,noun,A1,"The physical structure of a person or an animal, including the bones, flesh, and organs.",Regular exercise and fresh air keep the body healthy and energized.,physique | anatomy | figure
+115,book,noun,A1,A written or printed work consisting of pages glued or sewn together along one side and bound in covers.,He borrowed an illustrated natural science book from the local library.,volume | tome | publication
+116,boot,noun,A1,"A sturdy item of footwear covering the foot and ankle, and sometimes reaching up to the knee.",Waterproof hiking boots are essential when trekking through muddy forests.,footwear | galosh
+117,both,noun,A1,The two; the one as well as the other.,Both brothers study engineering and play classical violin in the orchestra.,the two | the pair | each
+118,bottle,noun,A1,"A container with a narrow neck, used for storing liquids.",Keep a reusable water bottle in your backpack when traveling outdoors.,flask | container | jug
+119,box,noun,A1,"A container with a flat base and sides, typically square or rectangular and having a lid.",The delivery driver placed the large cardboard parcel box on our front porch.,crate | carton | chest | container
+120,boy,noun,A1,A male child or young adolescent.,The young boy rode his bicycle across the park.,lad | youngster | youth
+121,boyfriend,noun,A1,A regular male companion in a romantic relationship.,She invited her boyfriend to dinner with her parents.,partner | beau | companion
+122,bread,noun,A1,"Food made of flour, water, and yeast or another leavening agent, mixed and baked.",Warm flatbread dipped in spicy lentil stew is a staple Ethiopian dish.,loaf | bakery food
+123,breakfast,noun,A1,"A meal eaten in the morning, the first of the day.",They sat down together for a hearty breakfast of eggs and toasted bread.,morning meal
+124,brother,noun,A1,A male sibling sharing the same parents.,His younger brother is learning how to ride a bicycle.,male sibling | bro
+125,brush,noun,A1,"An implement with a handle and bristles or wires, used for cleaning, grooming hair, or painting.",Use a soft brush to tidy your hair before heading to school.,hairbrush | broom | paintbrush
+126,building,noun,A1,"A structure with a roof and walls, such as a house, school, or store.",A modern glass building houses the corporate headquarters downtown.,structure | edifice | construction
+127,bus,noun,A1,"A large motor vehicle carrying passengers by road, typically one serving the public on a fixed route.",The municipal bus stops directly in front of the public library.,coach | omnibus | transit vehicle
+128,butter,noun,A1,A pale yellow fatty substance made by churning cream and used as a spread or in cooking.,Spread creamy butter over warm toasted bread rolls for breakfast.,dairy spread | ghee
+129,cabinet,noun,A1,A cupboard with drawers or shelves for storing or displaying articles.,Place the clean plates and glassware inside the kitchen cabinet.,cupboard | dresser | sideboard
+130,cake,noun,A1,"An item of soft sweet food made from a mixture of flour, shortening, eggs, sugar, and other ingredients, baked and.",They sliced a delicious multi-layered chocolate cake at the birthday party.,gateau | pastry | dessert
+131,canada,noun,A1,"A large country in northern North America, extending from the US border to the Arctic Ocean.","Canada is renowned worldwide for its vast wilderness, lakes, and maple syrup.",Great White North
+132,car,noun,A1,A four-wheeled road vehicle that is powered by an engine and is able to carry a small number of people.,He drove his family car along the scenic coastal highway.,automobile | vehicle | auto | sedan
+133,carrot,noun,A1,"A tapering orange-colored root eaten as a vegetable, noted for beta-carotene content.",Rabbits and farm animals love crunching on sweet raw carrots.,root vegetable
+134,cat,noun,A1,"A small domesticated carnivorous mammal with soft fur, a short snout, and retractile claws.",Our pet cat loves to curl up and sleep on the sunny windowsill.,feline | kitten | kitty
+135,ceiling,noun,A1,The upper interior surface of a room.,A classic crystal chandelier was suspended gracefully from the high ceiling.,overhead surface
+136,chair,noun,A1,"A separate seat for one person, typically with four legs and a back.",He pulled out a wooden chair and sat down at the kitchen table.,seat | stool
+137,cheek,noun,A1,Either side of the face below the eye and above the jaw.,The cold winter breeze gave a healthy rosy blush to her cheeks.,jowl | side of face
+138,cheese,noun,A1,"A food made from the pressed curds of milk, firm and elastic or soft in texture.",She grated sharp cheddar cheese over the hot macaroni dish.,dairy curd | cheddar | gouda
+139,chicken,noun,A1,A domestic fowl kept on farms for its eggs or meat.,The rooster crowed at dawn while hens and chickens pecked grain in the yard.,hen | rooster | poultry
+140,child,noun,A1,A young human being below the age of full adulthood.,Every growing child requires proper nutrition and exercise.,kid | youngster | infant
+141,chin,noun,A1,The protruding part of the face below the lower lip.,He rested his chin thoughtfully on his hand while reading the novel.,jawline | lower jaw
+142,chocolate milk,noun,A1,"A sweetened, chocolate-flavored milk beverage.","After sports practice, the students enjoyed cold glasses of chocolate milk.",cocoa milk | flavored milk
+143,city,noun,A1,"A large town, typically one serving as a regional center of commerce and culture.",The modern city skyline was illuminated with vibrant architectural lights.,metropolis | town | municipality
+144,class,noun,A1,A gathering of students who are taught together by an instructor.,Our morning English class practiced conversational dialogues in pairs.,lesson | course | lecture | seminar
+145,classroom,noun,A1,A room in which a class of pupils or students is taught.,The teacher wrote the new vocabulary list across the classroom whiteboard.,lecture room | schoolroom
+146,clock,noun,A1,A mechanical or electrical device for measuring and displaying time.,The grandfather clock in the dining room chimed twelve times at noon.,timepiece | timer | dial
+147,closet,noun,A1,"A small room or cupboard with a door, used for storing clothes or household items.",He hung his woolen suit and winter overcoat neatly inside the closet.,wardrobe | cupboard | locker
+148,clothes,noun,A1,"Items worn to cover the body, made of cloth or fabric.",She packed warm woolen clothes for her upcoming winter vacation.,clothing | apparel | garments | attire
+149,cloud,noun,A1,"A visible mass of condensed water vapor floating in the atmosphere, typically high above the ground.",A solitary fluffy white cloud drifted slowly across the azure sky.,vapor mass | nimbus
+150,coat,noun,A1,"An outer garment with sleeves, worn outdoors for warmth or protection against weather.",Put on your heavy winter coat before stepping outside into the snow.,overcoat | jacket | trench coat
+151,coffee,noun,A1,A hot drink made from the roasted and ground beanlike seeds of a tropical shrub.,Ethiopian coffee is celebrated worldwide for its rich floral aroma and depth.,espresso | brew | java
+152,college,noun,A1,"An educational institution or establishment, in particular one providing higher education.",She enrolled at the state agricultural college to study horticulture.,academy | university | institute
+153,color,noun,A1,The property possessed by an object of producing different sensations on the eye as a result of the way the.,Her favorite vibrant color to wear during festive celebrations is green.,hue | shade | tint | pigment
+154,continent,noun,A1,"Any of the world's main continuous expanses of land (Africa, Antarctica, Asia, Australia, Europe, North America, South America).",Africa is the second largest continent in both area and human population.,landmass | mainland
+155,cookie,noun,A1,"A small sweet, crisp or chewy cake made from batter or dough.",Grandmother baked a batch of warm oatmeal raisin cookies for us.,biscuit | wafer | pastry
+156,country,noun,A1,"A nation with its own government, occupying a particular territory.",Ethiopia is a beautiful country rich in cultural history and diverse landscapes.,nation | state | land | realm
+157,cousin,noun,A1,A child of one's uncle or aunt.,"During summer vacation, I enjoy playing soccer with my cousins.",first cousin | kinsman
+158,cow,noun,A1,A fully grown female bovine animal kept on farms for producing milk or beef.,Dairy farmers milk each healthy cow twice a day in the morning and evening.,bovine | cattle | heifer
+159,cream,noun,A1,"The thick, white or pale yellow fatty liquid that rises to the top when milk is left to stand.",Strawberries topped with whipped dairy cream make a classic summer dessert.,heavy cream | whipped cream
+160,cucumber,noun,A1,"A long, green-skinned fruit with watery flesh, usually eaten raw in salads.","She sliced cool, fresh cucumber into the Mediterranean summer salad.",gherkin | salad vegetable
+161,cup,noun,A1,"A small, bowl-shaped container for drinking from, typically having a handle.",She poured steaming hot coffee into a ceramic cup for her guest.,mug | teacup | chalice
+162,dad,noun,A1,An informal or affectionate name for a father.,Dad drove us to soccer practice early this morning.,father | papa | pop
+163,date,noun,A1,The day of the month or year as specified by a number.,Please write down today's calendar date at the top of your test paper.,calendar day | appointment day
+164,daughter,noun,A1,A female child in relation to her parents.,Their talented daughter plays classical violin in the orchestra.,female child | girl
+165,day,noun,A1,Each of the twenty-four-hour periods reckoned from one midnight to the next.,We spent a pleasant sunny day hiking around the scenic mountain lake.,daytime | 24 hours
+166,december,noun,A1,"The twelfth and final month of the year, containing thirty-one days.",Cities light up festive decorative trees throughout December.,twelfth month
+167,dentist,noun,A1,A person qualified to treat the diseases and conditions that affect the teeth and gums.,Visit your dentist every six months for a routine teeth cleaning.,dental surgeon | orthodontist
+168,desk,noun,A1,"A piece of furniture with a flat or sloped surface for writing, drawing, or reading.",She organized her textbooks and pens neatly upon her study desk.,writing table | bureau | workstation
+169,dining room,noun,A1,A room in a house in which meals are eaten.,The family assembled around the table in the dining room for supper.,eating room | mess
+170,dinner,noun,A1,"The main meal of the day, taken either around midday or in the evening.",They reserved a cozy table at the Italian restaurant for Saturday dinner.,supper | evening meal | banquet
+171,dish,noun,A1,"A shallow container used for holding, serving, or cooking food.",She placed the steaming rice in a large ceramic serving dish.,plate | bowl | platter | vessel
+172,doctor,noun,A1,A qualified practitioner of medicine; a physician.,The doctor listened to the patient's breathing and prescribed medicine.,physician | practitioner | clinician
+173,dog,noun,A1,"A domesticated carnivorous mammal known for loyalty, trainability, and companionship.",The friendly dog wagged its tail enthusiastically when its owner returned home.,canine | hound | pup
+174,doll,noun,A1,"A small model of a human being, typically used as a toy for children.",The little girl gently dressed her porcelain doll in a handmade dress.,figurine | toy figure | puppet
+175,door,noun,A1,"A hinged, sliding, or revolving barrier at the entrance to a building, room, or vehicle.",Remember to lock the front door securely before going to sleep.,entryway | doorway | gate
+176,dress,noun,A1,A one-piece garment for a woman or girl that covers the body and extends down over the legs.,She wore an elegant emerald green dress to the wedding reception.,gown | frock
+177,driver,noun,A1,"A person who drives a vehicle such as an automobile, bus, or truck.",The bus driver greeted passengers warmly as they boarded at the stop.,chauffeur | motorist | operator
+178,ear,noun,A1,The organ of hearing and balance in humans and other vertebrates.,He leaned in close and whispered the secret into her ear.,auditory organ
+179,earth,noun,A1,The planet on which we live; the world.,Astronauts took breathtaking photographs of Earth from outer space.,planet | world | globe | terra
+180,east,noun,A1,The direction toward the point of the horizon where the sun rises at the equinox.,The bright morning sun rises over the coastal hills in the east.,eastern direction | orient
+181,egg,noun,A1,"An oval or round body laid by a female bird or reptile, consisting of an ovum surrounded by protective albumen.",He scrambled two fresh farm eggs with tomatoes and onions for breakfast.,ovum | poultry egg
+182,eight,noun,A1,The cardinal number equal to 7 plus 1; 8.,An octopus has eight flexible feeding tentacles.,octet
+183,eighteen,noun,A1,The cardinal number equal to 17 plus 1; 18.,Citizens gain full legal adulthood and voting rights at eighteen.,adulthood age
+184,eighty,noun,A1,The cardinal number equal to eight tens; 80.,Her grandfather celebrated his eightieth jubilee in good health.,fourscore
+185,elephant,noun,A1,"A very large plant-eating mammal with a prehensile trunk, long curved ivory tusks, and large ears.",The majestic elephant used its flexible trunk to shower cool river water over its back.,pachyderm | tusker
+186,elevator,noun,A1,A platform or compartment housed in a shaft for raising and lowering people or things.,Take the elevator to the eighth floor to reach the medical clinic.,lift
+187,eleven,noun,A1,The cardinal number equal to 10 plus 1; 11.,A soccer team has eleven players on the field.,numbers | mathematics
+188,engineer,noun,A1,"A person who designs, builds, or maintains engines, machines, or public works.",The civil engineer supervised the construction of the new concrete bridge.,builder | designer | developer
+189,eraser,noun,A1,"A piece of soft rubber or plastic, used to rub out something written or drawn with a pencil.",The student used a white rubber eraser to correct a spelling error.,rubber | corrector
+190,europe,noun,A1,"A continent situated in the northern hemisphere, bounded by the Atlantic Ocean, the Arctic Ocean, and the Mediterranean Sea.",Many historic castles and cultural archives are preserved across Europe.,European continent
+191,evening,noun,A1,"The period of time at the end of the day, usually from about 6 p.m. to bedtime.",The entire family relaxed together by the fireplace in the evening.,nightfall | dusk | twilight
+192,eye,noun,A1,Each of a pair of globular organs in the head through which people and animals see.,She shaded her eyes from the bright afternoon sunlight.,vision organ | eyeball
+193,face,noun,A1,The front part of a person's head from the forehead to the chin.,A warm smile lit up her face when she saw her old friend.,countenance | visage | features
+194,fall,noun,A1,"The season between summer and winter, characterized by falling leaves; autumn.",Farmers harvest ripe crops and collect apples during the crisp fall.,autumn | harvest season
+195,family,noun,A1,"A group consisting of parents and children living together, or all descendants of a common ancestor.",Our family gathers every Sunday evening for a home-cooked dinner.,household | relatives | kin
+196,father,noun,A1,A male parent.,My father taught me how to grow vegetables in our yard.,dad | papa | patriarch
+197,february,noun,A1,"The second month of the year, having 28 days in common years and 29 in leap years.",February has twenty-nine days during a quadrennial leap year.,second month
+198,fifteen,noun,A1,The cardinal number equal to 14 plus 1; 15.,The soccer match resumed after a fifteen-minute intermission.,quarter hour
+199,fifty,noun,A1,The cardinal number equal to five tens; 50.,The United States is composed of fifty individual states.,half century
+200,fire,noun,A1,"Combustion or burning, in which substances combine chemically with oxygen from that air and typically give out light and heat.",We sat around the cozy campfire singing songs and keeping warm.,blaze | flames | combustion
+201,fish,noun,A1,A limbless cold-blooded vertebrate animal with gills and fins living wholly in water.,Colorful tropical fish swam gracefully between the branches of coral.,aquatic animal | sea creature
+202,five,noun,A1,The cardinal number equal to 4 plus 1; 5.,Each human hand typically has five fingers.,quintet
+203,floor,noun,A1,"The lower surface of a room, or all the rooms on a particular level of a building.",He spilled a glass of fruit juice across the polished wooden floor.,ground | level | storey
+204,flower,noun,A1,"The seed-bearing part of a plant, consisting of reproductive organs typically surrounded by a brightly colored corolla.",She placed a vase of fragrant fresh flowers on the dining table.,blossom | bloom | floral bud
+205,food,noun,A1,Any nutritious substance that people or animals eat or drink in order to maintain life and growth.,Nutritious and balanced food provides essential energy for human activity.,nourishment | sustenance | fare | cuisine
+206,foot,noun,A1,"The lower extremity of the leg below the ankle, upon which a person stands or walks.",He dipped his bare foot into the cool mountain stream.,paw | hoof
+207,forest,noun,A1,A large area covered chiefly with trees and undergrowth.,Ancient cedar and pine trees thrive inside the dense national forest.,woods | woodland | timberland | jungle
+208,fork,noun,A1,An implement with two or more prongs used for lifting food to the mouth or holding it when cutting.,Set the table with a knife and fork beside each dining plate.,utensil | pronged tool
+209,forty,noun,A1,The cardinal number equal to four tens; 40.,A standard working week consists of forty hours.,numbers | mathematics
+210,four,noun,A1,The cardinal number equal to 3 plus 1; 4.,A square is a geometric shape with four equal sides.,quartet
+211,fourteen,noun,A1,The cardinal number equal to 13 plus 1; 14.,A fortnight is a period comprising fourteen consecutive days.,two weeks
+212,france,noun,A1,"A country in western Europe famous for art, cuisine, and history.",Millions of international tourists visit the museums and landmarks of France every year.,French Republic
+213,friday,noun,A1,The day of the week before Saturday and following Thursday.,Colleagues wished each other a pleasant weekend on Friday afternoon.,workweek end
+214,fridge,noun,A1,A refrigerator; an appliance or compartment which is artificially kept cool for food storage.,Remember to put the milk and goat cheese back inside the fridge.,refrigerator | cooler
+215,friend,noun,A1,A person with whom one has a bond of mutual affection and trust.,A true friend always listens when you face difficulties.,companion | pal | buddy | mate
+216,fruit,noun,A1,The sweet and fleshy product of a tree or other plant that contains seed and can be eaten as food.,Fresh seasonal fruit like mangoes and oranges provides abundant vitamin C.,produce | berry
+217,game,noun,A1,"An activity that one engages in for amusement, diversion, or competitive challenge.",The family sat around the living room table enjoying a board game.,match | contest | pastime | play
+218,garden,noun,A1,"A piece of ground adjoining a house, used for growing flowers, fruit, or vegetables.",Grandmother grows fragrant roses and sweet herbs in her backyard garden.,yard | lawn | plot
+219,germany,noun,A1,"A major federal republic in central Europe, renowned for engineering and culture.",Berlin and Munich are famous cultural and industrial cities in Germany.,Deutschland | Federal Republic
+220,girl,noun,A1,A female child or young adolescent.,The little girl smiled brightly as she read her storybook.,lass | schoolgirl | young lady
+221,girlfriend,noun,A1,A regular female companion in a romantic relationship.,He bought a bouquet of flowers for his girlfriend.,partner | sweetheart | companion
+222,glass,noun,A1,A drinking container made from transparent glass.,He drank a tall glass of cold mineral water after his morning workout.,tumbler | goblet | beaker
+223,grandchild,noun,A1,A child of one's son or daughter.,She smiled warmly as she held her infant grandchild.,grandkid | descendant
+224,grandfather,noun,A1,The father of one's father or mother.,Grandfather carved a beautiful wooden toy for his grandson.,grandpa | granddad
+225,grandmother,noun,A1,The mother of one's father or mother.,My grandmother tells captivating bedtime stories from her youth.,grandma | granny | nan
+226,grape,noun,A1,"A small, round, smooth-skinned berry, typically purple, red, or green, growing in clusters on a vine.",Sweet green grapes are harvested in autumn for table fruit and winemaking.,vine berry | berry
+227,guitar,noun,A1,"A stringed musical instrument, with a fretted fingerboard, typically having six strings, played by strumming or plucking.",He tuned the acoustic guitar carefully before playing a traditional folk ballad.,stringed instrument | acoustic
+228,hair,noun,A1,"Any of the fine threadlike strands growing from the skin of humans, especially on the head.","She brushed her long, shiny brown hair before leaving for the concert.",locks | tresses
+229,half,noun,A1,Either of two equal parts into which something can be divided.,The lecture lasted an hour and a half before concluding.,fifty percent | portion
+230,hand,noun,A1,"The end part of a person's arm beyond the wrist, including the palm, fingers, and thumb.",She held the child's hand securely while crossing the busy street.,palm | fist
+231,hat,noun,A1,"A shaped covering for the head worn for warmth, sun protection, or fashion.",She wore a wide-brimmed straw hat to shade her face at the beach.,cap | bonnet | fedora
+232,head,noun,A1,"The upper part of the human body, containing the brain, eyes, ears, nose, and mouth.",She nodded her head gently in agreement with the teacher's suggestion.,skull | cranium
+233,helicopter,noun,A1,A type of aircraft which derives both lift and propulsion from horizontally revolving overhead blades.,A rescue helicopter landed on the hospital rooftop to transport the patient.,chopper | copter | whirlybird
+234,hiking,noun,A1,"The activity of going for long, brisk walks, especially in the country or mountains.",They packed sturdy boots and water bottles for a weekend of mountain hiking.,trekking | rambling | backpacking
+235,history,noun,A1,"The study of past events, particularly in human affairs and civilizations.","In history class, we examined ancient architecture and monuments.",annals | chronicles | past records
+236,hobby,noun,A1,An activity done regularly in one's leisure time for pleasure and relaxation.,Gardening and landscape painting are among his favorite creative hobbies.,pastime | leisure activity | pursuit
+237,home,noun,A1,"The place where one lives permanently, especially as a member of a family or household.",There is nothing more comforting than returning home after a long journey.,residence | domicile | abode
+238,homework,noun,A1,Schoolwork that a pupil is required to do at home outside school hours.,He finishes his reading and math homework before having dinner.,assignment | school task
+239,honey,noun,A1,"A sweet, sticky yellowish-brown fluid made by bees and other insects from nectar collected from flowers.",Drizzle pure wild honey over hot pancakes for a delightful natural sweetness.,nectar | sweet syrup
+240,horse,noun,A1,"A large plant-eating domesticated mammal with solid hooves and a flowing mane, used for riding.",The cowboy rode his chestnut horse swiftly across the open valley.,steed | equine | stallion
+241,hospital,noun,A1,An institution providing medical and surgical treatment and nursing care for sick or injured people.,The ambulance rushed the patient directly to the emergency hospital.,clinic | infirmary | medical center
+242,hotel,noun,A1,"An establishment providing accommodation, meals, and other services for travelers and tourists.",We reserved a double bedroom at a comfortable waterfront hotel.,inn | lodge | guesthouse | motel
+243,hour,noun,A1,A period of time equal to sixty minutes.,It takes approximately one hour to drive from the town to the capital.,sixty minutes
+244,house,noun,A1,"A building for human habitation, especially one that is lived in by a family.",They planted a colorful flower garden in front of their cozy brick house.,home | residence | dwelling
+245,hundred,noun,A1,The cardinal number equal to ten tens; 100.,A century comprises exactly one hundred calendar years.,century
+246,husband,noun,A1,A married man in relation to his spouse.,Her husband works as an architectural engineer downtown.,spouse | partner | groom
+247,ice,noun,A1,"Frozen water, a brittle, transparent crystalline solid.",The surface of the lake froze solid with thick crystalline ice.,frost | glacier | frozen water
+248,ice cream,noun,A1,A soft frozen food made with sweetened and flavored milk fat.,Children queued excitedly by the park kiosk to purchase vanilla ice cream.,gelato | frozen dessert
+249,island,noun,A1,A piece of land surrounded entirely by water.,They chartered a wooden sailboat to visit the secluded tropical island.,isle | islet | atoll
+250,italy,noun,A1,"A country in southern Europe with a long Mediterranean coastline, shaped like a boot.",Rome and Florence in Italy are renowned for Renaissance art and architecture.,Italian Republic
+251,jacket,noun,A1,"A short coat that reaches to the waist or hips, with sleeves and a front opening.",He wore a stylish leather jacket during the evening stroll.,blazer | windbreaker | coat
+252,jam,noun,A1,A sweet spread or conserve made from fruit and sugar boiled to a thick consistency.,She spread strawberry fruit jam generously over warm breakfast toast.,preserve | marmalade | jelly
+253,january,noun,A1,"The first month of the year, in the northern hemisphere usually the second month of winter.",January often brings the coldest freezing temperatures of the season.,first month
+254,jeans,noun,A1,"Hard-wearing casual trousers made of denim fabric, commonly blue.",Denim jeans are popular worldwide for their durability and everyday comfort.,denims | dungarees
+255,job,noun,A1,A paid position of regular employment.,She applied for an administrative assistant job at the local university.,occupation | post | position | career
+256,juice,noun,A1,The liquid obtained from or present in fruit or meat.,He drank a refreshing glass of freshly squeezed orange juice with breakfast.,fruit drink | nectar
+257,july,noun,A1,"The seventh month of the year, containing thirty-one days.",Families love spending sunny July afternoons relaxing at the seaside beach.,seventh month
+258,june,noun,A1,"The sixth month of the year, containing thirty days.",Summer school vacation begins for primary students in late June.,sixth month
+259,kitchen,noun,A1,A room or area where food is prepared and cooked.,The delicious scent of vegetable soup filled the entire kitchen.,cookhouse | galley
+260,knee,noun,A1,The joint between the thigh and the lower leg in humans.,He bent his knee carefully while tying his athletic shoelace.,knee joint | patella
+261,knife,noun,A1,"An instrument composed of a blade fixed into a handle, used for cutting or as a weapon.",Use a clean bread knife to cut thin slices from the freshly baked loaf.,blade | cutter | utensil
+262,language,noun,A1,"The principal method of human communication, consisting of words used in a structured and conventional way.",Learning a second language broadens your worldview and cognitive skills.,tongue | dialect | idiom | speech
+263,last name,noun,A1,The surname that a person shares with other members of their family.,Her given name is Mary and her last name is Smith.,surname | family name
+264,leg,noun,A1,Each of the two long body parts that we use when walking.,Running daily strengthens the muscles in your lower leg.,lower limb | limb
+265,lemon,noun,A1,"A yellow, oval citrus fruit with thick skin and fragrant, acidic juice.",Squeeze a wedge of fresh lemon into your hot tea for a bright flavor.,citrus | acid fruit
+266,lion,noun,A1,"A large tawny-colored big cat of Africa and India, the male having a magnificent shaggy mane.",The male lion let out a powerful roar that resounded across the savanna.,king of beasts | big cat
+267,lip,noun,A1,Either of the two fleshy parts which form the upper and lower edges of the opening of the mouth.,She applied protective balm to her dry lips before going outdoors in the frost.,mouth edge
+268,living room,noun,A1,"A room in a home for general and informal everyday use, socializing, and relaxing.",We gathered on the sofa in the living room to watch our favorite comedy movie.,lounge | sitting room | family room
+269,lunch,noun,A1,"A meal eaten in the middle of the day, typically one that is lighter than an evening meal.",We packed sandwiches and apples to eat for lunch in the park.,luncheon | midday meal
+270,magazine,noun,A1,"A periodical publication containing articles and illustrations, typically covering a particular subject or area of interest.",She purchased an international architectural magazine at the railway kiosk.,periodical | journal | glossy
+271,man,noun,A1,An adult human male.,A kind man helped the elderly traveler cross the street.,gentleman | adult male
+272,map,noun,A1,"A diagrammatic representation of an area of land or sea showing physical features, cities, and roads.",The travelers consulted a printed map to navigate the winding streets.,chart | plan | atlas | guide
+273,march,noun,A1,"The third month of the year, traditionally marking the onset of spring.",Many colorful wild flowers begin blooming across the meadows in March.,third month
+274,marker,noun,A1,"A felt-tipped pen used for writing bold lines, labeling, or drawing.",The lecturer used a red marker to emphasize key formulas on the board.,felt-tip | highlighter
+275,may,noun,A1,"The fifth month of the year, containing thirty-one days.",University students prepare for final examinations throughout May.,fifth month
+276,meal,noun,A1,Any of the regular occasions in day when a reasonably large amount of food is eaten.,Breakfast is universally recognized as an essential meal of the day.,repast | feast | spread
+277,meat,noun,A1,The flesh of an animal (especially a mammal or bird) as food.,Red meat such as beef and lamb provides rich dietary iron.,flesh | poultry | game
+278,milk,noun,A1,"An opaque white fluid rich in fat and protein, secreted by female mammals for the nourishment of their young.",He poured cold whole milk over his morning bowl of cereal.,dairy | lactose fluid
+279,minute,noun,A1,A unit of time equal to sixty seconds or one sixtieth of an hour.,Please hold on for one minute while I fetch the requested document.,sixty seconds
+280,miss,noun,A1,A title used before an unmarried woman's surname or full name.,Miss Taylor is our new elementary English teacher.,young lady | mademoiselle
+281,mom,noun,A1,An informal or affectionate name for a mother.,Mom packed a nutritious lunchbox for my school day.,mother | mama | mummy
+282,monday,noun,A1,"The first day of the standard working week, next after Sunday.",Students return to school with renewed enthusiasm on Monday.,workweek start
+283,money,noun,A1,A current medium of exchange in the form of coins and banknotes.,He saved enough money to purchase a reliable used automobile.,cash | currency | funds | capital
+284,month,noun,A1,Each of the twelve named divisions of a calendar year.,February is the shortest month of the calendar year.,calendar month | period
+285,moon,noun,A1,"The natural satellite of the earth, visible (chiefly at night) by reflected light from the sun.",A luminous full moon cast silvery light across the quiet harbor.,lunar orb | satellite
+286,morning,noun,A1,The period of time between sunrise and noon.,She drinks a cup of black coffee and reads the news every morning.,daybreak | dawn | forenoon
+287,mother,noun,A1,A female parent.,Her mother prepared a warm bowl of soup for lunch.,mom | mama | matriarch
+288,motorcycle,noun,A1,A two-wheeled vehicle that is powered by a motor and has no pedals.,He wore a protective helmet before riding his motorcycle to work.,motorbike | cycle | two-wheeler
+289,mountain,noun,A1,A large natural elevation of the earth's surface rising abruptly from the surrounding level.,Snow crowns the rugged summit of the majestic mountain year-round.,peak | mount | elevation | ridge
+290,mouse,noun,A1,"A small rodent that typically has a pointed snout, relatively large ears, and a long slender tail.",The tiny field mouse scurried under the wooden floorboards to hide.,rodent | murine
+291,mouth,noun,A1,The opening in the lower part of the human face through which food is taken and vocal sounds emitted.,She took a refreshing sip of water and wiped her mouth with a napkin.,lips | oral cavity
+292,movie,noun,A1,A story or event recorded by a camera as a set of moving images and shown in a theater or.,We watched an engaging historical adventure movie with our friends.,film | motion picture | cinema piece
+293,movie theater,noun,A1,A theater where films are shown for public entertainment; cinema.,The local movie theater was packed for the premiere of the new thriller.,cinema | film house | picture house
+294,mr,noun,A1,A title used before a man's surname or full name.,Mr. Johnson teaches physics at our high school.,mister | sir
+295,mrs,noun,A1,A title used before a married woman's surname or full name.,Mrs. Davis organized the annual charity bake sale.,madam | ma'am
+296,museum,noun,A1,"A building in which objects of historical, scientific, or cultural interest are exhibited.",The national museum displays ancient royal artifacts and fossils.,gallery | archive | exhibition hall
+297,music,noun,A1,"Vocal or instrumental sounds (or both) combined in such a way as to produce beauty of form, harmony, and expression.",Listening to soft acoustic music helps her relax after a busy workday.,melody | song | tune | harmony
+298,name,noun,A1,"A word or set of words by which a person, animal, place, or thing is known and addressed.",Please write your full legal name on the registration form.,title | appellation | designation
+299,nature,noun,A1,"The phenomena of the physical world collectively, including plants, animals, the landscape, and other features of Earth.",She finds great peace walking through pristine forests and observing nature.,natural world | wilderness | environment
+300,neck,noun,A1,The part of a person's body connecting the head with the rest of the body.,He wrapped a warm woolen scarf around his neck against the winter cold.,throat | nape
+301,nephew,noun,A1,A son of one's brother or sister.,My nephew is starting his freshman year at university this autumn.,brother's son | sister's son
+302,newspaper,noun,A1,"A printed publication consisting of folded sheets containing news, feature articles, and advertisements.",Grandfather reads the morning newspaper while sipping hot black coffee.,gazette | daily paper | daily | broadsheet
+303,niece,noun,A1,A daughter of one's brother or sister.,He bought an illustrated fairy tale book for his five-year-old niece.,brother's daughter | sister's daughter
+304,night,noun,A1,The period of darkness in each twenty-four hours between sunset and sunrise.,Stars shone brightly across the clear sky throughout the quiet night.,nighttime | dark hours
+305,nine,noun,A1,The cardinal number equal to 8 plus 1; 9.,A cat is proverbially said to possess nine lives.,nonet
+306,nineteen,noun,A1,The cardinal number equal to 18 plus 1; 19.,Nineteen is the final teenage year before turning twenty.,numbers | mathematics
+307,ninety,noun,A1,The cardinal number equal to nine tens; 90.,A right angle measures exactly ninety degrees.,numbers | mathematics
+308,north,noun,A1,"The direction in which a compass needle points, directly opposite to south.",Migratory geese fly toward the north during the warming spring months.,northern direction
+309,nose,noun,A1,"The part projecting above the mouth on the face of a person, used for breathing and smelling.",The fragrant aroma of fresh baking filled his nose as he entered the bakery.,snout | nostrils
+310,notebook,noun,A1,"A book of plain, ruled, or unruled paper for writing notes in.",She jotted down the lecture key points in her spiral notebook.,notepad | journal | logbook
+311,november,noun,A1,"The eleventh month of the year, containing thirty days.",Chilly winds blow across the countryside during brisk November mornings.,eleventh month
+312,nurse,noun,A1,"A person trained to care for the sick or infirm, especially in a hospital.",The caring nurse checked the patient's temperature every two hours.,caregiver | medic
+313,october,noun,A1,"The tenth month of the year, containing thirty-one days.",Autumn leaves turn brilliant gold and brown throughout October.,tenth month
+314,one,noun,A1,The lowest cardinal number; 1.,She bought one fresh loaf of whole wheat bread.,single | unit
+315,onion,noun,A1,"A swollen edible bulb with a pungent taste and smell, composed of several concentric layers.",Chop an aromatic onion finely before browning it in hot olive oil.,allium | bulb vegetable
+316,pajamas,noun,A1,A loose-fitting pair of jacket and trousers or soft clothing worn in bed for sleeping.,Children put on comfortable pajamas before brushing their teeth at bedtime.,sleepwear | nightclothes
+317,pants,noun,A1,"A piece of clothing covering the lower body from waist to ankles, with separate legs.",He bought a durable pair of navy blue pants for work.,trousers | slacks
+318,parent,noun,A1,A father or mother of a person or animal.,Every dedicated parent strives to provide a safe home.,guardian | mother or father
+319,park,noun,A1,"A large public green area in a town, used for recreation and leisure.",Families strolled along shaded trails inside the municipal park.,public garden | commons | recreation ground
+320,part,noun,A1,"An amount or section which, with others, makes up the whole of something.",The library is an essential part of the educational university campus.,section | portion | component | segment
+321,passport,noun,A1,An official document issued by a government certifying identity and citizenship for international travel.,Keep your passport and boarding pass readily accessible at airport security.,travel document | identification
+322,peach,noun,A1,"A round stone fruit with juicy yellow flesh, downy pinkish-yellow skin, and a rough furrowed pit.","The ripe summer peach was sweet, fragrant, and bursting with juice.",stone fruit | nectarine
+323,pen,noun,A1,"An instrument for writing or drawing with ink, typically consisting of a metal nib or ball.",Please sign the official course enrollment document with a blue pen.,ballpoint | fountain pen | biro
+324,pencil,noun,A1,"An instrument for writing or drawing, consisting of a thin stick of graphite enclosed in wood.",Use a sharp graphite pencil to sketch your initial botanical diagram.,lead pencil | graphite
+325,people,noun,A1,Human beings in general or considered collectively.,Many people gathered in the town square for the festival.,persons | folk | public | citizens
+326,pepper,noun,A1,A hot-tasting powdered spice prepared from dried green or black peppercorns.,Season the grilled salmon with a pinch of sea salt and ground black pepper.,seasoning | spice | condiment
+327,person,noun,A1,A human being regarded as an individual.,Each person in the team brings a unique set of skills.,individual | human | soul
+328,phone number,noun,A1,A sequence of digits used to dial and contact a specific telephone.,Could you write down your cell phone number so I can call you?,telephone number | contact number
+329,piano,noun,A1,A large keyboard musical instrument with a wooden case enclosing a soundboard and metal strings.,She practiced playing classical melodies on the grand piano every afternoon.,keyboard instrument | grand piano
+330,pig,noun,A1,"An omnivorous domesticated hoofed mammal with a stout body, short legs, and a snout.",Pigs cooled off in the mud pool during the scorching afternoon heat.,swine | hog | boar
+331,pillow,noun,A1,"A rectangular cloth bag filled with soft feathers, foam, or down, used to support the head in bed.","He rested his weary head upon the comfortable, plush pillow and fell asleep.",cushion | headrest | bolster
+332,pizza,noun,A1,A dish of Italian origin consisting of a flat round base of dough baked with a topping of tomatoes and.,They ordered a large wood-fired mushroom and cheese pizza for dinner.,pie | flatbread dish
+333,place,noun,A1,"A particular position, point, or area in space; a location.","The mountain sanctuary is a wonderful, peaceful place to visit.",location | spot | site | area
+334,plate,noun,A1,"A flat dish, typically circular and made of porcelain or ceramic, from which food is eaten.",She served a warm pancake onto each breakfast plate.,dish | platter | saucer
+335,police,noun,A1,"The civil force of a national or local government, responsible for prevention of crime and enforcement of laws.",The police arrived swiftly to investigate the reported vehicle break-in.,law enforcement | constabulary | officers
+336,police officer,noun,A1,A warranted law enforcement officer employed to maintain order and prevent crime.,The police officer directed vehicle traffic around the busy intersection.,constable | patrolman | cop
+337,post office,noun,A1,The public department or corporation responsible for postal services and parcel delivery.,He went to the post office to mail an international package to his family.,mail center | postal station
+338,potato,noun,A1,A starchy plant tuber that is one of the most widely grown and versatile food crops.,Mashed potato served with warm gravy is a comforting dinner dish.,spud | tuber
+339,preschool,noun,A1,A school for children who are not yet old enough to attend kindergarten.,Toddlers learn to socialize and draw colorful pictures in preschool.,nursery school | pre-k | kindergarten
+340,purse,noun,A1,"A small bag used especially by women for carrying money, cards, and personal items.",She kept her house keys and cell phone safely inside her leather purse.,handbag | clutch | pocketbook
+341,question,noun,A1,A sentence or phrase formulated to ask for information or test knowledge.,The curious student raised her hand to ask a thoughtful question.,query | inquiry | problem
+342,rabbit,noun,A1,"A burrowing plant-eating mammal with long ears, long hind legs, and a short fluffy tail.",A wild brown rabbit hopped quickly across the vegetable garden.,hare | bunny | coney
+343,rain,noun,A1,Moisture condensed from the atmosphere that falls visibly in separate drops.,The sound of gentle rain tapping on the window helped him relax.,rainfall | precipitation | shower | downpour
+344,restaurant,noun,A1,A place where people pay to sit and eat meals that are cooked and served on the premises.,We dined at a traditional Ethiopian restaurant renowned for its hospitality.,bistro | diner | eatery | cafe
+345,rice,noun,A1,"The starchy grain of a cereal grass cultivated in warm climates, boiled or steamed for food.",Steamed jasmine rice served alongside vegetable stir-fry makes a wholesome dinner.,grain | paddy rice
+346,river,noun,A1,"A large natural stream of water flowing in a channel to the sea, a lake, or another river.",The historic town was built along the banks of a winding river.,stream | waterway | brook | watercourse
+347,roof,noun,A1,The structure forming the upper covering of a building or vehicle.,Heavy winter rain drummed steadily against the metal roof.,top | canopy | rooftop
+348,room,noun,A1,Space that can be occupied which has its own floor and ceiling within a building.,The hotel provided a spacious room with a balcony overlooking the bay.,chamber | compartment
+349,salad,noun,A1,"A cold dish of fresh, raw, or cooked vegetables, typically seasoned with oil, vinegar, or other dressing.","We tossed a vibrant garden salad of crisp lettuce, tomatoes, and cucumbers.",greens | slaw | tossed vegetables
+350,salt,noun,A1,"A white crystalline substance, sodium chloride, used for seasoning or preserving food.",Sprinkle a pinch of sea salt over the roasted potatoes to enhance their flavor.,sodium chloride | seasoning
+351,sandwich,noun,A1,"An item of food consisting of two pieces of bread with meat, cheese, or other filling between them.",He packed a healthy chicken and salad sandwich for his midday meal.,sub | burger | wrap
+352,saturday,noun,A1,"The day of the week before Sunday and following Friday, usually part of the weekend.",Saturday is our favorite day for grocery shopping and family picnics.,weekend day
+353,school,noun,A1,"An institution for educating children, or any place of study and instruction.",Children walk to the neighborhood elementary school together every morning.,academy | institution | college
+354,science,noun,A1,The systematic study of the structure and behavior of the physical and natural world through observation and experiment.,Biology and chemistry are fundamental branches of natural science.,disciplines | natural sciences
+355,sea,noun,A1,The expanse of salt water that covers most of the earth's surface and surrounds its landmasses.,They boarded a ferry to cross the calm turquoise sea.,ocean | deep | brine | waters
+356,season,noun,A1,"Each of the four divisions of the year (spring, summer, autumn, and winter) marked by particular weather patterns.",Autumn is her favorite season because the crisp air is refreshing.,period | climate division
+357,second,noun,A1,The basic unit of time equal to one sixtieth of a minute.,The sprinter broke the national running record by a fraction of a second.,moment | instant
+358,september,noun,A1,"The ninth month of the year, containing thirty days.",The new academic school year officially commences in September.,ninth month
+359,seven,noun,A1,The cardinal number equal to 6 plus 1; 7.,There are seven days in a full calendar week.,septet
+360,seventeen,noun,A1,The cardinal number equal to 16 plus 1; 17.,She celebrated her seventeenth birthday with close friends.,numbers | mathematics
+361,seventy,noun,A1,The cardinal number equal to seven tens; 70.,The speed limit on the national expressway is seventy miles per hour.,numbers | mathematics
+362,sheep,noun,A1,"A domesticated ruminant animal with a thick woolen coat, kept in flocks for wool and meat.",A flock of fluffy white sheep grazed peacefully across the green hillside.,lamb | ewe | ram
+363,ship,noun,A1,A large boat for transporting people or goods by sea.,The cargo ship crossed the ocean carrying hundreds of shipping containers.,vessel | liner | watercraft
+364,shirt,noun,A1,"A garment for the upper body made of cotton or fabric, with a collar, sleeves, and buttons.",He ironed his white cotton shirt before attending the job interview.,top | blouse | button-down
+365,shoe,noun,A1,"A protective outer covering for the human foot, typically having a sturdy sole and heel.",Polish your black leather shoes before attending the formal dinner.,footwear | boot | sneaker
+366,sister,noun,A1,A female sibling sharing the same parents.,My older sister helps me review my algebra homework.,female sibling | sis
+367,six,noun,A1,The cardinal number equal to 5 plus 1; 6.,A standard cube has six flat square faces.,sextet
+368,sixteen,noun,A1,The cardinal number equal to 15 plus 1; 16.,"In several countries, youth can obtain a driving permit at sixteen.",numbers | mathematics
+369,sixty,noun,A1,The cardinal number equal to six tens; 60.,There are sixty seconds in one standard minute.,numbers | mathematics
+370,skirt,noun,A1,A woman's outer garment fastened around the waist and hanging down around the legs.,She wore a pleated wool skirt with brown leather boots.,kilt | mini | petticoat
+371,sky,noun,A1,The region of the atmosphere and outer space seen from the earth.,Flocks of migrating geese flew high across the open blue sky.,heavens | firmament | atmosphere
+372,snake,noun,A1,"A long limbless reptile which has no eyelids, a short tail, and venomous or constricting jaws.",The gardener backed away when he spotted a garden snake coiled beside the rocks.,serpent | reptile | viper
+373,soap,noun,A1,"A substance used with water for washing and cleaning, made of a compound of natural oils or fats with sodium.",Wash your hands thoroughly with antibacterial soap and warm water.,cleanser | detergent | bar soap
+374,soccer,noun,A1,A game played by two teams of eleven players with a round ball that may not be touched with the.,Thousands of excited fans gathered at the stadium to watch the soccer derby.,football | association football
+375,sock,noun,A1,"A soft knitted garment for the foot and lower part of the leg, worn inside a shoe.",Always put on clean cotton socks to keep your feet dry and comfortable.,stocking | hosiery
+376,sofa,noun,A1,"A long comfortable seat with a back and arms, for two or more people; a couch.",She curled up on the living room sofa with a captivating novel.,couch | settee | divan
+377,son,noun,A1,A male child in relation to his parents.,Their eldest son graduated from medical college yesterday.,male child | boy
+378,soup,noun,A1,"A liquid dish, typically made by boiling meat, fish, or vegetables in stock or water.",A hot bowl of vegetable soup warms you up quickly on a chilly evening.,broth | chowder | stew | consomme
+379,south,noun,A1,The direction opposite to north; toward the South Pole.,Swallows fly toward the warmer south before harsh winter sets in.,southern direction
+380,spain,noun,A1,"A country on Europe's Iberian Peninsula, known for Mediterranean coasts and rich traditions.",Madrid and Barcelona are prominent cultural hubs located in Spain.,Kingdom of Spain
+381,spoon,noun,A1,"An implement consisting of a small, shallow oval or round bowl on a long handle, used for eating or stirring.",He stirred his hot herbal tea with a stainless steel teaspoon.,utensil | ladle
+382,sport,noun,A1,An activity involving physical exertion and skill in which an individual or team competes against another or others.,Basketball and track are popular competitive sports in high schools.,athletics | game | physical recreation
+383,spring,noun,A1,The season between winter and summer in which plants begin to bloom.,Migratory birds return from southern climes with the arrival of spring.,springtime | renewal season
+384,star,noun,A1,"A fixed luminous point in the night sky that is a large, remote incandescent body.",Countless twinkling stars illuminated the dark night sky over the desert.,celestial body | sun | luminary
+385,station,noun,A1,"A regular stopping place on a public transport route, especially on a railway line.",Passengers waited patiently on the platform at the railway station.,terminal | depot | stop
+386,stomach,noun,A1,"The internal organ in which the first part of digestion occurs, or the front belly region.",Drinking cold water on an empty stomach felt incredibly refreshing.,belly | abdomen | tummy
+387,stove,noun,A1,An apparatus for cooking or heating that operates by burning fuel or using electricity.,She stirred the vegetable soup gently while it simmered on the electric stove.,cooker | range | oven
+388,street,noun,A1,"A public road in a city, town, or village, typically with houses and buildings on one or both sides.",Children rode their bicycles safely along the quiet residential street.,road | avenue | lane | boulevard
+389,student,noun,A1,"A person who is studying at a school, college, or university.",The diligent student reviews her grammar notes thoroughly before every quiz.,pupil | scholar | learner | apprentice
+390,subway,noun,A1,An underground electric railway system in a city.,The metropolitan subway provides fast transit across congested urban districts.,metro | underground | tube
+391,sugar,noun,A1,"A sweet crystalline substance obtained from various plants, especially sugar cane and sugar beet.",Add one teaspoon of natural brown sugar to balance the tartness of the tea.,sweetener | sucrose
+392,suit,noun,A1,"A set of outer clothes made of the same fabric, typically including a jacket and trousers or a skirt.",The attorney wore a tailored dark gray suit in the courtroom.,ensemble | tuxedo
+393,summer,noun,A1,"The warmest season of the year, between spring and autumn.",Children enjoy swimming in the community pool throughout the warm summer.,summertime
+394,sun,noun,A1,The star around which the earth orbits and from which it receives light and warmth.,The golden sun rose gently above the eastern ocean horizon.,solar orb | daylight star
+395,sunday,noun,A1,"The day of the week before Monday and following Saturday, celebrated by many as a day of rest.",The local market is bustling with shoppers every Sunday morning.,first day of week
+396,supermarket,noun,A1,A large self-service grocery store selling foods and household goods.,"She bought fresh vegetables, milk, and bakery bread at the supermarket.",grocery store | grocery | market
+397,sweater,noun,A1,"A knitted garment worn on the upper body for warmth, typically with long sleeves.","She knitted a soft, warm woolen sweater for her daughter's birthday.",jumper | pullover | cardigan
+398,swimming,noun,A1,The sport or activity of propelling oneself through water using the limbs.,Daily swimming in the community pool builds cardiovascular endurance.,aquatics | bathing | water sport
+399,swimsuit,noun,A1,"A garment worn for swimming, bathing, or sunbathing.",She bought a colorful one-piece swimsuit for her beach holiday.,bathing suit | swimwear | trunks
+400,t-shirt,noun,A1,A casual short-sleeved cotton undershirt or outer shirt with a crew neckline.,He prefers wearing a comfortable cotton t-shirt and jeans during weekends.,tee | jersey top
+401,table,noun,A1,"A piece of furniture with a flat top and one or more legs, providing a level surface for eating or.",We gathered around the dining table for our evening meal.,board | counter
+402,taxi,noun,A1,A motor vehicle licensed to transport passengers in return for payment of a fare.,We took a yellow city taxi from the international airport to our hotel.,cab | taxicab | hackney
+403,tea,noun,A1,A hot drink made by infusing dried crushed leaves of the tea plant in boiling water.,She brewed a fragrant pot of spiced green tea for her afternoon guests.,infusion | herbal tea | chai
+404,teacher,noun,A1,"A person who teaches, especially in a school.",Our English teacher explained the grammar rules clearly on the whiteboard.,instructor | educator | tutor
+405,ten,noun,A1,The cardinal number equal to 9 plus 1; 10.,The metric measurement system relies on multiples of ten.,decade
+406,tennis,noun,A1,A game in which two or four players strike a ball with rackets over a net stretched across a court.,He reserved a public grass court to play tennis with his classmate.,racket sport | court game
+407,that,noun,A1,Used to identify a specific person or thing observed or heard by the speaker at a distance.,That historic lighthouse on the cliff guides ships safely into harbor.,the indicated | yonder
+408,thing,noun,A1,An inanimate material object as distinct from a living sentient being.,Put every thing back into its proper storage place when you finish working.,object | article | item | entity
+409,thirteen,noun,A1,The cardinal number equal to 12 plus 1; 13.,"In many cultures, thirteen is considered an unlucky number.",baker's dozen
+410,thirty,noun,A1,The cardinal number equal to three tens; 30.,September and April each have thirty calendar days.,numbers | mathematics
+411,this,noun,A1,Used to identify a specific person or thing close at hand or being indicated.,This dictionary contains comprehensive definitions and natural example sentences.,these | the present
+412,three,noun,A1,The cardinal number equal to 2 plus 1; 3.,There are three apples resting in the fruit bowl.,trio | triplet
+413,thursday,noun,A1,The day of the week before Friday and following Wednesday.,The doctor holds afternoon clinic appointments every Thursday.,fourth weekday
+414,ticket,noun,A1,"A piece of paper or card that gives the holder a certain right, especially to travel on transport.",Show your train ticket and identification card to the conductor.,pass | boarding pass | voucher | coupon
+415,tie,noun,A1,"A strip of material worn for decoration around the neck under a collar, tied in a knot at the front.",He straightened his silk neck tie in the mirror before the ceremony.,necktie | cravat | bow tie
+416,time,noun,A1,"The continuous progression of existence and events in the past, present, and future.",Do you know what time the library closes this evening?,hour | period | moment
+417,tomato,noun,A1,"A glossy red, or occasionally yellow, pulpy edible fruit eaten raw or cooked as a vegetable.",Fresh vine-ripened tomatoes add rich flavor to homemade pasta sauce.,solanum fruit
+418,tooth,noun,A1,"Each of a set of hard, enamel-coated structures in the jaws used for biting and chewing.",Dentists recommend brushing each tooth thoroughly twice every day.,fang | molar | incisor
+419,toothbrush,noun,A1,"A small brush with a long handle, used for cleaning the teeth.",Dentists recommend replacing your nylon toothbrush every three months.,dental brush | tooth cleaner
+420,town,noun,A1,"An urban area that has a name, defined boundaries, and local government, larger than a village.","They live in a quiet, friendly town surrounded by rolling hills.",settlement | municipality | borough
+421,train,noun,A1,A series of connected railway carriages or wagons moved by a locomotive or integral motor.,The morning passenger train arrived at the central terminal on time.,locomotive | railway car | express
+422,train station,noun,A1,A railway station where passenger trains stop to load and unload travelers.,The historic central train station was constructed in the nineteenth century.,railway station | depot | terminus
+423,trash can,noun,A1,A receptacle where household waste and rubbish are deposited.,Dispose of empty soda cans and food wrappers into the metal trash can.,garbage can | dustbin | wastebasket
+424,tree,noun,A1,"A woody perennial plant, typically having a single stem or trunk growing to a considerable height.",The sprawling branches of the ancient fig tree provided welcome shade.,woody plant | timber
+425,truck,noun,A1,"A large, heavy motor vehicle for using to transport goods, materials, or troops.",The delivery truck transported crates of fresh apples to the market.,lorry | van | pickup | hauler
+426,tuesday,noun,A1,The day of the week before Wednesday and following Monday.,Our science laboratory class meets every Tuesday afternoon.,second weekday
+427,tv,noun,A1,A television set or system for transmitting visual images and sound.,We watched an exciting documentary about wild animals on TV last night.,television | monitor | telly
+428,twelve,noun,A1,The cardinal number equal to 11 plus 1; 12.,"A baker's dozen contains thirteen, but a regular dozen is twelve.",dozen
+429,twenty,noun,A1,The cardinal number equal to two tens; 20.,A score is an archaic term denoting a set of twenty items.,score
+430,two,noun,A1,The cardinal number equal to 1 plus 1; 2.,They ordered two cups of hot black coffee.,pair | couple
+431,uncle,noun,A1,"The brother of one's father or mother, or the husband of one's aunt.",Uncle Robert showed us how to fish in the mountain stream.,paternal uncle | maternal uncle
+432,underwear,noun,A1,"Clothing worn under outer clothes, usually next to the skin for hygiene and comfort.",Ensure you pack plenty of clean underwear for the multi-day trip.,undergarments | underclothes
+433,united kingdom,noun,A1,"A country in northwestern Europe comprising England, Scotland, Wales, and Northern Ireland.",London is the bustling capital city of the United Kingdom.,UK | Britain | Great Britain
+434,united states,noun,A1,A federal republic in North America comprising fifty states.,Many international university students travel to the United States to study.,America | USA | the States
+435,university,noun,A1,A high-level educational institution in which students study for degrees and academic research is done.,He completed his graduate engineering dissertation at the city university.,academy | tertiary institution
+436,van,noun,A1,"A medium-sized motor vehicle, typically without side windows in the rear, used for transporting goods or people.",The moving van arrived early to transport our furniture to the new apartment.,minivan | delivery van | carrier
+437,vegetable,noun,A1,"A plant or part of a plant used as food, typically as a savory dish.",Eating fresh green vegetables daily promotes excellent physical health.,veggie | greens | produce
+438,video game,noun,A1,A game played by electronically manipulating images produced by a computer program on a screen.,He plays cooperative video games online with his childhood friends on weekends.,electronic game | computer game
+439,violin,noun,A1,"A stringed musical instrument of treble pitch, played with a horsehair bow.",The orchestra soloist played a breathtaking violin concerto.,fiddle | stringed instrument
+440,volleyball,noun,A1,"A game for two teams in which a large ball is hit by hand over a high net, the aim.",We played a lively game of beach volleyball under the summer sun.,net ball sport
+441,waiter,noun,A1,A man whose job is to serve customers at their tables in a restaurant.,The courteous waiter brought us fresh water and the evening menu.,server | steward
+442,waitress,noun,A1,A woman whose job is to serve customers at their tables in a restaurant.,The friendly waitress recommended the chef's specialty pasta dish.,female server | stewardess
+443,wall,noun,A1,A continuous vertical brick or stone structure that encloses or divides an area of land.,They hung framed landscape photographs on the living room wall.,partition | barrier
+444,water,noun,A1,"A colorless, transparent, odorless liquid that forms the seas, lakes, and rivers and is the basis of the fluids of.",Drink plenty of pure filtered water throughout the day to stay well hydrated.,aqua | drinking water | H2O
+445,weather,noun,A1,"The state of the atmosphere at a place and time as regards heat, dryness, sunshine, wind, rain, etc.",The morning radio reported mild and sunny weather across the valley.,climate | atmospheric conditions
+446,wednesday,noun,A1,The day of the week before Thursday and following Tuesday.,The community library hosts a children's book club on Wednesday.,midweek day
+447,week,noun,A1,"A period of seven consecutive days, usually calculated from Monday or Sunday.",He travels to our regional office once every alternate week.,seven days | workweek
+448,weekend,noun,A1,"Saturday and Sunday, especially as a time for leisure and relaxation from work.",What enjoyable activities are you planning for the upcoming weekend?,days off | rest days
+449,west,noun,A1,The direction toward the point of the horizon where the sun sets at the equinox.,Evening shadows lengthen as the sun sets quietly in the west.,western direction | occident
+450,what,noun,A1,Asking for information specifying something; interrogative pronoun.,What is the accurate pronunciation and definition of this headword?,which thing
+451,who,noun,A1,What or which person or people; interrogative pronoun.,Who is the primary instructor for the biology lecture this semester?,which person | whom
+452,wife,noun,A1,A married woman in relation to her spouse.,He celebrated ten wonderful years of marriage with his wife.,spouse | partner | bride
+453,window,noun,A1,"An opening in a wall, door, or vehicle, fitted with glass in a frame to admit light or air.","She stood beside the open window, breathing in the fresh morning breeze.",casement | pane
+454,winter,noun,A1,"The coldest season of the year, between autumn and spring.",A dense blanket of frost covered the yard during the harsh winter.,wintertime | cold season
+455,woman,noun,A1,An adult human female.,The woman spoke clearly to the conference audience.,lady | adult female
+456,work,noun,A1,Activity involving mental or physical effort done in order to achieve a purpose or earn income.,He commutes thirty minutes each morning to get to his workplace.,labor | employment | job | duty
+457,yard,noun,A1,"An area of ground surrounded by walls or adjoining a building, typically grass-covered.",The dog chased a tennis ball joyfully across the grassy front yard.,lawn | courtyard | grounds
+458,year,noun,A1,"The time taken by Earth to make one complete revolution around the sun, equal to 365 or 366 days.",She studied abroad in Europe for one transformative academic year.,calendar year | twelvemonth
+459,zero,noun,A1,The figure or number 0; nothing or none.,The thermometer dropped to zero degrees last night.,nil | naught | cipher
+460,african,adjective,A1,"Relating to the continent of Africa, its nations, or its people.",Traditional African rhythms and percussion inspired world music genres.,from Africa
+461,american,adjective,A1,Relating to the United States of America or its people.,Jazz is an influential American music genre celebrated across the globe.,US | patriotic
+462,angry,adjective,A1,"Feeling or showing strong annoyance, displeasure, or hostility; enraged.",The customer was understandably angry about the delayed shipment.,furious | mad | irritated | annoyed
+463,asian,adjective,A1,"Relating to Asia or its people, languages, or cultures.","The exhibition celebrated ancient Asian calligraphy, ceramics, and silk textiles.",from Asia | oriental
+464,bad,adjective,A1,Of poor quality or a low standard; not pleasant or acceptable.,Eating spoiled food can cause a bad stomachache.,poor | awful | harmful | terrible
+465,beautiful,adjective,A1,Pleasing the senses or mind aesthetically.,The artist painted a beautiful portrait of the mountain sunset.,lovely | attractive | gorgeous | stunning
+466,big,adjective,A1,"Of considerable size, extent, or intensity.",They moved into a big family house with a spacious yard.,large | huge | great | massive
+467,black,adjective,A1,Of the darkest color owing to the absence of or complete absorption of light.,He wore a stylish black overcoat to protect against the chilly rain.,ebony | pitch-black | dark
+468,blue,adjective,A1,Of a color like that of a clear sky or deep sea.,The clear blue water of the tropical bay sparkled in the sun.,azure | cobalt | navy
+469,british,adjective,A1,"Relating to Great Britain or the United Kingdom, or to its people.",Traditional British afternoon tea is served with warm scones and jam.,UK | English | Britannic
+470,brown,adjective,A1,"Of a color produced by mixing red, yellow, and black, as of dark wood or rich soil.",She wore sturdy brown leather boots suitable for hiking forest trails.,chestnut | chocolate | tan
+471,canadian,adjective,A1,"Relating to Canada, its people, or its culture.",He cheered for the Canadian hockey team during the winter championship.,from Canada
+472,cheap,adjective,A1,"Low in price, especially in relation to value; inexpensive.",Fresh fruits and vegetables are delightfully cheap at the weekend farmers market.,inexpensive | affordable | low-cost
+473,clean,adjective,A1,"Free from dirt, marks, or unwanted matter.",Always wash your hands with soap so they are thoroughly clean before meals.,spotless | tidy | hygienic | immaculate
+474,closed,adjective,A1,"Not open; having access blocked, shut, or locked.",The supermarket is closed on Sunday evenings after eight o'clock.,shut | locked | sealed
+475,cloudy,adjective,A1,Covered with or characterized by clouds; overcast.,"It was a cloudy morning, but the rain held off until twilight.",overcast | gloomy | sunless
+476,cold,adjective,A1,"Of or at a low or relatively low temperature, especially when compared with the human body.",Wear your woolen gloves because the outside air is bitterly cold.,chilly | freezing | icy | frosty
+477,correct,adjective,A1,Free from error; in accordance with fact or truth.,Ensure that your postal address is fully correct before submitting the order.,accurate | right | true | exact
+478,dark,adjective,A1,Having very little or no light; of a deep shade of color.,It was completely dark outside once the street lights turned off.,dim | shadowy | deep-toned
+479,different,adjective,A1,Not the same as another or each other; unlike in nature or form.,"Each continent has very different wildlife, cultures, and traditions.",distinct | unlike | varied | dissimilar
+480,difficult,adjective,A1,"Needing much effort or skill to accomplish, deal with, or understand.",Solving this advanced algebra equation proved rather difficult.,hard | challenging | tough | tricky
+481,dirty,adjective,A1,Covered or marked with an unclean substance; soiled.,His boots were completely dirty after walking along the muddy farm track.,soiled | muddy | filthy | grubby
+482,easy,adjective,A1,Achieved without great effort; presenting few difficulties.,The initial vocabulary quiz was very easy for all the students.,simple | effortless | straightforward
+483,european,adjective,A1,"Relating to Europe, its nations, or its cultural heritage.",Classical European architecture influenced many municipal buildings downtown.,continental | from Europe
+484,excited,adjective,A1,Very enthusiastic and eager; stirred emotionally.,She was thrilled and excited to embark on her overseas flight.,enthusiastic | eager | thrilled | animated
+485,expensive,adjective,A1,Costing a lot of money; high-priced.,Designer apparel at the luxury boutique is quite expensive.,costly | pricey | high-priced
+486,false,adjective,A1,Not in accordance with fact or reality; untrue or artificial.,The newspaper had to publish a retraction after sharing false rumors.,untrue | incorrect | fake | erroneous
+487,fast,adjective,A1,Moving or capable of moving at high speed; rapid.,Cheetahs are famous for being the fastest land animals.,quick | rapid | swift | speedy
+488,fat,adjective,A1,Having a large amount of excess body flesh or fat.,The veterinarian advised regular walks for our slightly fat family cat.,chubby | overweight | plump | stout
+489,fine,adjective,A1,Of very good quality; in satisfactory health and spirits.,"I was sick last week, but I am feeling completely fine now.",well | healthy | alright | satisfactory
+490,french,adjective,A1,"Relating to France, its people, or its language.",Freshly baked French baguettes and croissants have a delightfully flaky texture.,Gallic | from France
+491,german,adjective,A1,"Relating to Germany, its people, or its language.",Many classical composers like Beethoven were of German origin.,Teutonic | from Germany
+492,good,adjective,A1,To be desired or approved of; having the required qualities; morally right.,Drinking clean water and resting is good for your health.,fine | pleasant | beneficial | excellent
+493,gray,adjective,A1,"Of a color intermediate between black and white, as of ash or lead.",Thick gray storm clouds obscured the morning sun completely.,ash | silver | slate
+494,green,adjective,A1,Of the color between blue and yellow in the spectrum; colored like grass or emeralds.,Lush green grass carpeted the entire municipal park after the rain.,emerald | verdant | olive
+495,happy,adjective,A1,Feeling or showing pleasure or contentment; joyful.,The entire team was happy after winning the regional soccer cup.,joyful | cheerful | delighted | glad
+496,heavy,adjective,A1,Of great weight; difficult to lift or move.,He struggled to carry the heavy suitcase up the stairs.,weighty | hefty | burdensome
+497,high,adjective,A1,Extending relatively far upward; situated at a great elevation.,The old medieval castle sits atop a high rocky hill.,tall | elevated | lofty
+498,hot,adjective,A1,Having a high degree of heat or a high temperature.,A cool glass of lemonade is delightful on a hot summer afternoon.,warm | boiling | scorching
+499,hungry,adjective,A1,Feeling or displaying the need for food; starved.,The children were hungry after swimming for two hours at the pool.,starving | famished | peckish
+500,incorrect,adjective,A1,"Not in accordance with fact, truth, or standard rules; wrong.",The password entered was incorrect; please attempt to log in again.,wrong | mistaken | inaccurate | flawed
+501,italian,adjective,A1,"Relating to Italy, its people, or its renowned culinary traditions.",We enjoyed authentic Italian pizza and homemade pasta at the waterfront bistro.,from Italy
+502,light,adjective,A1,Having considerable brightness or pale hue; not dark.,"She painted the bedroom walls in a light, calming pastel blue.",pale | bright | luminous
+503,low,adjective,A1,Not high or tall; lying below the normal level.,The river water level was unusually low during the dry season.,short | sunken | shallow
+504,married,adjective,A1,Joined in marriage; having a spouse.,The happily married couple celebrated their silver wedding anniversary.,wedded | wed | partnered
+505,new,adjective,A1,"Not existing before; made, introduced, or discovered recently.",She bought a brand-new laptop for her university coursework.,modern | recent | fresh | novel
+506,next,adjective,A1,"Coming immediately after the present one in time, order, or position.",We plan to take our family vacation next month.,following | subsequent | upcoming
+507,old,adjective,A1,Having lived for a long time; not young or recent.,My grandfather loves listening to vintage music on his old radio.,aged | elderly | ancient | vintage
+508,open,adjective,A1,"Allowing access, passage, or a view through an empty space; not closed.",The pharmacy is open twenty-four hours a day for medical emergencies.,unlocked | accessible | unclosed
+509,orange,adjective,A1,"Of a color between red and yellow, like that of a ripe orange fruit.",The setting sun painted the evening clouds in brilliant orange tones.,tangerine | apricot | coral
+510,pink,adjective,A1,Of a pale red color made by mixing red and white.,Delicate pink blossoms covered the cherry trees in springtime.,rose | pastel red | blush
+511,poor,adjective,A1,Lacking sufficient money to live at a standard considered comfortable.,Volunteers distributed food parcels to poor families across the district.,impoverished | needy | underprivileged
+512,purple,adjective,A1,"Of a color intermediate between red and blue, like lavender or ripe grapes.",The monarch draped a regal purple velvet cloak over his shoulders.,violet | lavender | plum
+513,rainy,adjective,A1,Having a great deal of rain; wet.,"Remember to carry your umbrella on this dark, rainy morning.",wet | showery | drizzly
+514,ready,adjective,A1,"In a suitable state for an activity, action, or situation; prepared.",Are you ready to present your research project to the class?,prepared | set | equipped
+515,red,adjective,A1,"Of a color at the end of the spectrum, like that of blood or ripe strawberries.",Ripe red apples hung heavily from the orchard branches.,crimson | scarlet | ruby
+516,rich,adjective,A1,Having a great deal of money or assets; wealthy.,The successful merchant became a very rich benefactor in the community.,wealthy | affluent | prosperous | well-off
+517,right,adjective,A1,"Morally good, justified, or acceptable; correct in fact.",She was pleased to receive the right answer on her chemistry exam.,correct | accurate | proper | true
+518,sad,adjective,A1,Feeling or showing sorrow; unhappy.,She felt deeply sad when her childhood friend moved to another town.,unhappy | sorrowful | depressed | gloomy
+519,same,adjective,A1,"Identical; not different in nature, appearance, or quality.",The two brothers attend the same elementary school downtown.,identical | matching | equal
+520,single,adjective,A1,Only one; not married or having a serious romantic relationship.,He remains single and focuses diligently on his engineering career.,unmarried | unattached | solo
+521,slow,adjective,A1,Moving or operating at a low speed; not quick.,The tortoise moved at a steady but slow pace across the garden path.,sluggish | unhurried | gradual
+522,small,adjective,A1,Of a size that is less than normal or usual.,A small bird built its nest beneath the roof eaves.,little | tiny | compact | petite
+523,smart,adjective,A1,Having or showing a quick-witted intelligence; clever.,"She found a smart, time-saving solution to the math problem.",clever | intelligent | bright | sharp
+524,snowy,adjective,A1,Covered with snow; characterized by snowfall.,Children pulled their wooden sleds up the snowy mountain slope.,snow-covered | frosty | wintry
+525,spanish,adjective,A1,"Relating to Spain, its people, or the Spanish language.",Spanish is one of the most widely spoken languages in the Americas.,Castilian | Hispanic
+526,stupid,adjective,A1,Lacking intelligence or common sense; foolish in judgment.,It was a stupid mistake to leave the front door unlocked overnight.,foolish | silly | mindless | unwise
+527,sunny,adjective,A1,Bright with sunlight; characterized by clear sunshine.,We enjoyed a lovely picnic under the sunny blue sky.,bright | sunlit | cloudless | clear
+528,sure,adjective,A1,Confident in what one thinks or knows; having no doubt.,I am sure we will catch our flight if we depart right now.,certain | confident | positive | convinced
+529,tall,adjective,A1,Of great or more than average height.,The basketball player was tall enough to touch the net without jumping.,high | towering | statuesque
+530,thin,adjective,A1,"Having little, or too little, flesh or fat on the body; slender.",The marathon runner has a lean and remarkably thin physical build.,slender | slim | lean | skinny
+531,thirsty,adjective,A1,Feeling a need to drink liquid; parched.,"After running two miles under the sun, he was extremely thirsty.",parched | dehydrated
+532,true,adjective,A1,In accordance with fact or reality; accurate or genuine.,Everything she stated about the historic landmark is completely true.,real | factual | authentic | genuine
+533,ugly,adjective,A1,"Unpleasant or repulsive, especially in appearance.",The abandoned building was covered in cracked paint and ugly graffiti.,unattractive | hideous | unsightly
+534,unsure,adjective,A1,"Not feeling, showing, or done with confidence and certainty.",He was unsure which bus route would take him to the museum.,uncertain | doubtful | hesitant | undecided
+535,white,adjective,A1,"Of the color of milk, fresh snow, or sunlight.",The mountain peak was blanketed in pristine white snow.,snow-white | ivory | pale
+536,wrong,adjective,A1,"Not correct in action, judgment, or fact; erroneous.",He apologized after dialing the wrong phone number accidentally.,incorrect | mistaken | erroneous | false
+537,yellow,adjective,A1,"Of the color between green and orange in the spectrum, like ripe lemons or gold.",Bright yellow sunflowers turned their heads toward the morning sun.,golden | amber | lemon
+538,young,adjective,A1,Having lived or existed for only a short time; not old.,The young student showed impressive enthusiasm for learning foreign languages.,youthful | adolescent | juvenile
+539,above,preposition,A1,In extended space over and not touching; higher than.,Bright twinkling stars shone radiantly above the quiet desert hills.,over | higher than | atop
+540,across,preposition,A1,From one side to the other of something with clear limits.,The pedestrian walked carefully across the pedestrian crosswalk.,over | through | transverse to
+541,after,preposition,A1,In the time following an event or another period.,We went for a relaxing stroll through the park after dinner.,following | subsequent to | past
+542,at,preposition,A1,"Expressing location or arrival in a particular place, or specifying a point in time.",The international train arrives at the central terminal at five o'clock.,in | by | upon
+543,before,preposition,A1,During the period of time preceding a particular event or date.,Always wash your hands thoroughly with soap before eating a meal.,prior to | ahead of | in advance of
+544,behind,preposition,A1,At the back of; on the farther side of something.,The cat curled up and fell asleep behind the warm living room sofa.,at the rear of | in back of
+545,below,preposition,A1,At a lower level or layer than with something directly overhead.,The valley village nestled peacefully below the high mountain peak.,under | beneath | underneath
+546,between,preposition,A1,"In or into the space which separates two places, people, or objects.",The narrow cobblestone alley runs between two historic stone houses.,amid | in the middle of | betwixt
+547,in,preposition,A1,Expressing the situation of something that is or appears to be enclosed or surrounded by something else.,There are several sharp pencils resting in the wooden container.,inside | within | into
+548,near,preposition,A1,At or to a short distance away in space or time.,Our family home is located near the university campus.,close to | adjacent to | alongside
+549,next to,preposition,A1,Immediately adjacent to; side by side with.,The student sat next to her classmate during the morning lecture.,beside | alongside | by
+550,on,preposition,A1,Physically in contact with and supported by a surface.,He placed his notebook and cell phone on the study table.,upon | atop | resting on
+551,over,preposition,A1,Extending directly upward from or at a higher level than.,A magnificent double rainbow appeared over the green valley after the downpour.,above | atop | overhead
+552,to,preposition,A1,Expressing motion in the direction of a particular location.,We walked to the local grocery store to purchase fresh fruits.,toward | in the direction of | unto
+553,under,preposition,A1,Extending or directly below something; beneath.,The puppy took shelter under the wooden dining table during the thunderstorm.,beneath | underneath | below
+554,with,preposition,A1,Accompanied by another person or thing; possessing or having.,She arrived at the concert with her brother and sister.,along with | together with | alongside
+555,again,adverb,A1,Another time; once more; returning to a previous position.,Could you please pronounce that vocabulary word again slowly?,once more | anew | repeatedly
+556,always,adverb,A1,At all times; on all occasions; without exception.,She always brushes her teeth thoroughly before going to sleep at night.,consistently | invariably | ever
+557,bye,adverb,A1,An informal way of saying goodbye when leaving.,Bye! I will call you after school.,goodbye | see ya
+558,downstairs,adverb,A1,Down the stairs; on or to a lower floor of a building.,Breakfast is served downstairs in the main dining hall every morning.,lower level | ground floor
+559,else,adverb,A1,In addition; besides; different or other.,Does anyone else have a question about the assignment deadline?,besides | in addition | otherwise
+560,far,adverb,A1,"At, to, or by a great distance in space or time.","The mountain peak was far in the distance, veiled in blue mist.",distant | remote | faraway
+561,good afternoon,adverb,A1,A polite greeting used between midday and sunset.,"Good afternoon, welcome to our city library.",afternoon greeting
+562,good evening,adverb,A1,A polite greeting used when meeting someone in the evening.,"Good evening everyone, thank you for coming to dinner.",evening greeting
+563,good morning,adverb,A1,A polite greeting used in the morning hours before noon.,"Good morning class, please take your seats.",morning greetings
+564,good night,adverb,A1,An expression of good wishes said before sleep or late departure.,He kissed his son and wished him good night.,sleep well | sweet dreams
+565,goodbye,adverb,A1,Used to express good wishes when parting or ending a conversation.,She smiled and said goodbye before boarding the train.,bye | farewell | see you
+566,hello,adverb,A1,Used as a greeting or to begin a phone conversation.,Hello! It is wonderful to meet you today.,hi | greetings | welcome
+567,here,adverb,A1,"In, at, or to this place or position.",Please sit down here beside the window and enjoy your tea.,in this place | hither
+568,hi,adverb,A1,An informal greeting used when seeing someone.,"Hi Sarah, how are you doing this morning?",hello | hey
+569,how,adverb,A1,In what way or manner; by what means.,How do you calculate the correct area of this geometric rectangle?,in what manner | by what means
+570,left,adverb,A1,On or toward the side of the human body corresponding to the west when facing north.,The municipal library is situated on the left side of the street.,counter-clockwise | left-hand
+571,never,adverb,A1,At no time in the past or future; not ever.,Honest individuals never deliberately deceive or harm their friends.,not ever | at no time
+572,no,adverb,A1,"Used to express disagreement, refusal, or negation.","No, we do not have homework due today.",nope | negative
+573,now,adverb,A1,At the present time or moment; immediately.,We are studying advanced English vocabulary right now in our classroom.,currently | presently | at present
+574,o'clock,adverb,A1,Used after a number from one to twelve to specify the hour of the day.,The train departs promptly at eight o'clock every weekday morning.,of the clock
+575,of course,adverb,A1,Certainly; naturally; as an expected outcome or courteous affirmation.,Of course you may borrow my reference book for your research assignment.,certainly | naturally | definitely | surely
+576,often,adverb,A1,Frequently; many times at short intervals.,"During summer vacation, we often ride our bicycles along the riverbank.",frequently | repeatedly | regularly
+577,ok,adverb,A1,"Used to show agreement, approval, or acceptance.","OK, let us meet outside the museum at noon.",all right | fine | agreed
+578,outside,adverb,A1,"Not inside; situated, occurring, or located outdoors.",The children put on their warm jackets and went outside to play.,outdoors | in the open air
+579,please,adverb,A1,Used as a polite word when asking for something or making a request.,Could you please pass the water pitcher?,kindly | if you please
+580,really,adverb,A1,In actual fact; genuinely; truly; to a great degree.,She was really delighted to meet her childhood friend at the reunion.,truly | genuinely | actually | indeed
+581,sometimes,adverb,A1,"At certain times, though not continually or typically; occasionally.",Sometimes I enjoy taking a quiet walk alone in the evening.,occasionally | now and then | at times
+582,soon,adverb,A1,In or after a short time; without delay.,"The rain storm will pass soon, and the sun will shine brightly.",shortly | before long | promptly
+583,sorry,adverb,A1,"Used to apologize, express regret, or show sympathy.",I am sorry for stepping on your foot.,apologies | pardon me | excuse me
+584,thank you,adverb,A1,A polite expression of gratitude or appreciation.,Thank you very much for your kind assistance.,thanks | much obliged | grateful
+585,thanks,adverb,A1,An informal expression of gratitude.,Thanks a lot for helping me carry these books.,thank you | cheers
+586,there,adverb,A1,"In, at, or to that place or position.",The public library is located over there across the municipal square.,in that place | yonder
+587,too,adverb,A1,"To a higher degree than is desirable, permissible, or possible; in addition; also.",This winter overcoat is too expensive for my student budget.,also | excessively | overly | as well
+588,upstairs,adverb,A1,On or to an upper floor of a building.,The children ran happily upstairs to play with their toys in the playroom.,upper level | higher floor
+589,usually,adverb,A1,Under normal conditions; generally; as a rule.,He usually drinks a cup of black coffee before walking to school.,typically | ordinarily | generally | normally
+590,welcome,adverb,A1,Used to greet someone upon arrival or acknowledge thanks.,Welcome to our home; please make yourself comfortable.,greetings | hospitality
+591,when,adverb,A1,At what time; interrogative adverb.,When does the morning train depart from the central railway terminal?,at what time
+592,where,adverb,A1,In or to what place or position; interrogative adverb.,Where did you leave your apartment keys before going to work?,at what place | whither
+593,why,adverb,A1,For what reason or purpose; interrogative adverb.,Why did you choose to study agricultural engineering at college?,wherefore | for what reason
+594,yes,adverb,A1,"Used to express affirmation, agreement, or confirmation.","Yes, I would like to join the study group.",yeah | aye | affirmative
