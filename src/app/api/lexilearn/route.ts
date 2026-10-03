@@ -617,8 +617,22 @@ export async function GET(req: NextRequest) {
       }
 
       case 'settings': {
-        const sStats = await getStats(['ttsVoice', 'ttsRate', 'dailyGoal', 'theme', 'autoSpeak', 'studyText'])
+        const sStats = await getStats([
+          'ttsVoice', 'ttsRate', 'dailyGoal', 'theme', 'autoSpeak', 'studyText',
+          'aiProvider', 'openRouterApiKey', 'openRouterModel',
+          'geminiApiKey', 'geminiModel', 'ollamaBaseUrl', 'ollamaModel',
+        ])
         const studyText = sStats.get('studyText')
+        const env = process.env
+        const rawOrKey = sStats.get('openRouterApiKey') || env.OPENROUTER_API_KEY || ''
+        const rawGeminiKey = sStats.get('geminiApiKey') || env.GEMINI_API_KEY || ''
+
+        const maskKey = (key: string) => {
+          if (!key) return ''
+          if (key.length <= 8) return '••••••••'
+          return `${key.slice(0, 4)}...${key.slice(-4)}`
+        }
+
         return NextResponse.json({
           ttsVoice: sStats.get('ttsVoice') ?? '',
           ttsRate: parseFloat(sStats.get('ttsRate') ?? '1') || 1,
@@ -626,6 +640,15 @@ export async function GET(req: NextRequest) {
           theme: sStats.get('theme') ?? 'system',
           autoSpeak: (sStats.get('autoSpeak') ?? 'false') === 'true',
           studyText: studyText === 'large' || studyText === 'largest' ? studyText : 'comfortable',
+          aiProvider: (sStats.get('aiProvider') || env.AI_PROVIDER || 'auto'),
+          openRouterApiKey: maskKey(rawOrKey),
+          hasOpenRouterKey: rawOrKey.length > 0,
+          openRouterModel: sStats.get('openRouterModel') || env.OPENROUTER_MODEL || 'google/gemini-2.5-flash',
+          geminiApiKey: maskKey(rawGeminiKey),
+          hasGeminiKey: rawGeminiKey.length > 0,
+          geminiModel: sStats.get('geminiModel') || env.GEMINI_MODEL || 'gemini-2.5-flash',
+          ollamaBaseUrl: sStats.get('ollamaBaseUrl') || env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
+          ollamaModel: sStats.get('ollamaModel') || env.OLLAMA_MODEL || 'qwen3:8b',
         }, { headers: { 'Cache-Control': 'private, max-age=60' } })
       }
 
@@ -729,6 +752,13 @@ const SettingsPatch = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
   autoSpeak: z.boolean().optional(),
   studyText: z.enum(['comfortable', 'large', 'largest']).optional(),
+  aiProvider: z.enum(['auto', 'ollama', 'openrouter', 'gemini']).optional(),
+  openRouterApiKey: z.string().max(500).optional(),
+  openRouterModel: z.string().max(100).optional(),
+  geminiApiKey: z.string().max(500).optional(),
+  geminiModel: z.string().max(100).optional(),
+  ollamaBaseUrl: z.string().max(500).optional(),
+  ollamaModel: z.string().max(100).optional(),
 })
 
 // Bulk-import shapes. `words` is capped so one request cannot pin the local
@@ -1129,7 +1159,42 @@ export async function POST(req: NextRequest) {
         if (patch.theme !== undefined) await setStat('theme', patch.theme)
         if (patch.autoSpeak !== undefined) await setStat('autoSpeak', String(patch.autoSpeak))
         if (patch.studyText !== undefined) await setStat('studyText', patch.studyText)
+        if (patch.aiProvider !== undefined) await setStat('aiProvider', patch.aiProvider)
+        if (patch.openRouterApiKey !== undefined && !patch.openRouterApiKey.includes('...')) {
+          await setStat('openRouterApiKey', patch.openRouterApiKey.trim())
+        }
+        if (patch.openRouterModel !== undefined) await setStat('openRouterModel', patch.openRouterModel.trim())
+        if (patch.geminiApiKey !== undefined && !patch.geminiApiKey.includes('...')) {
+          await setStat('geminiApiKey', patch.geminiApiKey.trim())
+        }
+        if (patch.geminiModel !== undefined) await setStat('geminiModel', patch.geminiModel.trim())
+        if (patch.ollamaBaseUrl !== undefined) await setStat('ollamaBaseUrl', patch.ollamaBaseUrl.trim())
+        if (patch.ollamaModel !== undefined) await setStat('ollamaModel', patch.ollamaModel.trim())
         return NextResponse.json({ ok: true })
+      }
+
+      case 'testAiConnection': {
+        const TestAiSchema = z.object({
+          provider: z.enum(['ollama', 'openrouter', 'gemini']),
+          apiKey: z.string().optional(),
+          model: z.string().optional(),
+          baseUrl: z.string().optional(),
+        })
+        const parsed = TestAiSchema.safeParse(body)
+        if (!parsed.success) return NextResponse.json({ ok: false, message: 'Invalid test payload' }, { status: 400 })
+        const { testAiConnection, getAiConfig } = await import('@/features/coach/server/ai-provider')
+        let apiKey = parsed.data.apiKey
+        if (!apiKey || apiKey.includes('...')) {
+          const cfg = await getAiConfig()
+          apiKey = parsed.data.provider === 'openrouter' ? cfg.openRouterApiKey : cfg.geminiApiKey
+        }
+        const result = await testAiConnection({
+          provider: parsed.data.provider,
+          apiKey,
+          model: parsed.data.model,
+          baseUrl: parsed.data.baseUrl,
+        })
+        return NextResponse.json(result)
       }
 
       case 'addWord': {

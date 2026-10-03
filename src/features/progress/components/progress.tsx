@@ -39,6 +39,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { isTypingTarget } from '@/hooks/use-shortcuts'
 import { listItem, stagger, useMotionSafe } from '@/lib/motion'
+import { AiProviderSettingsForm } from '@/features/coach/components/ai-provider-settings'
 
 const GRADE_LABELS: Record<number, string> = { 0: 'Again', 3: 'Hard', 4: 'Good', 5: 'Easy' }
 
@@ -596,6 +597,16 @@ function SettingsPanel() {
           </Button>
 
           <TtsDiagnostics voiceCount={voices.length} voices={voices} />
+        </div>
+      </div>
+
+      <div className="surface p-5">
+        <SectionHeader
+          title="AI Mentor Engine"
+          description="Choose your AI engine: OpenRouter (Claude, GPT-4o, Llama 3, DeepSeek), Google Gemini (Gemini 2.5 Flash), or local Ollama."
+        />
+        <div className="mt-4">
+          <AiProviderSettingsForm />
         </div>
       </div>
 

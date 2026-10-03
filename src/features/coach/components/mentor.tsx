@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowRight, Check, ChevronRight, GitBranch, History, Lightbulb,
+  ArrowRight, Check, ChevronRight, Cpu, GitBranch, History, Lightbulb,
   Loader2, Map, MessageCircle, RotateCcw, Send, Sparkles,
   Target, Trophy, Volume2,
 } from 'lucide-react'
@@ -26,6 +26,7 @@ import { isMac } from '@/features/coach/lib/keys'
 import { speak } from '@/lib/tts'
 import { api } from '@/lib/api'
 import { isTypingTarget } from '@/hooks/use-shortcuts'
+import { AiProviderModal } from './ai-provider-settings'
 
 type Branch = { id:string; title:string; focusTag:string; mode:string; difficultyCeiling:number; locked:boolean; createdAt:string }
 type Node = { id:string; branchId:string; kind:string; prompt:string; expectedPatterns:string; hints:string; targetTags:string; difficulty:number }
@@ -97,7 +98,8 @@ function MasteryRing({ value }: { value:number }) {
 
 export function MentorView() {
   const [overview, setOverview] = useState<Overview | null>(null)
-  const [ollamaStatus, setOllamaStatus] = useState<{ available: boolean; models: string[]; error?: string } | null>(null)
+  const [ollamaStatus, setOllamaStatus] = useState<{ available: boolean; provider?: string; model?: string; models: string[]; error?: string } | null>(null)
+  const [aiModalOpen, setAiModalOpen] = useState(false)
   const [branchId, setBranchId] = useState('')
   const [node, setNode] = useState<Node | null>(null)
   const [answer, setAnswer] = useState('')
@@ -333,18 +335,33 @@ export function MentorView() {
         actions={
           <div className="flex items-center gap-2">
             {ollamaStatus ? (
-              ollamaStatus.available ? (
-                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Local AI ({ollamaStatus.models[0] || 'qwen3:8b'})
-                </span>
-              ) : (
-                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground" title="Smart pedagogic heuristics (100% offline).">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  Smart Heuristics (Offline)
-                </span>
-              )
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                title="Configure AI Mentor engine (OpenRouter, Gemini, Ollama)"
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer hover:opacity-85",
+                  ollamaStatus.available
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "border-border bg-muted/60 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", ollamaStatus.available ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
+                {ollamaStatus.available ? (
+                  ollamaStatus.provider === 'openrouter' ? `OpenRouter (${ollamaStatus.model?.split('/').pop() || 'model'})`
+                  : ollamaStatus.provider === 'gemini' ? `Gemini (${ollamaStatus.model || 'flash'})`
+                  : `Local AI (${ollamaStatus.models[0] || 'qwen3:8b'})`
+                ) : (
+                  'Smart Heuristics (Offline)'
+                )}
+                <Cpu className="h-3 w-3 ml-0.5 opacity-60" />
+              </button>
             ) : null}
+            <AiProviderModal
+              open={aiModalOpen}
+              onOpenChange={setAiModalOpen}
+              onSaved={() => api.getOllamaStatus().then(setOllamaStatus).catch(() => {})}
+            />
             <Popover open={memoryOpen} onOpenChange={setMemoryOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="What the Mentor remembers" className="h-8 w-8 relative cursor-pointer">

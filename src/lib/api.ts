@@ -192,6 +192,15 @@ export type Settings = {
   theme: string
   autoSpeak: boolean
   studyText: StudyTextScale
+  aiProvider?: 'auto' | 'ollama' | 'openrouter' | 'gemini'
+  openRouterApiKey?: string
+  hasOpenRouterKey?: boolean
+  openRouterModel?: string
+  geminiApiKey?: string
+  hasGeminiKey?: boolean
+  geminiModel?: string
+  ollamaBaseUrl?: string
+  ollamaModel?: string
 }
 
 export type DeckSummary = {
@@ -334,5 +343,11 @@ export const api = {
     return r
   }),
   indexMentorKnowledge: () => postJSON<{ ok: boolean; indexed: number; total: number }>('mentorIndexKnowledge', {}),
-  getOllamaStatus: () => getJSON<{ available: boolean; models: string[]; error?: string }>('ollamaStatus'),
+  getOllamaStatus: () => getJSON<{ available: boolean; provider?: 'ollama' | 'openrouter' | 'gemini' | 'none'; model?: string; models: string[]; error?: string }>('ollamaStatus'),
+  testAiConnection: (params: {
+    provider: 'ollama' | 'openrouter' | 'gemini'
+    apiKey?: string
+    model?: string
+    baseUrl?: string
+  }) => postJSON<{ ok: boolean; message: string; model?: string }>('testAiConnection', params),
 }

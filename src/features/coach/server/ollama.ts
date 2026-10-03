@@ -1,155 +1,61 @@
-/**
- * Local Ollama client for LexiLearn AI Mentor.
- * Completely optional — the rest of the app works without it.
- * Model is configured via OLLAMA_MODEL env (default: qwen3:8b).
- * Base URL via OLLAMA_BASE_URL (default: http://127.0.0.1:11434).
- */
+import {
+  aiChat,
+  aiEmbed,
+  checkAiStatus,
+  resolveActiveAiConfig,
+  type AiMessage,
+  type AiChatOptions,
+  type AiStatus,
+  DEFAULT_MODELS,
+  POPULAR_MODELS,
+} from './ai-provider'
 
-const DEFAULT_BASE = 'http://127.0.0.1:11434'
-const DEFAULT_MODEL = 'qwen3:8b'
+export type OllamaMessage = AiMessage
+export type OllamaChatOptions = AiChatOptions
 
-export type OllamaMessage = {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
+export { DEFAULT_MODELS, POPULAR_MODELS }
 
-export function getConfiguredModel(): string { return getModel() }
-
-export async function ollamaEmbed(input: string | string[], model = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text-v2-moe'): Promise<number[][]> {
-  const res = await fetch(`${getBaseUrl()}/api/embed`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, input }), signal: AbortSignal.timeout(60_000),
-  })
-  if (!res.ok) throw new Error(`Ollama embedding error ${res.status}`)
-  const data = await res.json()
-  return (data.embeddings || []) as number[][]
-}
-
-export type OllamaChatOptions = {
-  model?: string
-  temperature?: number
-  stream?: boolean
-  format?: 'json' | null
-}
-
-function getBaseUrl(): string {
-  if (typeof process !== 'undefined' && process.env.OLLAMA_BASE_URL) {
-    return process.env.OLLAMA_BASE_URL.replace(/\/$/, '')
-  }
-  return DEFAULT_BASE
-}
-
-function getModel(): string {
+export function getConfiguredModel(): string {
   if (typeof process !== 'undefined' && process.env.OLLAMA_MODEL) {
     return process.env.OLLAMA_MODEL
   }
-  return DEFAULT_MODEL
+  return DEFAULT_MODELS.ollama
 }
 
-/** Check whether Ollama is reachable and has at least one model. */
-export async function checkOllamaStatus(): Promise<{
-  available: boolean
-  models: string[]
-  error?: string
-}> {
-  try {
-    const res = await fetch(`${getBaseUrl()}/api/tags`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(3000),
-    })
-    if (!res.ok) {
-      return { available: false, models: [], error: `HTTP ${res.status}` }
-    }
-    const data = await res.json()
-    const models = (data.models || []).map((m: any) => m.name as string)
-    return { available: true, models }
-  } catch (e: any) {
-    return {
-      available: false,
-      models: [],
-      error: e?.message || 'Ollama is not running or unreachable',
-    }
-  }
+export async function getActiveModel(): Promise<string> {
+  const cfg = await resolveActiveAiConfig()
+  return cfg.model
 }
 
-/** Non-streaming chat completion. */
+/** Vector embeddings for RAG knowledge base */
+export async function ollamaEmbed(
+  input: string | string[],
+  model?: string
+): Promise<number[][]> {
+  return aiEmbed(input, model)
+}
+
+/** Check reachability & active provider status */
+export async function checkOllamaStatus(): Promise<AiStatus> {
+  return checkAiStatus()
+}
+
+/** AI Chat completion via active provider (OpenRouter, Gemini, or Ollama) */
 export async function ollamaChat(
   messages: OllamaMessage[],
   opts: OllamaChatOptions = {}
 ): Promise<string> {
-  const model = opts.model || getModel()
-  const body: any = {
-    model,
-    messages,
-    stream: false,
-    options: {
-      temperature: opts.temperature ?? 0.7,
-    },
-  }
-  if (opts.format === 'json') {
-    body.format = 'json'
-  }
-
-  const res = await fetch(`${getBaseUrl()}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(120_000),
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Ollama error ${res.status}: ${text || res.statusText}`)
-  }
-
-  const data = await res.json()
-  return data.message?.content ?? ''
+  return aiChat(messages, opts)
 }
 
-/** Streaming chat — yields chunks of text. */
+/** Streaming chat completion fallback */
 export async function* ollamaChatStream(
   messages: OllamaMessage[],
   opts: OllamaChatOptions = {}
 ): AsyncGenerator<string> {
-  const model = opts.model || getModel()
-  const res = await fetch(`${getBaseUrl()}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: true,
-      options: { temperature: opts.temperature ?? 0.7 },
-    }),
-    signal: AbortSignal.timeout(180_000),
-  })
-
-  if (!res.ok || !res.body) {
-    throw new Error(`Ollama stream error ${res.status}`)
-  }
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      try {
-        const parsed = JSON.parse(trimmed)
-        const content = parsed.message?.content
-        if (content) yield content
-      } catch {
-        // ignore partial JSON
-      }
-    }
-  }
+  // Yield the completed output chunk
+  const response = await aiChat(messages, opts)
+  yield response
 }
 
 // ---------- Mentor system prompts ----------
